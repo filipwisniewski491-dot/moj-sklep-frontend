@@ -10,13 +10,13 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
   const params = await props.params;
   const product = await getProductData(params.id);
   
-  // Zakładam, że Twoje API zwraca tablicę zdjęć (images) lub pojedyncze (image)
-  const imageUrl = product?.images?.[0] || product?.image || '';
+  // Naprawiono: korzystamy TYLKO z tablicy images, która istnieje w typie danych
+  const imageUrl = product?.images?.[0] || '';
 
   return {
     title: product?.name ? `${product.name} - CentrumRolnictwa.pl` : "Produkt - CentrumRolnictwa.pl",
     other: imageUrl ? {
-      'link': `rel="preload" as="image" href="${imageUrl}"`
+      'link': `rel="preload" as="image" href="${imageUrl}" imageSizes="(max-width: 768px) 100vw, 50vw"`
     } : {}
   };
 }
@@ -24,7 +24,7 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 export default async function ProductPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   
-  // ZAMIENIAMY głuche telefony na bezpośredni strzał do bazy!
+  // Pobieramy produkt z bazy
   const product = await getProductData(params.id);
 
   if (!product) {
@@ -39,7 +39,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     );
   }
 
-  // Obliczamy URL na serwerze – to jest klucz do sukcesu!
+  // Obliczamy URL na serwerze
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://centrumrolnictwa.pl";
   const fullUrl = `${baseUrl}/produkt/${params.id}`;
 
