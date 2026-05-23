@@ -58,7 +58,7 @@ export async function GET(request: Request) {
   const storeHash = process.env.BIGCOMMERCE_STORE_HASH;
   const bcToken = process.env.BIGCOMMERCE_ACCESS_TOKEN;
   const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
-  const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN || "0ebf60ed67ac356c914f79c119ffeeec80dd776e8619895f964e2d7776774f0884b13be7b70b0a4b499b0aed8975d48bf03851b18bd2529654ff7413ef4ec684b3642917f54d768dbfb5f5773fc70c4c3eb83e2922fcaccf35e76d0294324a30203019f581c8b30fe978a95f0ca8b11d22aa124d119b314e3d727d8abb90777d";
+  const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN || "69c5b0f17b4011cb33911548db2286647d4965600d6ad47f07eeaeaf09ce6606da1c0fc4d78874e6d5565777a1b22027314514f3e32548b2266857e6c27fade37f1b3ea8f7bdd5027abef42abb5d29de4c9edcd5cae94e31b189347e0a99a56dae0b10cbabaef37cc6503fb143e3d269bb539acc3bbdd28e473e9ce9162a6e63";
 
   const getAttr = (obj: any, key: string) => {
       if (!obj) return null;
