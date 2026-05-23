@@ -260,13 +260,13 @@ const scriptContent = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
             </button>
 
            <div className="mt-6 bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-5 shadow-sm relative overflow-hidden group">
-  <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
+  <div className="relative w-16 h-11 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
     <Image 
-      src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=150&auto=format&fit=crop" 
+      src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop" 
       alt="Doradca Maciek" 
       width={64} 
       height={64} 
-      className="object-cover" 
+      className="object-cover object-top" 
     />
   </div>
   <div className="flex-1">
@@ -275,7 +275,9 @@ const scriptContent = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
     <a href="tel:+48500600700" className="inline-flex items-center gap-2 font-black text-white bg-green-500 hover:bg-green-600 shadow-md shadow-green-500/20 px-4 py-2 rounded-xl mt-1 text-xs uppercase tracking-widest transition-colors">
       📞 +48 500 600 700
     </a>
-  </div>
+  
+</div>
+  
 </div>
 
             <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
