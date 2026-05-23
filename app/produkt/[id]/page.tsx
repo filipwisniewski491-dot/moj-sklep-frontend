@@ -1,30 +1,24 @@
 import ProductClient from './ProductClient';
 import { getProductData } from '@/lib/api';
 import { Metadata } from 'next';
+import { preload } from 'react-dom';
 
 // Wymuszamy, by Vercel odświeżał tę stronę raz na 24h
 export const revalidate = 86400;
 
-// Funkcja generująca metadata, która wstrzykuje preload zdjęcia do <head>
+// SEO Metadata
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const params = await props.params;
   const product = await getProductData(params.id);
   
-  // Naprawiono: korzystamy TYLKO z tablicy images, która istnieje w typie danych
-  const imageUrl = product?.images?.[0] || '';
-
   return {
     title: product?.name ? `${product.name} - CentrumRolnictwa.pl` : "Produkt - CentrumRolnictwa.pl",
-    other: imageUrl ? {
-      'link': `rel="preload" as="image" href="${imageUrl}" imageSizes="(max-width: 768px) 100vw, 50vw"`
-    } : {}
+    description: product?.description ? product.description.substring(0, 160) : "Największy internetowy katalog części zamiennych.",
   };
 }
 
 export default async function ProductPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  
-  // Pobieramy produkt z bazy
   const product = await getProductData(params.id);
 
   if (!product) {
@@ -37,6 +31,12 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
         </div>
       </div>
     );
+  }
+
+  // 🚀 OPTYMALIZACJA LCP: Preload zdjęcia bezpośrednio w serwerze, zanim wyślemy HTML do klienta
+  const imageUrl = product.images?.[0];
+  if (imageUrl) {
+    preload(imageUrl, { as: 'image', imageSizes: '(max-width: 768px) 100vw, 50vw' });
   }
 
   // Obliczamy URL na serwerze
