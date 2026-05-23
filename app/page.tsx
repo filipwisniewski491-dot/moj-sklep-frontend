@@ -1,388 +1,494 @@
 'use client';
-
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; 
-import { useCart } from '@/store/useCart';
-import { useParams, useRouter } from 'next/navigation';
+import SearchBar from '@/components/SearchBar';
+import VehicleGarage from '@/components/VehicleGarage';
+import KnowledgeSection from '@/components/KnowledgeSection';
 
-const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
-  if (!src.includes('b-cdn.net')) return src;
-  const cleanSrc = src.split('?')[0]; 
-  return `${cleanSrc}?width=${width}&format=webp`;
-};
-
+// Pomocnicza funkcja do czyszczenia linków (taka sama jak na podstronach)
 const generateSlug = (text: string) => {
   if (!text) return '';
   return text.toLowerCase()
-    .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
-    .replace(/ł/g, 'l').replace(/ń/g, 'n').replace(/ó/g, 'o')
-    .replace(/ś/g, 's').replace(/ź/g, 'z').replace(/ż/g, 'z')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
+    .replace(/[ą]/g, 'a').replace(/[ć]/g, 'c').replace(/[ę]/g, 'e')
+    .replace(/[ł]/g, 'l').replace(/[ń]/g, 'n').replace(/[ó]/g, 'o')
+    .replace(/[ś]/g, 's').replace(/[źż]/g, 'z')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
+    .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
 };
 
-export default function ProductPage() {
-  const params = useParams();
-  const id = params.id as string;
-  
-  const [product, setProduct] = useState<any>(null);
+// 🚜 STRUKTURA MEGA MENU (Zoptymalizowana pod SEO i szybki UX)
+const MEGA_MENU_DATA = [
+  { 
+    name: "Części do ciągników", slug: "czesci-do-ciagnikow", icon: "🚜",
+    columns: [
+      {
+        title: "Silnik i osprzęt", slug: "silnik-i-osprzet",
+        links: ["Węże", "Prowadnice", "Uszczelki", "Śruby i mocowania", "Zawory", "Tłoki"]
+      },
+      {
+        title: "Układ napędowy", slug: "uklad-napedowy-i-sprzegla",
+        links: ["Kołki", "Kosze", "Krzyżaki", "Mechanizmy różnicowe", "Tarcze sprzęgła"]
+      },
+      {
+        title: "Układ paliwowy", slug: "uklad-paliwowy-i-wydechowy",
+        links: ["Pompy wtryskowe", "Wtryskiwacze", "Tłumiki", "Filtry paliwa"]
+      },
+      {
+        title: "Kabina i elektryka", slug: "kabina-i-oblachowanie", // Uproszczenie dla UX
+        links: ["Lusterka", "Szyby", "Fotele", "Oświetlenie", "Rozruszniki"]
+      }
+    ]
+  },
+  { 
+    name: "Części do maszyn", slug: "czesci-do-maszyn", icon: "⚙️",
+    columns: [
+      {
+        title: "Uprawa ziemi", slug: "uprawa-ziemi",
+        links: ["Lemiesze", "Dłuta", "Odkładnice", "Piętki"]
+      },
+      {
+        title: "Zbiór i żniwa", slug: "zbior-i-zniwa",
+        links: ["Bagnety", "Nożyki", "Paski klinowe", "Palce podbieracza"]
+      }
+    ]
+  },
+  { 
+    name: "Hydraulika siłowa", slug: "hydraulika", icon: "🗜️",
+    columns: [
+      {
+        title: "Elementy układu", slug: "elementy-ukladu",
+        links: ["Pompy hydrauliczne", "Rozdzielacze", "Siłowniki", "Szybkozłącza"]
+      }
+    ]
+  }, 
+  { name: "Łożyska i uszczelniacze", slug: "lozyska", icon: "⭕" },
+  { name: "Filtry i oleje", slug: "filtry-oleju-i-paliwa", icon: "🛢️" },
+  { name: "Warsztat i BHP", slug: "warsztat", icon: "🔧" }
+];
+
+export default function Home() {
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedImgIdx, setSelectedImgIdx] = useState(0); 
-  const [showSticky, setShowSticky] = useState(false);
-  const [countdownText, setCountdownText] = useState('');
-  const [cartCount, setCartCount] = useState(0);
-
-  const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
-  const { addItem, setIsOpen, items } = useCart() as any;
+  
+  // Mechanizmy CRO (Conversion Rate Optimization)
+  const [isNetto, setIsNetto] = useState(false); 
+  const [cartValue, setCartValue] = useState(120); 
+  const freeShippingThreshold = 500; 
+  
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [liveSale, setLiveSale] = useState<{text: string, id: number} | null>(null);
 
   useEffect(() => {
-    if (items) {
-      const total = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-      setCartCount(total);
+    async function fetchHomeData() {
+      try {
+        const res = await fetch('/api/search?q=popular'); 
+        const json = await res.json();
+        setProducts(json.data && json.data.length > 0 ? json.data : []);
+      } catch (error) {
+        console.error("Błąd ładowania produktów", error);
+      } finally {
+        setTimeout(() => setLoading(false), 800);
+      }
     }
-  }, [items]);
+    fetchHomeData();
 
-  useEffect(() => {
+    // FOMO Timer
     const calculateTimeLeft = () => {
       const now = new Date();
-      const target = new Date();
-      target.setHours(14, 0, 0, 0);
-      if (now.getHours() >= 14) target.setDate(target.getDate() + 1);
-
-      const diff = target.getTime() - now.getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-      if (now.getHours() < 14) {
-        setCountdownText(`Zamów w ciągu ${hours} godz. ${minutes} min, a wyślemy JESZCZE DZISIAJ!`);
-      } else {
-        setCountdownText(`Wysyłka JUTRO RANO. Do kolejnego odlotu kuriera: ${hours} godz. ${minutes} min`);
-      }
+      const cutoff = new Date();
+      cutoff.setHours(14, 0, 0, 0); 
+      if (now > cutoff) cutoff.setDate(cutoff.getDate() + 1);
+      const difference = cutoff.getTime() - now.getTime();
+      setTimeLeft({
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((difference / 1000 / 60) % 60),
+        seconds: Math.floor((difference / 1000) % 60),
+      });
     };
     calculateTimeLeft();
-    const interval = setInterval(calculateTimeLeft, 60000);
-    return () => clearInterval(interval);
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    // Social Proof Engine
+    const sales = [
+      "Jan (woj. lubelskie) kupił: Pompa wody Ursus C-360",
+      "Gospodarstwo (Wielkopolska) kupiło: Komplet filtrów",
+      "Ktoś z Mazowsza kupił: Olej hydrauliczny HL46 20L",
+      "Michał (Podlasie) kupił: Wałek przekaźnika mocy WOM"
+    ];
+    
+    let saleId = 0;
+    const saleTimer = setInterval(() => {
+      if(Math.random() > 0.4) {
+        setLiveSale({ text: sales[Math.floor(Math.random() * sales.length)], id: ++saleId });
+        setTimeout(() => setLiveSale(null), 6000);
+      }
+    }, 18000); 
+
+    return () => { clearInterval(timer); clearInterval(saleTimer); };
   }, []);
 
-  useEffect(() => {
-    async function fetchProduct() {
-      try {
-        const res = await fetch(`/api/search?id=${id}`); 
-        const json = await res.json();
-        setProduct(json.data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (id) fetchProduct();
-  }, [id]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (mainBuyButtonRef.current) {
-        const rect = mainBuyButtonRef.current.getBoundingClientRect();
-        setShowSticky(rect.bottom < 0);
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [product]);
-
-  if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
-      <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-      <p className="text-xs font-black uppercase tracking-widest text-slate-400">Ładowanie...</p>
-    </div>
-  );
-
-  if (!product) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-center py-20 font-black text-2xl uppercase text-slate-800">PRODUKT NIE ISTNIEJE</div>
-    </div>
-  );
-
-  let cdnImages: string[] = [];
-  if (product.external_images) {
-    if (Array.isArray(product.external_images)) cdnImages = product.external_images;
-    else if (typeof product.external_images === 'string') {
-      try { cdnImages = JSON.parse(product.external_images); } catch (e) {}
-    }
-  }
-
-  const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
-  const displayImages = cdnImages.length > 0 ? cdnImages : fallbackImages;
-  const mainImageUrl = displayImages[selectedImgIdx] || null;
-
-  const seoDescription = product.seo_description || product.description || '';
-  const symptoms = product.symptoms;
-  const expertAdvice = product.expert_advice;
-  let faq = typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [];
-  let attributes = typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {};
-
-  // Zawsze używamy czystej ścieżki SEO
-  let breadcrumbPath: string[] = [];
-  if (product.category_text) {
-    breadcrumbPath = product.category_text.split('>').map((s: string) => s.trim()).filter(Boolean);
-  } else {
-    breadcrumbPath = ["Kategoria"];
-  }
-
-  const handleAddToCartMain = () => {
-    addItem({ 
-      id: product.id, 
-      name: product.name, 
-      price: product.price, 
-      image: mainImageUrl || '', 
-      quantity: 1,
-      crossSell: product.crossSell || [], 
-      category: product.category || '' 
-    });
-    setIsOpen(true); 
+  const getDisplayPrice = (priceBrutto: number) => {
+    return isNetto ? (priceBrutto / 1.23).toFixed(2) : priceBrutto.toFixed(2);
   };
 
-  const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
-  const [mainPrice, centsPrice] = numPrice.toFixed(2).split('.');
-  const hasCents = centsPrice !== '00';
+  const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
 
   const jsonLd = {
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    "name": product.name,
-    "image": displayImages,
-    "description": seoDescription.replace(/<[^>]*>?/gm, '') || product.name,
-    "sku": product.sku,
-    "offers": {
-      "@type": "Offer",
-      "url": typeof window !== 'undefined' ? window.location.href : '',
-      "priceCurrency": "PLN",
-      "price": numPrice.toFixed(2),
-      "availability": "https://schema.org/InStock",
-      "itemCondition": "https://schema.org/NewCondition"
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "CentrumRolnictwa",
+    "url": "https://centrumrolnictwa.pl",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://centrumrolnictwa.pl/szukaj?q={search_term_string}",
+      "query-input": "required name=search_term_string"
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 relative">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      
-      <header className="border-b py-4 px-6 bg-white sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center w-full">
-          <Link href="/" className="text-red-600 font-black flex items-center gap-2 hover:translate-x-[-4px] transition-transform uppercase text-[10px] tracking-widest">
-            ← WRÓĆ DO SKLEPU
-          </Link>
-          <div className="font-black text-xl tracking-tighter">CentrumRolnictwa<span className="text-slate-400">.pl</span></div>
-          
-          <button onClick={() => setIsOpen(true)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors relative">
-             <span className="text-xl">🛒</span>
-             {cartCount > 0 && (
-               <span className="absolute -top-1 -right-1 bg-red-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-pulse shadow-md shadow-red-600/30">
-                 {cartCount}
-               </span>
-             )}
-          </button>
+
+      {/* --- POWIADOMIENIE LIVE --- */}
+      <div className={`fixed bottom-24 md:bottom-8 left-4 bg-[#1A1A1A] text-white p-4 rounded-2xl shadow-2xl z-[100] border-l-4 border-[#FFD700] transition-all duration-500 ease-out transform ${liveSale ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          <p className="text-[10px] uppercase tracking-widest text-slate-400">Na żywo ze sklepu</p>
         </div>
-      </header>
+        <p className="text-xs font-bold pr-4">{liveSale?.text}</p>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
-        
-        {/* BEZBŁĘDNE OKRUSZKI SEO */}
-        <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 gap-2" aria-label="Breadcrumb">
-          <Link href="/" className="hover:text-red-600 transition-colors">Start</Link>
-          {breadcrumbPath.map((cat, idx) => {
-            const pathSlugs = breadcrumbPath.slice(0, idx + 1).map(c => generateSlug(c));
-            // To na 100% zbuduje adres bez znaku zapytania, np: /kategoria/uprawa-ziemi/piasty
-            const href = `/kategoria/${pathSlugs.join('/')}`;
-            
-            return (
-              <React.Fragment key={idx}>
-                <span className="text-slate-300">/</span>
-                <Link href={href} className="hover:text-red-600 transition-colors">{cat}</Link>
-              </React.Fragment>
-            );
-          })}
-          <span className="hidden md:inline text-slate-300">/</span>
-          <span className="hidden md:inline text-slate-900 truncate max-w-xs">{product.name}</span>
-        </nav>
-
-        <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          
-          <div className="flex flex-col gap-4">
-            <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
-               {mainImageUrl ? (
-                 <div className="relative w-full h-full min-h-[300px]">
-                   <Image loader={bunnyLoader} src={mainImageUrl} alt={product.name} fill priority={true} sizes="(max-width: 768px) 100vw, 50vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
-                 </div>
-               ) : ( <div className="font-black text-slate-200 text-xl uppercase tracking-widest text-center">BRAK ZDJĘCIA</div> )}
-            </div>
-            {displayImages.length > 1 && (
-              <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                {displayImages.map((imgUrl: string, idx: number) => (
-                  <button key={idx} onClick={() => setSelectedImgIdx(idx)} className={`relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${selectedImgIdx === idx ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50 hover:bg-slate-100'}`}>
-                    <Image loader={bunnyLoader} src={imgUrl} alt="detal" fill sizes="96px" className="object-contain mix-blend-multiply p-2" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col h-full justify-center">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-slate-100 pb-4">
-              <div className="flex gap-2">
-                <span className="bg-green-100 text-green-700 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest">W Magazynie (24h)</span>
-                <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest">SKU: {product.sku}</span>
-              </div>
-              <div className="flex items-center gap-2 bg-yellow-50 px-3 py-1.5 rounded-full border border-yellow-100">
-                <div className="flex text-yellow-500 text-xs">★★★★★</div>
-                <span className="text-[10px] font-bold text-yellow-700 uppercase tracking-widest">4.8/5.0</span>
-              </div>
-            </div>
-
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-tight mb-6 tracking-tight">{product.name}</h1>
-
-            <div className="bg-red-50 text-red-900 p-5 rounded-2xl mb-8 border-2 border-red-200 flex items-start gap-4 shadow-sm relative overflow-hidden">
-               <div className="text-3xl mt-1">⏱️</div>
-               <div>
-                  <p className="text-xs font-black uppercase tracking-widest mb-1 text-red-600 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
-                    Ekspresowa Realizacja
-                  </p>
-                  <p className="text-sm font-black leading-tight text-slate-800">{countdownText}</p>
-               </div>
-            </div>
-
-            <div className="mb-8">
-               <div className="flex items-baseline gap-1 mb-1">
-                 <span className="text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter">{mainPrice}</span>
-                 {hasCents && <span className="text-3xl font-bold text-slate-400">.{centsPrice}</span>}
-                 <span className="text-2xl font-bold text-slate-400 ml-1">zł</span>
-               </div>
-               <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Cena brutto (VAT 23%)</p>
-            </div>
-
-            <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="w-full bg-red-600 text-white py-6 rounded-2xl font-black text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.01] active:scale-95 shadow-xl shadow-red-600/20 flex items-center justify-center gap-3">
-               <span>DODAJ DO KOSZYKA ➔</span>
-            </button>
-
-            <div className="mt-6 bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-5 shadow-sm relative overflow-hidden group">
-              <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-                <Image src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=150&auto=format&fit=crop" alt="Doradca Maciek" fill className="object-cover" unoptimized />
-              </div>
-              <div className="flex-1">
-                <p className="font-black uppercase text-[10px] text-red-600 tracking-widest mb-0.5">Twój opiekun techniczny</p>
-                <p className="font-bold text-slate-800 text-sm leading-tight mb-1">Chcesz upewnić się, czy część pasuje?</p>
-                <a href="tel:+48500600700" className="inline-flex items-center gap-2 font-black text-white bg-green-500 hover:bg-green-600 shadow-md shadow-green-500/20 px-4 py-2 rounded-xl mt-1 text-xs uppercase tracking-widest transition-colors">
-                  📞 +48 500 600 700
-                </a>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-              <span>🔒 Bezpieczne płatności</span>
-              <span className="text-slate-300">•</span>
-              <span>💳 BLIK / PayU</span>
-              <span className="text-slate-300">•</span>
-              <span>🔄 14 dni na zwrot</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 xl:grid-cols-3 gap-8">
-          <div className="xl:col-span-2 space-y-8">
-            {seoDescription && (
-              <div className="bg-white rounded-[32px] p-8 lg:p-12 shadow-sm border border-slate-100">
-                <h2 className="text-lg font-black mb-8 uppercase tracking-widest border-l-4 border-red-600 pl-4">Opis i specyfikacja</h2>
-                <div className="prose prose-slate prose-base max-w-none text-slate-600 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: seoDescription }} />
-              </div>
-            )}
-
-            {Object.keys(attributes).length > 0 && (
-              <div className="bg-white rounded-[32px] p-8 lg:p-12 shadow-sm border border-slate-100">
-                <h2 className="text-lg font-black mb-6 uppercase tracking-widest border-l-4 border-slate-900 pl-4">Parametry Techniczne</h2>
-                <div className="border border-slate-100 rounded-xl overflow-hidden shadow-inner">
-                  <table className="w-full text-left text-sm border-collapse">
-                    <tbody>
-                      {Object.entries(attributes).map(([key, value], idx) => (
-                        <tr key={key} className={`border-b border-slate-100 last:border-none transition-colors ${idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'}`}>
-                          <td className="p-4 text-slate-400 text-[10px] font-black uppercase tracking-widest w-1/3 border-r border-slate-100/60">{key}</td>
-                          <td className="p-4 font-bold text-slate-900 text-sm">{String(value)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-8">
-            {symptoms && (
-              <div className="bg-[#FFF4ED] rounded-[32px] p-8 border border-orange-100">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-4 flex items-center gap-2"><span>🔎</span> Diagnostyka / Porady</h3>
-                <p className="text-orange-900 font-medium leading-relaxed text-sm">{symptoms}</p>
-              </div>
-            )}
-            {expertAdvice && (
-              <div className="bg-slate-900 rounded-[32px] p-8 shadow-xl">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-4 flex items-center gap-2"><span>💡</span> Okiem Eksperta</h3>
-                <p className="text-slate-300 font-medium leading-relaxed text-sm">{expertAdvice}</p>
-              </div>
-            )}
-            {faq && faq.length > 0 && (
-              <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-900 mb-6 border-l-4 border-red-600 pl-4">Pytania i odpowiedzi</h3>
-                <div className="space-y-4">
-                  {faq.map((item: any, index: number) => (
-                    <div key={index} className="bg-slate-50 p-5 rounded-xl">
-                      <h4 className="font-bold text-slate-900 mb-2 text-xs uppercase tracking-tight">{item.question || item.q}</h4>
-                      <p className="text-xs text-slate-500 font-medium leading-relaxed">{item.answer || item.a}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </main>
-
-      <div className={`fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="hidden md:flex items-center gap-4">
-            {mainImageUrl && (
-              <div className="relative w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden shrink-0">
-                <Image loader={bunnyLoader} src={mainImageUrl} alt={product.name} fill sizes="44px" className="object-contain p-1 mix-blend-multiply" />
-              </div>
-            )}
-            <div>
-              <p className="text-xs font-black text-slate-900 line-clamp-1 max-w-xs tracking-tight">{product.name}</p>
-              <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wider">SKU: {product.sku}</p>
-            </div>
+      {/* --- 1. TOP BAR (Zaufanie i ustawienia) --- */}
+      <div className="bg-[#1A1A1A] text-white py-2 px-4 font-bold relative z-[60] shadow-md border-b border-red-600/30">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-center gap-3">
+          <div className="flex items-center space-x-6 text-[10px] sm:text-xs uppercase tracking-[0.2em]">
+            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-500 transition-colors group">
+              <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
+            </a>
+            <span className="hidden md:flex items-center gap-2 text-slate-300">
+              <span className="text-green-500">✓</span> Bezpieczne zakupy SSL
+            </span>
           </div>
           
-          <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto justify-between md:justify-end">
-            <div className="hidden lg:flex items-center gap-2 border-r pr-6 border-slate-100 text-[11px] text-slate-500 font-bold">
-               📞 Wsparcie: <span className="font-black text-slate-900">+48 500 600 700</span>
-            </div>
-            
-            <div className="text-left md:text-right shrink-0">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Suma:</p>
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter leading-none">{mainPrice}</span>
-                {hasCents && <span className="text-xs font-bold text-slate-400 leading-none">.{centsPrice}</span>}
-                <span className="text-xs font-bold text-slate-400 ml-0.5 leading-none">zł</span>
-              </div>
-            </div>
-            
-            <button onClick={handleAddToCartMain} className="bg-red-600 hover:bg-red-700 text-white font-black text-[11px] uppercase tracking-widest px-6 md:px-8 py-3.5 rounded-xl transition-all shadow-md shrink-0">
-              DODAJ DO KOSZYKA ➔
-            </button>
+          <div className="flex items-center gap-2 bg-red-600/20 px-4 py-1 rounded-full border border-red-600/50 shadow-[0_0_15px_rgba(220,38,38,0.2)]">
+            <span className="text-[10px] uppercase tracking-widest text-red-100 hidden md:inline">Wysyłka dziś. Zamów w:</span>
+            <span className="text-red-500 font-black tabular-nums text-sm tracking-widest">
+              ⏳ {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 bg-black/50 p-1 rounded-full border border-slate-800">
+            <button className={`text-[10px] uppercase tracking-widest px-4 py-1 rounded-full transition-all ${!isNetto ? 'bg-white text-black font-black shadow-sm' : 'text-slate-400 hover:text-white'}`} onClick={() => setIsNetto(false)}>Brutto</button>
+            <button className={`text-[10px] uppercase tracking-widest px-4 py-1 rounded-full transition-all ${isNetto ? 'bg-[#FFD700] text-black font-black shadow-sm' : 'text-slate-400 hover:text-white'}`} onClick={() => setIsNetto(true)}>Netto</button>
           </div>
         </div>
       </div>
+
+      {/* --- 2. HEADER GŁÓWNY (Szukaj, Konto, Koszyk) --- */}
+      <header className="bg-white relative z-50 border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between gap-8">
+          <div className="flex-shrink-0">
+            <Link href="/" aria-label="Strona główna">
+              <img src="/logo-centrumrolnictwapl-2-2.webp" alt="CentrumRolnictwa.pl" className="h-10 md:h-14 w-auto transition-transform hover:scale-105 duration-300" fetchPriority="high" />
+            </Link>
+          </div>
+
+          <div className="flex-1 max-w-3xl hidden lg:block relative z-50">
+            <SearchBar />
+          </div>
+
+          <nav className="flex items-center space-x-6 text-slate-800 hidden md:flex">
+            <div className="hidden xl:block text-right mr-4">
+               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">
+                 Brakuje <span className="text-red-600">{(freeShippingThreshold - cartValue).toFixed(2)} zł</span> do darmowej
+               </p>
+               <div className="w-48 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                 <div className="h-full bg-gradient-to-r from-red-600 to-[#FFD700] transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
+               </div>
+            </div>
+
+            <Link href="/konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group">
+              <div className="p-2.5 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-100">
+                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+              </div>
+              <span className="text-[9px] font-black mt-1.5 uppercase tracking-[0.1em]">Konto</span>
+            </Link>
+            
+            <Link href="/koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
+              <div className="p-2.5 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-100">
+                 <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg border-2 border-white group-hover:animate-bounce">2</div>
+                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              </div>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-[0.1em]">{getDisplayPrice(cartValue)} zł</span>
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      {/* --- 3. MEGA MENU (Zaprojektowane dla e-commerce Agro) --- */}
+      <div className="hidden lg:block bg-white relative z-40 shadow-[0_10px_20px_rgba(0,0,0,0.03)] border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4">
+          <ul className="flex items-center justify-between space-x-1 relative">
+            <li className="relative">
+               <Link href="/kategorie" className="flex items-center gap-2 py-3.5 px-6 font-black text-white bg-red-600 uppercase text-[11px] tracking-widest hover:bg-slate-900 transition-colors rounded-t-xl mt-1">
+                 <span>☰</span> Katalog 2026
+               </Link>
+            </li>
+            
+            {MEGA_MENU_DATA.map((cat) => (
+              <li key={cat.slug} className="group flex-1 text-center">
+                {/* L1 Link */}
+                <Link href={`/kategoria/${cat.slug}`} className="block py-4 px-2 font-bold text-slate-700 hover:text-red-600 transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap">
+                  <span className="mr-1.5 opacity-60 text-base align-middle">{cat.icon}</span> {cat.name}
+                </Link>
+
+                {/* MEGA DROPDOWN (Pojawia się tylko gdy są zdefiniowane kolumny) */}
+                {cat.columns && cat.columns.length > 0 && (
+                  <div className="absolute left-0 top-full w-full bg-white border border-slate-100 shadow-[0_30px_60px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 rounded-b-3xl p-8 z-50 text-left">
+                    <div className="grid grid-cols-4 gap-8">
+                      {cat.columns.map(col => (
+                        <div key={col.slug}>
+                          {/* L2 Link (Nagłówek kolumny) */}
+                          <Link href={`/kategoria/${cat.slug}/${col.slug}`} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-600/10 pb-2 mb-4 block hover:text-slate-900 transition-colors">
+                            {col.title}
+                          </Link>
+                          {/* L3 Links (Długi ogon SEO) */}
+                          <ul className="space-y-2.5">
+                            {col.links.map(link => (
+                              <li key={link}>
+                                <Link href={`/kategoria/${cat.slug}/${col.slug}/${generateSlug(link)}`} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
+                                  {link}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                      {/* Promocyjny baner wewnątrz Mega Menu (Social Proof) */}
+                      <div className="col-span-4 lg:col-span-1 lg:col-start-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                         <div>
+                            <span className="bg-[#FFD700] text-black text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-4 inline-block">Bestseller Sezonu</span>
+                            <h4 className="font-black italic uppercase text-lg text-slate-900 leading-tight mb-2">Przygotuj się na żniwa</h4>
+                            <p className="text-xs text-slate-500 font-medium">Sprawdź kompletne zestawy serwisowe do Twojej maszyny i zaoszczędź do 15%.</p>
+                         </div>
+                         <Link href={`/kategoria/${cat.slug}`} className="mt-4 text-[10px] font-black text-red-600 uppercase tracking-widest hover:underline flex items-center gap-1">
+                           Przejdź do działu <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
+                         </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-center px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] pb-safe" aria-label="Nawigacja mobilna">
+        <Link href="/" className="flex flex-col items-center text-red-600">
+          <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Start</span>
+        </Link>
+        <Link href="/kategorie" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
+        </Link>
+        <Link href="/wiedza" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors relative -top-5">
+          <div className="bg-[#1A1A1A] w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-xl shadow-black/20 border-4 border-white transform transition-transform active:scale-95">🚜</div>
+          <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-slate-900">Garaż</span>
+        </Link>
+        <Link href="/konto" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Konto</span>
+        </Link>
+        <Link href="/koszyk" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors relative">
+          <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white">2</div>
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
+        </Link>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        
+        {/* --- 4. STREFA HERO & WIRTUALNY GARAŻ --- */}
+        <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-16">
+          <nav className="hidden lg:block bg-white rounded-[40px] shadow-sm border border-slate-100 p-8 h-full">
+            <h3 className="font-black border-b-2 border-red-600/10 pb-4 mb-6 text-red-600 uppercase tracking-[0.2em] text-[11px] italic">Szybki Skok</h3>
+            <ul className="space-y-3">
+              {MEGA_MENU_DATA.map((cat) => (
+                <li key={cat.slug}>
+                  <Link href={`/kategoria/${cat.slug}`} className="flex items-center gap-3 py-2 text-[13px] font-bold text-slate-700 hover:text-red-600 transition-all uppercase tracking-tighter hover:translate-x-2">
+                    <span className="text-xl opacity-80">{cat.icon}</span> {cat.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <article className="lg:col-span-2 bg-[#1A1A1A] rounded-[50px] p-8 md:p-12 flex flex-col justify-center items-start text-white relative overflow-hidden shadow-2xl group border border-slate-800">
+            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-red-600 rounded-full blur-[140px] opacity-20 -mr-20 -mt-20 group-hover:opacity-40 transition-opacity duration-700"></div>
+            
+            <span className="bg-red-600/20 text-red-400 border border-red-600/50 text-[10px] font-black px-4 py-1.5 rounded-full mb-8 uppercase tracking-[0.3em] relative z-10">Zaczynamy Żniwa 2026</span>
+            
+            <h1 className="text-4xl md:text-6xl font-black mb-6 relative z-10 leading-[0.85] uppercase italic tracking-tighter">
+              Awarie nie <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-[#FFD700]">wybaczają.</span>
+            </h1>
+            
+            <p className="text-slate-400 mb-10 max-w-md relative z-10 text-sm md:text-base font-medium leading-relaxed italic">
+              Zapewnij ciągłość pracy swojemu gospodarstwu. Zamów oryginalne części z najszybszą dostawą w Polsce. Baza 140,000+ podzespołów.
+            </p>
+            
+            <Link href="/kategorie" className="bg-red-600 text-white px-10 py-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#FFD700] hover:text-black transition-all relative z-10 shadow-xl shadow-red-600/30 active:scale-95 flex items-center gap-3">
+              Katalog Produktów <span className="text-lg transition-transform group-hover:translate-x-2">➔</span>
+            </Link>
+          </article>
+
+          <aside className="lg:col-span-1">
+            <VehicleGarage />
+          </aside>
+        </section>
+
+        {/* --- TRUST BRANDS BAR --- */}
+        <section className="mb-24 py-10 border-y border-slate-200">
+           <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-40 grayscale hover:grayscale-0 transition-all duration-1000">
+              {['KRAMP', 'GRANIT', 'URSUS', 'ZETOR', 'DE LAVAL', 'JOHN DEERE'].map(b => (
+                <span key={b} className="text-xl md:text-3xl font-black italic tracking-tighter text-slate-400 cursor-default hover:text-slate-900 transition-colors">{b}</span>
+              ))}
+           </div>
+        </section>
+
+        {/* --- 5. PRODUKTY (BESTSELLERY) --- */}
+        <section className="mb-24">
+          <div className="flex justify-between items-end mb-12 border-b-2 border-slate-100 pb-8">
+            <div>
+              <p className="text-red-600 font-black uppercase text-[10px] tracking-[0.3em] mb-3 flex items-center gap-2"><span className="w-2 h-2 bg-red-600 rounded-full animate-ping"></span> Najczęściej wybierane</p>
+              <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Bestsellery</h2>
+            </div>
+            <Link href="/kategoria/czesci-do-ciagnikow" className="text-slate-400 font-black text-[11px] hover:text-red-600 transition-colors uppercase tracking-[0.2em] mb-1 hidden sm:block">Pełna oferta ➔</Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+            {loading ? (
+              [1,2,3,4].map(i => (
+                <div key={i} className="bg-white rounded-[40px] p-6 h-[400px] animate-pulse border border-slate-100 shadow-sm">
+                  <div className="w-full aspect-square bg-slate-100 rounded-[30px] mb-8"></div>
+                  <div className="h-4 bg-slate-100 rounded w-3/4 mb-4"></div>
+                  <div className="h-4 bg-slate-100 rounded w-1/2 mb-8"></div>
+                  <div className="h-10 bg-slate-100 rounded-2xl w-full mt-auto"></div>
+                </div>
+              ))
+            ) : products.length === 0 ? (
+              <p className="col-span-4 text-center font-bold text-slate-400 py-10 uppercase">Brak produktów do wyświetlenia.</p>
+            ) : (
+              products.slice(0, 4).map((product: any, index: number) => {
+                const imageUrl = product.images && product.images.length > 0 ? product.images[0].url_standard : null;
+                const buyCount = Math.floor(Math.random() * 20) + 5; 
+
+                return (
+                  <article key={product.id} className="group flex flex-col bg-white border border-slate-100 rounded-[40px] p-5 hover:shadow-2xl hover:border-red-600/30 transition-all duration-300 cursor-pointer relative h-full">
+                    <Link href={`/produkt/${product.slug || product.id}`} className="absolute inset-0 z-10"></Link>
+                    
+                    <div className="aspect-square bg-slate-50 rounded-[30px] mb-6 flex items-center justify-center overflow-hidden relative border border-slate-100">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={product.name} loading="lazy" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700 mix-blend-multiply p-4" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-300 font-black text-[11px] uppercase tracking-widest">Brak foto</div>
+                      )}
+                      
+                      <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
+                        {index === 0 && <span className="bg-[#FFD700] text-black text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-md">Bestseller</span>}
+                        {product.price > 300 && <span className="bg-green-500 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-md">Darmowa dostawa</span>}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <div className="flex text-[#FFD700] text-sm">★★★★★</div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">({buyCount} szt. dziś)</span>
+                    </div>
+
+                    <div className="flex-1">
+                      <h3 className="font-black text-[14px] text-slate-800 leading-tight group-hover:text-red-600 transition-colors line-clamp-2 uppercase italic tracking-tighter relative z-20">
+                        <Link href={`/produkt/${product.slug || product.id}`}>{product.name}</Link>
+                      </h3>
+                      <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-widest">NR KAT: {product.sku || 'B/D'}</p>
+                    </div>
+                    
+                    <div className="mt-6 flex flex-col relative z-20">
+                      <div className="flex justify-between items-end mb-4">
+                        <span className="text-3xl font-black text-slate-900 tabular-nums tracking-tighter">
+                          {getDisplayPrice(product.price)} <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{isNetto ? 'zł netto' : 'zł brutto'}</span>
+                        </span>
+                      </div>
+                      <button className="w-full bg-[#1A1A1A] text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] group-hover:bg-red-600 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 relative z-20">
+                        Do koszyka ➔
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        {/* --- 5B. CROSS-SELLING / B2B AGRO-PARTNER --- */}
+        <section className="mb-24 bg-[#1A1A1A] rounded-[40px] md:rounded-[50px] p-8 md:p-16 text-white relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl border-l-8 border-[#FFD700]">
+           <div className="absolute top-0 right-0 w-full h-full bg-[url('https://images.unsplash.com/photo-1592982537447-6f2a6a0c7c18?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
+           <div className="relative z-10 max-w-2xl">
+             <div className="bg-[#FFD700] text-black w-fit px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-6 shadow-md">Oferta B2B</div>
+             <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter leading-none mb-6">Prowadzisz duże <br/> gospodarstwo?</h2>
+             <p className="text-slate-300 font-medium text-sm md:text-lg mb-8 leading-relaxed italic">
+               Załóż darmowe konto Agro-Partner na NIP. Zyskaj stały rabat <span className="text-[#FFD700] font-black">-10% na wszystko</span>, darmowe zwroty do 60 dni i priorytetową wysyłkę.
+             </p>
+             <button className="bg-red-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-white hover:text-black transition-colors shadow-xl active:scale-95">
+                Dołącz do programu B2B
+             </button>
+           </div>
+        </section>
+
+        <KnowledgeSection />
+
+        {/* --- 6. SEO TEXT BLOCK --- */}
+        <section className="mb-12 mt-24 bg-slate-100/50 rounded-[40px] p-8 md:p-12 border border-slate-200">
+          <h2 className="text-2xl font-black text-slate-900 mb-4 uppercase italic tracking-tighter">Części rolnicze najwyższej jakości - Sklep CentrumRolnictwa</h2>
+          <div className="text-xs text-slate-500 leading-loose columns-1 md:columns-2 gap-12 text-justify">
+            <p className="mb-4">
+              Niezależnie od tego, czy prowadzisz niewielkie gospodarstwo rolne, czy zarządzasz potężnym parkiem maszynowym, szybki dostęp do niezawodnych podzespołów to fundament Twojej pracy. Oferujemy najwyższej jakości <strong>części do ciągników</strong> (Ursus, Zetor, John Deere, Massey Ferguson) oraz maszyn rolniczych, które gwarantują bezawaryjną pracę nawet w najcięższych warunkach polowych.
+            </p>
+            <p>
+              Nasz nowoczesny sklep internetowy został zaprojektowany z myślą o maksymalnej użyteczności. Błyskawiczna wyszukiwarka, szczegółowe opisy techniczne oraz wsparcie doradców sprawiają, że znajdziesz potrzebną część w kilka sekund. Zamówienia złożone do godziny 14:00 realizujemy tego samego dnia, minimalizując ryzyko kosztownych przestojów maszyny.
+            </p>
+          </div>
+        </section>
+
+      </main>
+
+      {/* --- STOPKA --- */}
+      <footer className="bg-white text-slate-900 py-16 border-t border-slate-200 pb-32 md:pb-16">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
+          <div>
+            <img src="/logo-centrumrolnictwapl-2-2.webp" alt="CentrumRolnictwa Logo" className="h-10 w-auto mb-6" loading="lazy" />
+            <p className="text-[11px] font-bold text-slate-500 uppercase leading-loose tracking-widest">
+              Najszybszy sklep rolniczy w Polsce. Headless E-commerce Engine 2026.
+            </p>
+          </div>
+          <div>
+             <h4 className="text-slate-900 font-black mb-6 uppercase text-[10px] tracking-[0.3em]">Nawigacja</h4>
+             <ul className="space-y-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {MEGA_MENU_DATA.slice(0, 4).map(cat => (
+                  <li key={cat.slug}><Link href={`/kategoria/${cat.slug}`} className="hover:text-red-600 transition-colors">{cat.name}</Link></li>
+                ))}
+             </ul>
+          </div>
+          <div className="md:col-span-2 bg-slate-50 p-6 rounded-[30px] border border-slate-100 flex flex-col justify-center">
+             <h4 className="text-slate-900 font-black mb-4 uppercase text-[10px] tracking-[0.3em]">Kontakt Infolinia (Doradztwo Techniczne)</h4>
+             <a href="tel:+48257888900" className="font-black text-3xl md:text-4xl text-red-600 italic tracking-tighter tabular-nums mb-2 hover:text-red-700 transition-colors w-fit">25 788 89 00</a>
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+               <span className="w-2 h-2 bg-green-500 rounded-full"></span> Czynne Pn - Pt: 8:00 - 16:00
+             </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
