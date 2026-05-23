@@ -124,7 +124,6 @@ export default function ProductPage() {
   let faq = typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [];
   let attributes = typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {};
 
-  // Zawsze używamy czystej ścieżki SEO
   let breadcrumbPath: string[] = [];
   if (product.category_text) {
     breadcrumbPath = product.category_text.split('>').map((s: string) => s.trim()).filter(Boolean);
@@ -190,12 +189,10 @@ export default function ProductPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
         
-        {/* BEZBŁĘDNE OKRUSZKI SEO */}
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 gap-2" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-red-600 transition-colors">Start</Link>
           {breadcrumbPath.map((cat, idx) => {
             const pathSlugs = breadcrumbPath.slice(0, idx + 1).map(c => generateSlug(c));
-            // To na 100% zbuduje adres bez znaku zapytania, np: /kategoria/uprawa-ziemi/piasty
             const href = `/kategoria/${pathSlugs.join('/')}`;
             
             return (
