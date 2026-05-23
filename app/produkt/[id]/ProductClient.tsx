@@ -182,22 +182,20 @@ const scriptContent = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
   
   <div className="flex flex-col gap-4">
     <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
-      {mainImageUrl ? (
-  <div className="relative w-full aspect-square">
-    <Image 
-      loader={bunnyLoader} 
-      src={mainImageUrl} 
-      alt={product.name} 
-      fill 
-      priority={true}           // 1. Next.js doda <link rel="preload"> w HTML
-      fetchPriority="high"      // 2. Przeglądarka pobierze to przed wszystkim innym
-      sizes="(max-width: 768px) 100vw, 50vw" // 3. Przeglądarka nie czeka na CSS, by znać rozmiar
-      className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
-    />
-  </div>
-) : ( 
-  <div className="font-black text-slate-200 text-xl uppercase tracking-widest text-center">BRAK ZDJĘCIA</div> 
-)}
+       {mainImageUrl ? (
+         <div className="relative w-full h-full min-h-[300px]">
+           <Image 
+             loader={bunnyLoader} 
+             src={mainImageUrl} 
+             alt={product.name} 
+             fill 
+             priority={true} 
+             fetchPriority="high" 
+             sizes="(max-width: 768px) 100vw, 50vw" 
+             className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
+           />
+         </div>
+       ) : ( <div className="font-black text-slate-200 text-xl uppercase tracking-widest text-center">BRAK ZDJĘCIA</div> )}
     </div>
     
     {displayImages.length > 1 && (
