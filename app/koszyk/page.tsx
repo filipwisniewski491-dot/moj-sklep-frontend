@@ -48,7 +48,7 @@ export default function CartPage() {
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between text-slate-400">
                   <span>Wartość produktów:</span>
-                  <span>{totalPrice().toFixed(2)} zł</span>
+                  <span>{totalPrice.toFixed(2)} zł</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Dostawa:</span>
@@ -56,7 +56,7 @@ export default function CartPage() {
                 </div>
                 <div className="pt-4 border-t border-slate-800 flex justify-between items-end">
                   <span className="font-bold">Łącznie brutto:</span>
-                  <span className="text-4xl font-black text-red-500">{totalPrice().toFixed(2)} zł</span>
+                  <span className="text-4xl font-black text-red-500">{totalPrice.toFixed(2)} zł</span>
                 </div>
               </div>
               <button className="w-full bg-red-600 py-6 rounded-2xl font-black text-xl hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-600/30">
