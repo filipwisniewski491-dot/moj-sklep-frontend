@@ -261,13 +261,7 @@ const scriptContent = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
            <div className="mt-6 bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-5 shadow-sm relative overflow-hidden group">
   <div className="relative w-16 h-11 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-    <Image 
-      src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop" 
-      alt="Doradca Maciek" 
-      width={64} 
-      height={64} 
-      className="object-cover object-top" 
-    />
+    
   </div>
   <div className="flex-1">
     <p className="font-black uppercase text-[10px] text-red-600 tracking-widest mb-0.5">Twój opiekun techniczny</p>
