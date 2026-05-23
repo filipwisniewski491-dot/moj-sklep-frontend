@@ -28,7 +28,6 @@ export async function GET(request: Request) {
   
   if (!fullPath) return NextResponse.json({ filters: {} });
 
-  // Parametry odrzucone przez użytkownika (żeby odpowiednio odfiltrować drzewo faset)
   const activeFilters = Object.fromEntries(searchParams.entries());
   delete activeFilters.fullPath;
   delete activeFilters.limit;
@@ -37,7 +36,8 @@ export async function GET(request: Request) {
   delete activeFilters.minPrice;
   delete activeFilters.maxPrice;
 
-  const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://127.0.0.1:1337";
+  // FIX: Używamy adresu IP, aby Vercel zawsze trafił do Twojego VPS-a
+  const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
   const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN;
 
   try {
@@ -45,8 +45,6 @@ export async function GET(request: Request) {
       const currentSlug = segments[segments.length - 1]; 
       const exactName = currentSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-      // Ultra-lekkie zapytanie: pobieramy TYLKO technical_specs, category_text i zero powiązań (populate=false)
-      // To pozwala pobrać nawet 10 000 produktów w sekundę
       const baseUrl = `${STRAPI_URL}/api/products?publicationState=preview&pagination[pageSize]=100&fields[0]=technical_specs&fields[1]=attributes&fields[2]=category_text&filters[category_text][$containsi]=${encodeURIComponent(exactName)}`;
       
       let allSpecs: any[] = [];
@@ -57,7 +55,6 @@ export async function GET(request: Request) {
 
       if (firstPageJson.meta?.pagination?.total > 100) {
         const totalPages = Math.ceil(firstPageJson.meta.pagination.total / 100);
-        // Pobieramy WSZYSTKO (do 100 stron = 10 000 produktów na raz), ale równolegle, żeby nie czekać
         const maxPages = Math.min(totalPages, 100); 
         const fetchPromises = [];
         for (let page = 2; page <= maxPages; page++) {
@@ -70,7 +67,6 @@ export async function GET(request: Request) {
         results.forEach(res => { if (res && res.data) allSpecs.push(...res.data); });
       }
 
-      // --- LOGIKA BUDOWY DRZEWA FILTRÓW (Identyczna jak u gigantów) ---
       const FORBIDDEN_KEYS = ['grupa produktowa', 'typ produktu', 'numer katalogowy', 'oem', 'numer oem', 'nr oem', 'opis', 'informacje dodatkowe', 'waga', 'wymiar', 'długość', 'szerokość', 'wysokość', 'ean', 'ilość', 'kolor'];
       const isForbidden = (key: string) => FORBIDDEN_KEYS.some(fk => key.toLowerCase().includes(fk));
 
@@ -102,7 +98,6 @@ export async function GET(request: Request) {
           const otherActiveFilters = { ...activeFilters };
           delete otherActiveFilters[filterKey]; 
           
-          // Izolacja: liczymy tylko te produkty, które spełniają pozostałe wybrane filtry
           const matchingProducts = allSpecs.filter(p => productMatchesFilters(p, otherActiveFilters));
 
           matchingProducts.forEach(p => {
