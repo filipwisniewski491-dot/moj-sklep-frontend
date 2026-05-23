@@ -8,9 +8,14 @@ const BC_TOKEN = process.env.BIGCOMMERCE_ACCESS_TOKEN;
 // 🚀 Błyskawiczne pobieranie produktu bezpośrednio na serwerze
 export async function getProductData(identifier: string) {
   try {
-    // ISR: Vercel zapamięta ten produkt na 24h (86400s)
-    const strapiOptions = {
-      headers: STRAPI_TOKEN ? { 'Authorization': `Bearer ${STRAPI_TOKEN}` } : {},
+    // Poprawka dla TypeScripta: jawne zdefiniowanie typu nagłówków
+    const headers: Record<string, string> = {};
+    if (STRAPI_TOKEN) {
+      headers['Authorization'] = `Bearer ${STRAPI_TOKEN}`;
+    }
+
+    const strapiOptions: RequestInit = {
+      headers: headers,
       next: { revalidate: 86400 } 
     };
 
