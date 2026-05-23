@@ -8,7 +8,6 @@ export const revalidate = 86400;
 export default async function ProductPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   
-  // ZAMIENIAMY głuche telefony na bezpośredni strzał do bazy!
   const product = await getProductData(params.id);
 
   if (!product) {
@@ -23,6 +22,11 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     );
   }
 
-  // Użytkownik widzi stronę w 0.05s
-  return <ProductClient product={product} />;
+  // Obliczamy URL na serwerze – to jest klucz do sukcesu!
+  // Jeśli nie masz zmiennej środowiskowej, ustawiamy domenę na sztywno.
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://centrumrolnictwa.pl";
+  const fullUrl = `${baseUrl}/produkt/${params.id}`;
+
+  // Przekazujemy produkt ORAZ fullUrl do komponentu
+  return <ProductClient product={product} fullUrl={fullUrl} />;
 }

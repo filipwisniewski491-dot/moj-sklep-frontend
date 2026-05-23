@@ -23,7 +23,7 @@ const generateSlug = (text: string) => {
     .replace(/-+/g, '-');
 };
 
-export default function ProductClient({ product }: { product: any }) {
+export default function ProductClient({ product, fullUrl }: { product: any, fullUrl: string }) {
   const [selectedImgIdx, setSelectedImgIdx] = useState(0); 
   const [showSticky, setShowSticky] = useState(false);
   const [countdownText, setCountdownText] = useState('');
@@ -114,22 +114,28 @@ export default function ProductClient({ product }: { product: any }) {
   const [mainPrice, centsPrice] = numPrice.toFixed(2).split('.');
   const hasCents = centsPrice !== '00';
 
-  const jsonLd = {
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    "name": product.name,
-    "image": displayImages,
-    "description": seoDescription.replace(/<[^>]*>?/gm, '') || product.name,
-    "sku": product.sku,
-    "offers": {
-      "@type": "Offer",
-      "url": typeof window !== 'undefined' ? window.location.href : '',
-      "priceCurrency": "PLN",
-      "price": numPrice.toFixed(2),
-      "availability": "https://schema.org/InStock",
-      "itemCondition": "https://schema.org/NewCondition"
-    }
-  };
+  // Upewnij się, że masz fullUrl w argumentach funkcji: 
+// export default function ProductClient({ product, fullUrl }: { product: any, fullUrl: string }) {
+
+const jsonLd = {
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": product.name,
+  "image": displayImages,
+  "description": seoDescription.replace(/<[^>]*>?/gm, '') || product.name,
+  "sku": product.sku,
+  "offers": {
+    "@type": "Offer",
+    "url": fullUrl, // Używamy pełnego adresu z serwera, zero window.location
+    "priceCurrency": "PLN",
+    "price": numPrice.toFixed(2),
+    "availability": "https://schema.org/InStock",
+    "itemCondition": "https://schema.org/NewCondition"
+  }
+};
+
+// Zabezpieczenie przed błędami parsowania znaków specjalnych
+const scriptContent = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 relative">
@@ -173,25 +179,47 @@ export default function ProductClient({ product }: { product: any }) {
         </nav>
 
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          
-          <div className="flex flex-col gap-4">
-            <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
-               {mainImageUrl ? (
-                 <div className="relative w-full h-full min-h-[300px]">
-                   <Image loader={bunnyLoader} src={mainImageUrl} alt={product.name} fill priority={true} sizes="(max-width: 768px) 100vw, 50vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
-                 </div>
-               ) : ( <div className="font-black text-slate-200 text-xl uppercase tracking-widest text-center">BRAK ZDJĘCIA</div> )}
-            </div>
-            {displayImages.length > 1 && (
-              <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                {displayImages.map((imgUrl: string, idx: number) => (
-                  <button key={idx} onClick={() => setSelectedImgIdx(idx)} className={`relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${selectedImgIdx === idx ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50 hover:bg-slate-100'}`}>
-                    <Image loader={bunnyLoader} src={imgUrl} alt="detal" fill sizes="96px" className="object-contain mix-blend-multiply p-2" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+  
+  <div className="flex flex-col gap-4">
+    <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
+       {mainImageUrl ? (
+         <div className="relative w-full h-full min-h-[300px]">
+           <Image 
+             loader={bunnyLoader} 
+             src={mainImageUrl} 
+             alt={product.name} 
+             fill 
+             priority={true} 
+             fetchPriority="high" 
+             sizes="(max-width: 768px) 100vw, 50vw" 
+             className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
+           />
+         </div>
+       ) : ( <div className="font-black text-slate-200 text-xl uppercase tracking-widest text-center">BRAK ZDJĘCIA</div> )}
+    </div>
+    
+    {displayImages.length > 1 && (
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+        {displayImages.map((imgUrl: string, idx: number) => (
+          <button 
+            key={idx} 
+            onClick={() => setSelectedImgIdx(idx)} 
+            aria-label={`Zobacz zdjęcie ${idx + 1}`}
+            className={`relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${selectedImgIdx === idx ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50 hover:bg-slate-100'}`}
+          >
+            <Image 
+              loader={bunnyLoader} 
+              src={imgUrl} 
+              alt={`Miniatura produktu ${idx + 1}`} 
+              fill 
+              sizes="96px" 
+              className="object-contain mix-blend-multiply p-2" 
+            />
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
 
           <div className="flex flex-col h-full justify-center">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-slate-100 pb-4">
