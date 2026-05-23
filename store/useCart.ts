@@ -13,56 +13,74 @@ export interface CartItem {
 
 interface CartState {
   items: CartItem[];
-  isOpen: boolean; 
+  isOpen: boolean;
+  totalPrice: number; // Dodane: teraz TypeScript już nie będzie krzyczał
   addItem: (item: CartItem) => void;
   removeItem: (id: string | number) => void;
   updateQuantity: (id: string | number, quantity: number) => void;
-  setIsOpen: (isOpen: boolean) => void; 
+  setIsOpen: (isOpen: boolean) => void;
   clearCart: () => void;
 }
+
+// Funkcja pomocnicza do obliczania sumy
+const calculateTotal = (items: CartItem[]) => {
+  return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+};
 
 export const useCart = create<CartState>()(
   persist(
     (set) => ({
       items: [],
-      isOpen: false, 
+      isOpen: false,
+      totalPrice: 0, // Inicjalizacja
 
       setIsOpen: (isOpen) => set({ isOpen }),
 
       addItem: (item) =>
         set((state) => {
           const existingItem = state.items.find((i) => i.id === item.id);
+          let newItems;
+          
           if (existingItem) {
-            return {
-              items: state.items.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + item.quantity } : i
-              ),
-              isOpen: true, 
-            };
+            newItems = state.items.map((i) =>
+              i.id === item.id ? { ...i, quantity: i.quantity + item.quantity } : i
+            );
+          } else {
+            newItems = [...state.items, item];
           }
-          return { 
-            items: [...state.items, item],
-            isOpen: true, // Automatycznie wysuń szufladę po dodaniu nowego produktu!
+          
+          return {
+            items: newItems,
+            totalPrice: calculateTotal(newItems),
+            isOpen: true,
           };
         }),
 
       removeItem: (id) =>
-        set((state) => ({
-          items: state.items.filter((i) => i.id !== id),
-        })),
+        set((state) => {
+          const newItems = state.items.filter((i) => i.id !== id);
+          return {
+            items: newItems,
+            totalPrice: calculateTotal(newItems),
+          };
+        }),
 
       updateQuantity: (id, quantity) =>
-        set((state) => ({
-          items: state.items.map((i) =>
+        set((state) => {
+          const newItems = state.items.map((i) =>
             i.id === id ? { ...i, quantity: Math.max(0, quantity) } : i
-          ),
-        })),
+          );
+          return {
+            items: newItems,
+            totalPrice: calculateTotal(newItems),
+          };
+        }),
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], totalPrice: 0 }),
     }),
     {
-      name: 'centrum-rolnictwa-cart', 
-      partialize: (state) => ({ items: state.items }), 
+      name: 'centrum-rolnictwa-cart',
+      partialize: (state) => ({ items: state.items, totalPrice: state.totalPrice }),
     }
   )
 );
