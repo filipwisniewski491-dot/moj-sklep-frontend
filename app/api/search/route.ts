@@ -67,54 +67,71 @@ export async function GET(request: Request) {
       if (obj.attributes && obj.attributes[key] !== undefined) return obj.attributes[key];
       return null;
   };
-
-  // ==========================================
-  // 1. KARTA PRODUKTU (PDP)
+// ==========================================
+  // 1. KARTA PRODUKTU (PDP) - WERSJA Z DIAGNOSTYKĄ
   // ==========================================
   if (id) {
     try {
-      let strapiRes = await fetch(`${STRAPI_URL}/api/products?publicationState=preview&filters[slug][$eq]=${encodeURIComponent(id)}&populate=*`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, cache: 'no-store' });
+      const STRAPI_URL = "http://178.105.201.145:1337"; // Wymuszamy IP dla pewności
+      
+      console.log(`[DEBUG] Szukam slug: ${id}`);
+      
+      // 1. Próba po Slug
+      let strapiRes = await fetch(`${STRAPI_URL}/api/products?filters[slug][$eq]=${encodeURIComponent(id)}&populate=*`, { 
+          headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, 
+          cache: 'no-store' 
+      });
+      
       let strapiJson = await strapiRes.json();
       
+      // 2. Jeśli nie ma po slug, próba po SKU
       if (!strapiJson.data || strapiJson.data.length === 0) {
-        strapiRes = await fetch(`${STRAPI_URL}/api/products?publicationState=preview&filters[sku][$eq]=${encodeURIComponent(id)}&populate=*`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, cache: 'no-store' });
+        console.log(`[DEBUG] Nie znaleziono po slug, szukam po SKU: ${id}`);
+        strapiRes = await fetch(`${STRAPI_URL}/api/products?filters[sku][$eq]=${encodeURIComponent(id)}&populate=*`, { 
+            headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, 
+            cache: 'no-store' 
+        });
         strapiJson = await strapiRes.json();
       }
       
-      let strapiProd = strapiJson.data?.[0] || null;
-      let bcProd = null;
+      if (!strapiJson.data || strapiJson.data.length === 0) {
+          console.error(`[DEBUG] Produktu ${id} NIE MA w bazie Strapi.`);
+          return NextResponse.json({ data: null, error: "Product not found in Strapi" }, { status: 404 });
+      }
       
-      if (strapiProd && strapiProd.sku) {
-        const bcRes = await fetch(`https://api.bigcommerce.com/stores/${storeHash}/v3/catalog/products?sku=${encodeURIComponent(strapiProd.sku)}&include=images`, { headers: { 'X-Auth-Token': bcToken as string, 'Accept': 'application/json' }, cache: 'no-store' });
+      let strapiProd = strapiJson.data[0];
+      console.log(`[DEBUG] Znaleziono produkt w Strapi, SKU: ${strapiProd.sku}`);
+
+      let bcProd = null;
+      if (strapiProd.sku) {
+        const bcRes = await fetch(`https://api.bigcommerce.com/stores/${storeHash}/v3/catalog/products?sku=${encodeURIComponent(strapiProd.sku)}&include=images`, { 
+            headers: { 'X-Auth-Token': bcToken as string, 'Accept': 'application/json' }, 
+            cache: 'no-store' 
+        });
         const bcJson = await bcRes.json();
         bcProd = bcJson.data?.[0] || null;
+        if (!bcProd) console.warn(`[DEBUG] Produktu ${strapiProd.sku} nie ma w BigCommerce!`);
       }
       
-      if (strapiProd || bcProd) {
-        const catText = getAttr(strapiProd, 'category_text') || '';
-        return NextResponse.json({
+      // Mapowanie danych (zabezpieczone)
+      return NextResponse.json({
           data: {
-            id: strapiProd?.documentId || strapiProd?.id || bcProd?.id,
-            sku: strapiProd?.sku || bcProd?.sku,
-            slug: strapiProd?.slug || '',
-            name: strapiProd?.seo_title || strapiProd?.name || bcProd?.name,
+            id: strapiProd.documentId || strapiProd.id,
+            sku: strapiProd.sku,
+            name: strapiProd.seo_title || strapiProd.name || bcProd?.name || 'Produkt bez nazwy',
             price: bcProd?.price || 0, 
-            description: strapiProd?.seo_description || strapiProd?.description || bcProd?.description,
-            category_text: catText, 
-            attributes: strapiProd?.technical_specs || strapiProd?.attributes || {},
+            description: strapiProd.seo_description || strapiProd.description || bcProd?.description || '',
+            attributes: strapiProd.technical_specs || strapiProd.attributes || {},
             images: bcProd?.images || [], 
-            external_images: strapiProd?.external_images || [],
-            expert_advice: strapiProd?.expert_advice || null,
-            symptoms: strapiProd?.symptoms || null,
-            faq: strapiProd?.faq || strapiProd?.faqs || null,
-            crossSell: strapiProd?.cross_sell_skus || strapiProd?.cross_sell || []
+            external_images: strapiProd.external_images || []
           }
-        });
-      }
-      return NextResponse.json({ data: null }, { status: 404 });
-    } catch (error) { return NextResponse.json({ data: null }, { status: 500 }); }
-  }
+      });
 
+    } catch (error) { 
+        console.error("[DEBUG] FATAL ERROR:", error);
+        return NextResponse.json({ error: String(error) }, { status: 500 }); 
+    }
+  }
   // ==========================================
   // 2. KATEGORIE
   // ==========================================
