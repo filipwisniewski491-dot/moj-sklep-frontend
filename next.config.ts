@@ -5,11 +5,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'centrumrolnictwa-cdn.b-cdn.net', // Twoja domena Bunny
+        hostname: 'centrumrolnictwa-cdn.b-cdn.net',
       },
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com', // Pozostałe zdjęcia (Doradca)
+        hostname: 'images.unsplash.com',
       },
     ],
   },
