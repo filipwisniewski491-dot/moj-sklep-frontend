@@ -61,11 +61,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => clearInterval(interval);
   }, []);
 
-  // 🔥 ZMIANA: Zastępujemy mordercze dla wydajności nasłuchiwanie scrolla przez IntersectionObserver
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Jeśli główny przycisk znika z ekranu (przewijamy w dół) - pokazujemy sticky bar
         setShowSticky(!entry.isIntersecting && entry.boundingClientRect.bottom < 0);
       },
       { root: null, rootMargin: '0px', threshold: 0 }
@@ -89,6 +87,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
   const displayImages = cdnImages.length > 0 ? cdnImages : fallbackImages;
   const mainImageUrl = displayImages[selectedImgIdx] || null;
+
+  // Przygotowanie linków pod ominięcie Next.js Image
+  const cleanMainSrc = mainImageUrl ? mainImageUrl.split('?')[0] : '';
+  const isMainCdn = cleanMainSrc.includes('b-cdn.net');
 
   const seoDescription = product.seo_description || product.description || '';
   const symptoms = product.symptoms;
@@ -181,17 +183,17 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           <div className="flex flex-col gap-4">
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
-              {mainImageUrl ? (
+               {mainImageUrl ? (
                  <div className="w-full flex items-center justify-center">
-                   <Image 
-                     loader={bunnyLoader} 
-                     src={mainImageUrl} 
+                   {/* 🔥 OSTATECZNY FIX LCP: Natywny HTML img bez hydracji Reacta */}
+                   <img 
+                     src={isMainCdn ? `${cleanMainSrc}?width=750&format=webp` : mainImageUrl} 
+                     srcSet={isMainCdn ? `${cleanMainSrc}?width=384&format=webp 384w, ${cleanMainSrc}?width=750&format=webp 750w` : undefined}
                      alt={product.name} 
                      width={800} 
                      height={800} 
-                     priority={true} 
-                     decoding="sync"
                      fetchPriority="high" 
+                     decoding="sync"
                      sizes="(max-width: 768px) 100vw, 50vw" 
                      className="w-full max-w-full h-auto max-h-[500px] object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
                    />
@@ -273,7 +275,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               <div className="flex-1">
                 <p className="font-black uppercase text-[10px] text-red-700 tracking-widest mb-0.5">Twój opiekun techniczny</p>
                 <p className="font-bold text-slate-800 text-sm leading-tight mb-1">Chcesz upewnić się, czy część pasuje?</p>
-                {/* 🔥 ZMIANA: Ciemniejszy zielony (bg-green-700) dla lepszego kontrastu WCAG */}
                 <a href="tel:+48500600700" className="inline-flex items-center gap-2 font-black text-white bg-green-700 hover:bg-green-800 shadow-md shadow-green-700/20 px-4 py-2 rounded-xl mt-1 text-xs uppercase tracking-widest transition-colors">
                   📞 +48 500 600 700
                 </a>
