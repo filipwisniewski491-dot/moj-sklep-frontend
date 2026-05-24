@@ -181,9 +181,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           <div className="flex flex-col gap-4">
-            <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
+            <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
                {mainImageUrl ? (
-                <div className="w-full flex items-center justify-center aspect-square max-h-[500px]">
+                <div className="w-full flex items-center justify-center">
                    <img 
                      src={isMainCdn ? `${cleanMainSrc}?width=750&format=webp` : mainImageUrl} 
                      srcSet={isMainCdn ? `${cleanMainSrc}?width=384&format=webp 384w, ${cleanMainSrc}?width=750&format=webp 750w` : undefined}
@@ -193,11 +193,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                      fetchPriority="high" 
                      decoding="async" 
                      sizes="(max-width: 768px) 100vw, 50vw" 
-                     className="w-full max-w-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
-                     style={{ aspectRatio: '1/1' }}
+                     className="w-full max-w-full h-auto max-h-[500px] object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
                    />
                  </div>
-               ) : ( <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div> )}
+               ) : ( <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center">BRAK ZDJĘCIA</div> )}
             </div>
             
             {displayImages.length > 1 && (
