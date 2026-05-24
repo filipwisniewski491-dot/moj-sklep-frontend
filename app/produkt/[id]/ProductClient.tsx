@@ -14,7 +14,7 @@ const useCart = dynamic(
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
-  return `${cleanSrc}?width=${width}&format=webp`;
+  return `${cleanSrc}?width=${width}&format=webp&quality=85`;
 };
 
 const generateSlug = (text: string) => {
@@ -85,7 +85,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // Optymalizacje
+  // === OPTYMALIZACJE ===
   const displayImages = useMemo(() => {
     let cdnImages: string[] = [];
     if (product.external_images) {
@@ -180,11 +180,13 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
+        
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-red-700 transition-colors">Start</Link>
           {breadcrumbPath.map((cat: string, idx: number) => {
             const pathSlugs = breadcrumbPath.slice(0, idx + 1).map(c => generateSlug(c));
             const href = `/kategoria/${pathSlugs.join('/')}`;
+            
             return (
               <React.Fragment key={idx}>
                 <span className="text-slate-400">/</span>
@@ -206,7 +208,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                     alt={product.name}
                     fill
                     priority
-                    quality={92}
+                    quality={85}
                     loader={bunnyLoader}
                     sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
