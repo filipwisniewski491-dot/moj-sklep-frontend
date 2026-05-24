@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 
-// Dynamiczny import koszyka - zmniejsza początkowy bundle
+// Dynamiczny import koszyka
 const useCart = dynamic(
   () => import('@/store/useCart').then((mod) => mod.useCart),
   { ssr: false }
@@ -14,7 +14,9 @@ const useCart = dynamic(
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
-  return `${cleanSrc}?width=${width}&format=webp&quality=75`;
+  // Agresywna kompresja + limit szerokości
+  const optimizedWidth = Math.min(width, 750);
+  return `${cleanSrc}?width=${optimizedWidth}&format=webp&quality=68&sharpen=false`;
 };
 
 const generateSlug = (text: string) => {
@@ -205,7 +207,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                     alt={product.name}
                     fill
                     priority
-                    quality={75}
+                    quality={68}
                     loader={bunnyLoader}
                     sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
