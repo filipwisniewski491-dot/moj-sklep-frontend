@@ -33,16 +33,35 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     );
   }
 
-  // 🚀 OPTYMALIZACJA LCP: Preload zdjęcia bezpośrednio w serwerze, zanim wyślemy HTML do klienta
-  const imageUrl = product.images?.[0];
-  if (imageUrl) {
-    preload(imageUrl, { as: 'image', imageSizes: '(max-width: 768px) 100vw, 50vw' });
+  // 🔥 ROZWIĄZANIE LCP: Ustalamy GŁÓWNY OBRAZEK w taki sam sposób jak w Kliencie
+  let cdnImages: string[] = [];
+  if (product.external_images) {
+    if (Array.isArray(product.external_images)) cdnImages = product.external_images;
+    else if (typeof product.external_images === 'string') {
+      try { cdnImages = JSON.parse(product.external_images); } catch (e) {}
+    }
+  }
+  const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
+  const mainImageUrl = (cdnImages.length > 0 ? cdnImages : fallbackImages)[0] || null;
+
+  if (mainImageUrl) {
+    const cleanSrc = mainImageUrl.split('?')[0];
+    
+    // Wstrzykujemy do nagłówków precyzyjny srcset pod BunnyCDN!
+    if (cleanSrc.includes('b-cdn.net')) {
+      preload(cleanSrc, { 
+        as: 'image', 
+        imageSrcSet: `${cleanSrc}?width=384&format=webp 384w, ${cleanSrc}?width=750&format=webp 750w`,
+        imageSizes: '(max-width: 768px) 100vw, 50vw',
+        fetchPriority: 'high'
+      });
+    } else {
+      preload(mainImageUrl, { as: 'image', fetchPriority: 'high' });
+    }
   }
 
-  // Obliczamy URL na serwerze
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://centrumrolnictwa.pl";
   const fullUrl = `${baseUrl}/produkt/${params.id}`;
 
-  // Przekazujemy produkt ORAZ fullUrl do komponentu
   return <ProductClient product={product} fullUrl={fullUrl} />;
 }

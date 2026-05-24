@@ -181,19 +181,19 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           <div className="flex flex-col gap-4">
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
-               {mainImageUrl ? (
-                 <div className="relative w-full h-full min-h-[300px]">
-                   {/* Dodano decoding="sync" dla LCP aby przyspieszyć dekodowanie obrazka głównego */}
+              {mainImageUrl ? (
+                 <div className="w-full flex items-center justify-center">
                    <Image 
                      loader={bunnyLoader} 
                      src={mainImageUrl} 
                      alt={product.name} 
-                     fill 
+                     width={800} 
+                     height={800} 
                      priority={true} 
                      decoding="sync"
                      fetchPriority="high" 
                      sizes="(max-width: 768px) 100vw, 50vw" 
-                     className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
+                     className="w-full max-w-full h-auto max-h-[500px] object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
                    />
                  </div>
                ) : ( <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center">BRAK ZDJĘCIA</div> )}
