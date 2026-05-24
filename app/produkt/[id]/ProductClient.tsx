@@ -14,7 +14,7 @@ const useCart = dynamic(
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
-  return `${cleanSrc}?width=${width}&format=webp&quality=82`;
+  return `${cleanSrc}?width=${width}&format=webp&quality=80`;
 };
 
 const generateSlug = (text: string) => {
@@ -205,7 +205,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                     alt={product.name}
                     fill
                     priority
-                    quality={82}
+                    quality={80}
                     loader={bunnyLoader}
                     sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
