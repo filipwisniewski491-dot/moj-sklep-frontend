@@ -24,9 +24,9 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 
   return {
     title: product?.name ? `${product.name} - CentrumRolnictwa.pl` : "Produkt - CentrumRolnictwa.pl",
-    description: product?.description ? product.description.substring(0, 160) : "Największy internetowy katalog części zamiennych.",
+    description: product?.seo_description || product?.description?.substring(0, 160) || "",
     openGraph: {
-      images: mainImageUrl ? [{ url: mainImageUrl, width: 1200, height: 1200 }] : [],
+      images: mainImageUrl ? [{ url: mainImageUrl }] : [],
     },
   };
 }
@@ -39,7 +39,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     return <div>Produkt nie istnieje</div>;
   }
 
-  // === NAJLEPSZY PRELOAD DLA LCP ===
+  // === PRECYZYJNY PRELOAD ===
   let cdnImages: string[] = [];
   if (product.external_images) {
     if (Array.isArray(product.external_images)) cdnImages = product.external_images;
@@ -50,15 +50,10 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
   const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
   const mainImageUrl = (cdnImages.length > 0 ? cdnImages : fallbackImages)[0] || null;
 
-  if (mainImageUrl && mainImageUrl.includes('b-cdn.net')) {
+  if (mainImageUrl?.includes('b-cdn.net')) {
     const cleanSrc = mainImageUrl.split('?')[0];
-    preload(cleanSrc, { 
+    preload(`${cleanSrc}?width=750&format=webp&quality=65`, { 
       as: 'image',
-      imageSrcSet: `
-        ${cleanSrc}?width=480&format=webp&quality=65 480w,
-        ${cleanSrc}?width=750&format=webp&quality=62 750w
-      `.trim(),
-      imageSizes: '(max-width: 768px) 100vw, 50vw',
       fetchPriority: 'high'
     });
   }
