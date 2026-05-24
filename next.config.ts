@@ -4,8 +4,14 @@ const nextConfig = {
 
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'centrumrolnictwa-cdn.b-cdn.net' },
-      { protocol: 'https', hostname: 'images.unsplash.com' },
+      {
+        protocol: 'https',
+        hostname: 'centrumrolnictwa-cdn.b-cdn.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
     ],
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 31536000,
@@ -16,10 +22,12 @@ const nextConfig = {
   },
 
   experimental: {
-    optimizePackageImports: ['react', 'react-dom'],
+    optimizePackageImports: ['react', 'react-dom', 'zustand'],
   },
 
+  // Ważne dla mniejszego bundle
   output: 'standalone',
+  swcMinify: true,
 };
 
 module.exports = nextConfig;

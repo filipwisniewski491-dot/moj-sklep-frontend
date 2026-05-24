@@ -2,8 +2,11 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; 
-import { useCart } from '@/store/useCart';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
+
+// Dynamiczny import koszyka - zmniejsza początkowy bundle JS
+const useCartDynamic = dynamic(() => import('@/store/useCart').then((mod) => mod.useCart), { ssr: false });
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -30,7 +33,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const [cartCount, setCartCount] = useState(0);
 
   const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
-  const { addItem, setIsOpen, items } = useCart() as any;
+  
+  // Dynamiczne użycie koszyka
+  const cart = useCartDynamic();
+  const { addItem, setIsOpen, items } = cart || {};
 
   useEffect(() => {
     if (items) {
@@ -76,7 +82,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // === OPTYMALIZACJE POD LCP I BUNDLE ===
+  // Optymalizacje
   const displayImages = useMemo(() => {
     let cdnImages: string[] = [];
     if (product.external_images) {
@@ -134,16 +140,18 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const hasCents = centsPrice !== '00';
 
   const handleAddToCartMain = () => {
-    addItem({ 
-      id: product.id, 
-      name: product.name, 
-      price: product.price, 
-      image: mainImageUrl || '', 
-      quantity: 1,
-      crossSell: product.crossSell || [], 
-      category: product.category || '' 
-    });
-    setIsOpen(true); 
+    if (addItem) {
+      addItem({ 
+        id: product.id, 
+        name: product.name, 
+        price: product.price, 
+        image: mainImageUrl || '', 
+        quantity: 1,
+        crossSell: product.crossSell || [], 
+        category: product.category || '' 
+      });
+      if (setIsOpen) setIsOpen(true);
+    }
   };
 
   return (
@@ -157,7 +165,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </Link>
           <div className="font-black text-xl tracking-tighter">CentrumRolnictwa<span className="text-slate-500">.pl</span></div>
           
-          <button aria-label="Otwórz koszyk" onClick={() => setIsOpen(true)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors relative">
+          <button aria-label="Otwórz koszyk" onClick={() => setIsOpen?.(true)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors relative">
              <span className="text-xl">🛒</span>
              {cartCount > 0 && (
                <span className="absolute -top-1 -right-1 bg-red-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-pulse shadow-md shadow-red-600/30">
@@ -169,13 +177,11 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
-        
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-red-700 transition-colors">Start</Link>
           {breadcrumbPath.map((cat: string, idx: number) => {
             const pathSlugs = breadcrumbPath.slice(0, idx + 1).map(c => generateSlug(c));
             const href = `/kategoria/${pathSlugs.join('/')}`;
-            
             return (
               <React.Fragment key={idx}>
                 <span className="text-slate-400">/</span>
@@ -189,7 +195,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           <div className="flex flex-col gap-4">
-            {/* GŁÓWNY OBRAZEK - OPTYMALIZOWANY POD LCP */}
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
                {mainImageUrl ? (
                 <div className="relative w-full aspect-square max-h-[500px]">

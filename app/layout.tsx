@@ -6,7 +6,7 @@ import CartDrawer from "@/components/CartDrawer";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-  display: 'swap',           // ← ważne dla LCP
+  display: 'swap',
   preload: true,
 });
 
@@ -36,10 +36,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        {/* Preconnect do głównego CDN - kluczowe dla LCP */}
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
         <CartDrawer />
       </body>
