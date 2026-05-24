@@ -61,16 +61,21 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => clearInterval(interval);
   }, []);
 
+  // 🔥 ZMIANA: Zastępujemy mordercze dla wydajności nasłuchiwanie scrolla przez IntersectionObserver
   useEffect(() => {
-    const handleScroll = () => {
-      if (mainBuyButtonRef.current) {
-        const rect = mainBuyButtonRef.current.getBoundingClientRect();
-        setShowSticky(rect.bottom < 0);
-      }
-    };
-    // Dodano passive: true aby usunąć ostrzeżenie o blokowaniu wątku (TBT)
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Jeśli główny przycisk znika z ekranu (przewijamy w dół) - pokazujemy sticky bar
+        setShowSticky(!entry.isIntersecting && entry.boundingClientRect.bottom < 0);
+      },
+      { root: null, rootMargin: '0px', threshold: 0 }
+    );
+
+    if (mainBuyButtonRef.current) {
+      observer.observe(mainBuyButtonRef.current);
+    }
+
+    return () => observer.disconnect();
   }, []);
 
   let cdnImages: string[] = [];
@@ -178,12 +183,14 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
                {mainImageUrl ? (
                  <div className="relative w-full h-full min-h-[300px]">
+                   {/* Dodano decoding="sync" dla LCP aby przyspieszyć dekodowanie obrazka głównego */}
                    <Image 
                      loader={bunnyLoader} 
                      src={mainImageUrl} 
                      alt={product.name} 
                      fill 
                      priority={true} 
+                     decoding="sync"
                      fetchPriority="high" 
                      sizes="(max-width: 768px) 100vw, 50vw" 
                      className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
@@ -266,7 +273,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               <div className="flex-1">
                 <p className="font-black uppercase text-[10px] text-red-700 tracking-widest mb-0.5">Twój opiekun techniczny</p>
                 <p className="font-bold text-slate-800 text-sm leading-tight mb-1">Chcesz upewnić się, czy część pasuje?</p>
-                <a href="tel:+48500600700" className="inline-flex items-center gap-2 font-black text-white bg-green-500 hover:bg-green-600 shadow-md shadow-green-500/20 px-4 py-2 rounded-xl mt-1 text-xs uppercase tracking-widest transition-colors">
+                {/* 🔥 ZMIANA: Ciemniejszy zielony (bg-green-700) dla lepszego kontrastu WCAG */}
+                <a href="tel:+48500600700" className="inline-flex items-center gap-2 font-black text-white bg-green-700 hover:bg-green-800 shadow-md shadow-green-700/20 px-4 py-2 rounded-xl mt-1 text-xs uppercase tracking-widest transition-colors">
                   📞 +48 500 600 700
                 </a>
               </div>
