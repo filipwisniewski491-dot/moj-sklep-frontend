@@ -14,7 +14,6 @@ const useCart = dynamic(
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
-  // Agresywna kompresja + limit szerokości
   const optimizedWidth = Math.min(width, 750);
   return `${cleanSrc}?width=${optimizedWidth}&format=webp&quality=68&sharpen=false`;
 };
