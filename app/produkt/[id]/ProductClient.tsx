@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image'; 
 import { useCart } from '@/store/useCart';
@@ -76,33 +76,60 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  let cdnImages: string[] = [];
-  if (product.external_images) {
-    if (Array.isArray(product.external_images)) cdnImages = product.external_images;
-    else if (typeof product.external_images === 'string') {
-      try { cdnImages = JSON.parse(product.external_images); } catch (e) {}
+  // === OPTYMALIZACJE ===
+  const displayImages = useMemo(() => {
+    let cdnImages: string[] = [];
+    if (product.external_images) {
+      if (Array.isArray(product.external_images)) cdnImages = product.external_images;
+      else if (typeof product.external_images === 'string') {
+        try { cdnImages = JSON.parse(product.external_images); } catch (e) {}
+      }
     }
-  }
+    const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
+    return cdnImages.length > 0 ? cdnImages : fallbackImages;
+  }, [product.external_images, product.images]);
 
-  const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
-  const displayImages = cdnImages.length > 0 ? cdnImages : fallbackImages;
   const mainImageUrl = displayImages[selectedImgIdx] || null;
-
-  const cleanMainSrc = mainImageUrl ? mainImageUrl.split('?')[0] : '';
-  const isMainCdn = cleanMainSrc.includes('b-cdn.net');
 
   const seoDescription = product.seo_description || product.description || '';
   const symptoms = product.symptoms;
   const expertAdvice = product.expert_advice;
-  let faq = typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [];
-  let attributes = typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {};
+  const faq = useMemo(() => 
+    typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [], 
+    [product.faq]
+  );
+  const attributes = useMemo(() => 
+    typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {}, 
+    [product.attributes]
+  );
 
-  let breadcrumbPath: string[] = [];
-  if (product.category_text) {
-    breadcrumbPath = product.category_text.split('>').map((s: string) => s.trim()).filter(Boolean);
-  } else {
-    breadcrumbPath = ["Kategoria"];
-  }
+  const breadcrumbPath = useMemo(() => {
+    if (product.category_text) {
+      return product.category_text.split('>').map((s: string) => s.trim()).filter(Boolean);
+    }
+    return ["Kategoria"];
+  }, [product.category_text]);
+
+  const jsonLd = useMemo(() => ({
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": product.name,
+    "image": displayImages,
+    "description": seoDescription.replace(/<[^>]*>?/gm, '') || product.name,
+    "sku": product.sku,
+    "offers": {
+      "@type": "Offer",
+      "url": fullUrl, 
+      "priceCurrency": "PLN",
+      "price": (typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0).toFixed(2),
+      "availability": "https://schema.org/InStock",
+      "itemCondition": "https://schema.org/NewCondition"
+    }
+  }), [product, displayImages, seoDescription, fullUrl]);
+
+  const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
+  const [mainPrice, centsPrice] = numPrice.toFixed(2).split('.');
+  const hasCents = centsPrice !== '00';
 
   const handleAddToCartMain = () => {
     addItem({ 
@@ -115,27 +142,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
       category: product.category || '' 
     });
     setIsOpen(true); 
-  };
-
-  const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
-  const [mainPrice, centsPrice] = numPrice.toFixed(2).split('.');
-  const hasCents = centsPrice !== '00';
-
-  const jsonLd = {
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    "name": product.name,
-    "image": displayImages,
-    "description": seoDescription.replace(/<[^>]*>?/gm, '') || product.name,
-    "sku": product.sku,
-    "offers": {
-      "@type": "Offer",
-      "url": fullUrl, 
-      "priceCurrency": "PLN",
-      "price": numPrice.toFixed(2),
-      "availability": "https://schema.org/InStock",
-      "itemCondition": "https://schema.org/NewCondition"
-    }
   };
 
   return (
@@ -181,9 +187,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           <div className="flex flex-col gap-4">
-            {/* === OPTYMALIZOWANY GŁÓWNY OBRAZEK (klucz do LCP) === */}
+            {/* OPTYMALIZOWANY GŁÓWNY OBRAZEK - KLUCZ DO LCP */}
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
-              {mainImageUrl ? (
+               {mainImageUrl ? (
                 <div className="relative w-full aspect-square max-h-[500px]">
                   <Image
                     src={mainImageUrl}
@@ -196,9 +202,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                     className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>
-              ) : (
-                <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div>
-              )}
+               ) : ( 
+                <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div> 
+               )}
             </div>
             
             {displayImages.length > 1 && (
