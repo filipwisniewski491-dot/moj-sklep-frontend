@@ -22,10 +22,14 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
     mainImageUrl = (cdnImages.length > 0 ? cdnImages : fallbackImages)[0] || null;
   }
 
+  // Bezpieczne pobieranie opisu
+  const description = product?.seo_description 
+    || product?.description 
+    || "Największy internetowy katalog części zamiennych.";
+
   return {
     title: product?.name ? `${product.name} - CentrumRolnictwa.pl` : "Produkt - CentrumRolnictwa.pl",
-    description: (product?.seo_description || product?.description || "").substring(0, 160) || 
-                 "Największy internetowy katalog części zamiennych.",
+    description: typeof description === 'string' ? description.substring(0, 160) : description,
     openGraph: {
       images: mainImageUrl ? [{ url: mainImageUrl, width: 1200, height: 1200 }] : [],
     },
