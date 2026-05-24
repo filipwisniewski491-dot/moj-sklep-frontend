@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
+
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'centrumrolnictwa-cdn.b-cdn.net' },
@@ -17,16 +19,7 @@ const nextConfig = {
     optimizePackageImports: ['react', 'react-dom'],
   },
 
-  async headers() {
-    return [
-      {
-        source: '/:all*(jpg|jpeg|png|webp|avif|gif|ico|svg)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
-        ],
-      },
-    ];
-  },
+  output: 'standalone',
 };
 
 module.exports = nextConfig;

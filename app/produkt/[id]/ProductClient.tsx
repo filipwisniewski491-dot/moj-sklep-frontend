@@ -76,7 +76,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // === OPTYMALIZACJE ===
+  // === OPTYMALIZACJE POD LCP I BUNDLE ===
   const displayImages = useMemo(() => {
     let cdnImages: string[] = [];
     if (product.external_images) {
@@ -189,6 +189,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           <div className="flex flex-col gap-4">
+            {/* GŁÓWNY OBRAZEK - OPTYMALIZOWANY POD LCP */}
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
                {mainImageUrl ? (
                 <div className="relative w-full aspect-square max-h-[500px]">
