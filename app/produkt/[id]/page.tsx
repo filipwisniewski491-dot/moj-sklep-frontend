@@ -11,9 +11,25 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
   const params = await props.params;
   const product = await getProductData(params.id);
   
+  let mainImageUrl: string | null = null;
+  if (product) {
+    let cdnImages: string[] = [];
+    if (product.external_images) {
+      if (Array.isArray(product.external_images)) cdnImages = product.external_images;
+      else if (typeof product.external_images === 'string') {
+        try { cdnImages = JSON.parse(product.external_images); } catch (e) {}
+      }
+    }
+    const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
+    mainImageUrl = (cdnImages.length > 0 ? cdnImages : fallbackImages)[0] || null;
+  }
+
   return {
     title: product?.name ? `${product.name} - CentrumRolnictwa.pl` : "Produkt - CentrumRolnictwa.pl",
     description: product?.description ? product.description.substring(0, 160) : "Największy internetowy katalog części zamiennych.",
+    openGraph: {
+      images: mainImageUrl ? [{ url: mainImageUrl, width: 1200, height: 1200 }] : [],
+    },
   };
 }
 
@@ -33,7 +49,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     );
   }
 
-  // 🔥 ROZWIĄZANIE LCP: Ustalamy GŁÓWNY OBRAZEK w taki sam sposób jak w Kliencie
+  // 🔥 ROZWIĄZANIE LCP: Ustalamy GŁÓWNY OBRAZEK
   let cdnImages: string[] = [];
   if (product.external_images) {
     if (Array.isArray(product.external_images)) cdnImages = product.external_images;
@@ -47,11 +63,10 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
   if (mainImageUrl) {
     const cleanSrc = mainImageUrl.split('?')[0];
     
-    // Wstrzykujemy do nagłówków precyzyjny srcset pod BunnyCDN!
     if (cleanSrc.includes('b-cdn.net')) {
       preload(cleanSrc, { 
         as: 'image', 
-        imageSrcSet: `${cleanSrc}?width=384&format=webp 384w, ${cleanSrc}?width=750&format=webp 750w`,
+        imageSrcSet: `${cleanSrc}?width=384&format=webp 384w, ${cleanSrc}?width=750&format=webp 750w, ${cleanSrc}?width=1200&format=webp 1200w`,
         imageSizes: '(max-width: 768px) 100vw, 50vw',
         fetchPriority: 'high'
       });
