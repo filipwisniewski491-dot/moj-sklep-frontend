@@ -15,6 +15,7 @@ const nextConfig = {
     ],
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 31536000,
+    quality: 82,
   },
 
   compiler: {
@@ -25,9 +26,7 @@ const nextConfig = {
     optimizePackageImports: ['react', 'react-dom', 'zustand'],
   },
 
-  // Ważne dla mniejszego bundle
   output: 'standalone',
-  
 };
 
 module.exports = nextConfig;
