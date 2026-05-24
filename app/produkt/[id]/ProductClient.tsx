@@ -94,16 +94,18 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const seoDescription = product.seo_description || product.description || '';
   const symptoms = product.symptoms;
   const expertAdvice = product.expert_advice;
+
   const faq = useMemo(() => 
     typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [], 
     [product.faq]
   );
+
   const attributes = useMemo(() => 
     typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {}, 
     [product.attributes]
   );
 
-  const breadcrumbPath = useMemo(() => {
+  const breadcrumbPath = useMemo((): string[] => {
     if (product.category_text) {
       return product.category_text.split('>').map((s: string) => s.trim()).filter(Boolean);
     }
@@ -170,7 +172,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-red-700 transition-colors">Start</Link>
-          {breadcrumbPath.map((cat, idx) => {
+          {breadcrumbPath.map((cat: string, idx: number) => {
             const pathSlugs = breadcrumbPath.slice(0, idx + 1).map(c => generateSlug(c));
             const href = `/kategoria/${pathSlugs.join('/')}`;
             
@@ -187,7 +189,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           <div className="flex flex-col gap-4">
-            {/* OPTYMALIZOWANY GŁÓWNY OBRAZEK - KLUCZ DO LCP */}
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
                {mainImageUrl ? (
                 <div className="relative w-full aspect-square max-h-[500px]">
