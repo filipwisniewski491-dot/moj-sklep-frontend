@@ -27,7 +27,7 @@ const nextConfig = {
 
   // Ważne dla mniejszego bundle
   output: 'standalone',
-  swcMinify: true,
+  
 };
 
 module.exports = nextConfig;

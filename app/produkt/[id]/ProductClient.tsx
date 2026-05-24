@@ -5,8 +5,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 
-// Dynamiczny import koszyka - zmniejsza początkowy bundle JS
-const useCartDynamic = dynamic(() => import('@/store/useCart').then((mod) => mod.useCart), { ssr: false });
+// Dynamiczny import hooka useCart
+const useCart = dynamic(
+  () => import('@/store/useCart').then((mod) => mod.useCart),
+  { ssr: false }
+) as () => any;
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -34,8 +37,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
   
-  // Dynamiczne użycie koszyka
-  const cart = useCartDynamic();
+  // Użycie dynamicznego hooka
+  const cart = useCart();
   const { addItem, setIsOpen, items } = cart || {};
 
   useEffect(() => {
