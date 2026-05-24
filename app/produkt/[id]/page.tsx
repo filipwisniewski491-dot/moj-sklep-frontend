@@ -3,10 +3,9 @@ import { getProductData } from '@/lib/api';
 import { Metadata } from 'next';
 import { preload } from 'react-dom';
 
-// Wymuszamy, by Vercel odświeżał tę stronę raz na 24h
+// Wymuszamy rewalidację co 24h
 export const revalidate = 86400;
 
-// SEO Metadata
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const params = await props.params;
   const product = await getProductData(params.id);
@@ -49,7 +48,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     );
   }
 
-  // 🔥 ROZWIĄZANIE LCP: Ustalamy GŁÓWNY OBRAZEK
+  // === PRELOAD GŁÓWNEGO ZDJĘCIA DLA LCP ===
   let cdnImages: string[] = [];
   if (product.external_images) {
     if (Array.isArray(product.external_images)) cdnImages = product.external_images;
@@ -62,16 +61,24 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
 
   if (mainImageUrl) {
     const cleanSrc = mainImageUrl.split('?')[0];
-    
+
     if (cleanSrc.includes('b-cdn.net')) {
+      // Najlepszy preload dla Bunny CDN
       preload(cleanSrc, { 
-        as: 'image', 
-        imageSrcSet: `${cleanSrc}?width=384&format=webp 384w, ${cleanSrc}?width=750&format=webp 750w, ${cleanSrc}?width=1200&format=webp 1200w`,
+        as: 'image',
+        imageSrcSet: `
+          ${cleanSrc}?width=480&format=webp&quality=70 480w,
+          ${cleanSrc}?width=750&format=webp&quality=68 750w,
+          ${cleanSrc}?width=1200&format=webp&quality=65 1200w
+        `.trim(),
         imageSizes: '(max-width: 768px) 100vw, 50vw',
         fetchPriority: 'high'
       });
     } else {
-      preload(mainImageUrl, { as: 'image', fetchPriority: 'high' });
+      preload(mainImageUrl, { 
+        as: 'image', 
+        fetchPriority: 'high' 
+      });
     }
   }
 
