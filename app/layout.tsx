@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// 🔥 IMPORT NOWEGO MODUŁU KOSZYKA
 import CartDrawer from "@/components/CartDrawer";
 
 const geistSans = Geist({
@@ -26,14 +25,16 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="pl" // Zmieniono na PL dla prawidłowego SEO
+      lang="pl" 
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Wstępne połączenie z CDN - kluczowe dla wyniku LCP */}
+        <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
+      </head>
       <body className="min-h-full flex flex-col">
-        {/* Główna zawartość strony (Kategorie, Karta Produktu itp.) */}
         {children}
-        
-        {/* 🔥 GLOBALNY KOSZYK (SLIDE-OUT DRAWER) */}
         <CartDrawer />
       </body>
     </html>
