@@ -20,8 +20,10 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/:all*(jpg|jpeg|png|webp|avif|gif|ico)',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+        source: '/:all*(jpg|jpeg|png|webp|avif|gif|ico|svg)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+        ],
       },
     ];
   },
