@@ -15,7 +15,7 @@ const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
   const optimizedWidth = Math.min(width, 750);
-  return `${cleanSrc}?width=${optimizedWidth}&format=webp&quality=68&sharpen=false`;
+  return `${cleanSrc}?width=${optimizedWidth}&format=webp&quality=65&sharpen=false`;
 };
 
 const generateSlug = (text: string) => {
@@ -206,7 +206,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                     alt={product.name}
                     fill
                     priority
-                    quality={68}
+                    quality={65}
                     loader={bunnyLoader}
                     sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
