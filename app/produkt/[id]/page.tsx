@@ -24,9 +24,11 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 
   return {
     title: product?.name ? `${product.name} - CentrumRolnictwa.pl` : "Produkt - CentrumRolnictwa.pl",
-    description: product?.seo_description || product?.description?.substring(0, 160) || "",
+    description: product?.seo_description 
+      || product?.description?.substring(0, 160) 
+      || "Największy internetowy katalog części zamiennych.",
     openGraph: {
-      images: mainImageUrl ? [{ url: mainImageUrl }] : [],
+      images: mainImageUrl ? [{ url: mainImageUrl, width: 1200, height: 1200 }] : [],
     },
   };
 }
@@ -36,10 +38,18 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
   const product = await getProductData(params.id);
 
   if (!product) {
-    return <div>Produkt nie istnieje</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 font-sans">
+        <div className="text-center py-20">
+          <span className="text-6xl mb-6 block">🚜</span>
+          <h1 className="font-black text-3xl uppercase text-slate-800 mb-4 tracking-tighter">PRODUKT NIE ISTNIEJE</h1>
+          <p className="text-slate-500 font-medium text-sm">Sprawdź czy adres URL jest poprawny lub asortyment nie uległ zmianie.</p>
+        </div>
+      </div>
+    );
   }
 
-  // === PRECYZYJNY PRELOAD ===
+  // === PRELOAD GŁÓWNEGO ZDJĘCIA ===
   let cdnImages: string[] = [];
   if (product.external_images) {
     if (Array.isArray(product.external_images)) cdnImages = product.external_images;
