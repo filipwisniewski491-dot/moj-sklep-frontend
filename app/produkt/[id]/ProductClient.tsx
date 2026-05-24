@@ -84,6 +84,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
+  // === OPTYMALIZACJE ===
   const displayImages = useMemo(() => {
     let cdnImages: string[] = [];
     if (product.external_images) {

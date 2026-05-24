@@ -4,14 +4,8 @@ const nextConfig = {
 
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'centrumrolnictwa-cdn.b-cdn.net',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
+      { protocol: 'https', hostname: 'centrumrolnictwa-cdn.b-cdn.net' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 31536000,
