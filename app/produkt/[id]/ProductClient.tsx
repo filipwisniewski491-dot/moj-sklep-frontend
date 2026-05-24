@@ -184,8 +184,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           <div className="flex flex-col gap-4">
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner aspect-square relative overflow-hidden group">
                {mainImageUrl ? (
-                 <div className="w-full flex items-center justify-center">
-                   {/* 🔥 OSTATECZNY FIX LCP: Natywny HTML img bez hydracji Reacta */}
+                <div className="w-full flex items-center justify-center">
+                   {/* Zmiana decoding="sync" na "async" odciąży główny wątek! */}
                    <img 
                      src={isMainCdn ? `${cleanMainSrc}?width=750&format=webp` : mainImageUrl} 
                      srcSet={isMainCdn ? `${cleanMainSrc}?width=384&format=webp 384w, ${cleanMainSrc}?width=750&format=webp 750w` : undefined}
@@ -193,7 +193,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                      width={800} 
                      height={800} 
                      fetchPriority="high" 
-                     decoding="sync"
+                     decoding="async" 
                      sizes="(max-width: 768px) 100vw, 50vw" 
                      className="w-full max-w-full h-auto max-h-[500px] object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
                    />
