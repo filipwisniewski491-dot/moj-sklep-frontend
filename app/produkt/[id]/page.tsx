@@ -24,9 +24,8 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 
   return {
     title: product?.name ? `${product.name} - CentrumRolnictwa.pl` : "Produkt - CentrumRolnictwa.pl",
-    description: product?.seo_description 
-      || product?.description?.substring(0, 160) 
-      || "Największy internetowy katalog części zamiennych.",
+    description: (product?.seo_description || product?.description || "").substring(0, 160) || 
+                 "Największy internetowy katalog części zamiennych.",
     openGraph: {
       images: mainImageUrl ? [{ url: mainImageUrl, width: 1200, height: 1200 }] : [],
     },
