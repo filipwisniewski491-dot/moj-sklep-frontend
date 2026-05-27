@@ -11,29 +11,29 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
   const currentSlug = resolvedParams?.slug ? resolvedParams.slug[resolvedParams.slug.length - 1] : 'Kategoria';
   const categoryName = currentSlug.replace(/-/g, ' ').toUpperCase();
 
-  // Sprawdzamy czy w adresie URL są aktywne filtry (ignorujemy fullPath, page, sort, limit)
   const filterKeys = Object.keys(resolvedSearchParams || {}).filter(
     k => !['fullPath', 'limit', 'sort', 'page', 'q'].includes(k)
   );
   const hasFilters = filterKeys.length > 0;
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://centrumrolnictwa.pl';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.VERCEL_URL}` || 'https://centrumrolnictwa.pl';
 
   return {
     title: `Części do ${categoryName} | Sklep Rolniczy`,
     description: `Wysokiej jakości części w kategorii ${categoryName}. Szybka wysyłka, doradztwo techniczne i sprawdzeni producenci.`,
-    // ZŁOTA ZASADA SEO: Jeśli są filtry, nie indeksuj. Śledź linki zawsze.
     robots: hasFilters ? { index: false, follow: true } : { index: true, follow: true },
     alternates: {
-      // Canonical ZAWSZE wskazuje na "czystą" kategorię bez parametrów ?marka=...
       canonical: `${baseUrl}/kategoria/${fullPath}`,
     }
   };
 }
 
 async function getCategoryData(fullPath: string, searchParams: any) {
+  // Zoptymalizowane wykrywanie adresu URL dla Vercela
   const getBaseUrl = () => {
     if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
     return 'http://localhost:3000';
   };
 
@@ -45,10 +45,12 @@ async function getCategoryData(fullPath: string, searchParams: any) {
       next: { revalidate: 60 } 
     });
     
-    const data = res.ok ? await res.json() : { products: [], filters: {}, category: null };
+    // Jeśli połączenie się uda, ładujemy dane. Jeśli nie – wypisujemy kod błędu w H1!
+    const data = res.ok ? await res.json() : { products: [], filters: {}, category: { h1_dynamic: `BŁĄD API: ${res.status}` } };
     return { searchData: data, filtersData: data.filters || {} };
-  } catch (error) {
-    return { searchData: { products: [] }, filtersData: {} };
+  } catch (error: any) {
+    // Jeśli Vercel całkowicie odrzuci połączenie wewnętrzne, pokażemy to na ekranie
+    return { searchData: { products: [], category: { h1_dynamic: `BŁĄD SERWERA VERCEL: ${error.message}` } }, filtersData: {} };
   }
 }
 
