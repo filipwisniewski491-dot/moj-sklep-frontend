@@ -3,28 +3,20 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const MEILI_URL = process.env.MEILI_URL;
-  const MEILI_KEY = process.env.MEILI_MASTER_KEY;
+  const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL;
+  const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN;
 
   const debugInfo: any = {
-    etap: "Test połączenia Vercel -> Meilisearch",
-    meili_url_ustawiony: !!MEILI_URL,
-    meili_url_wartosc: MEILI_URL || 'BRAK ZMIENNEJ W VERCEL',
-    meili_key_ustawiony: !!MEILI_KEY,
-    meili_key_dlugosc: MEILI_KEY ? MEILI_KEY.length : 0,
+    etap: "Test połączenia Vercel -> Strapi",
+    strapi_url_ustawiony: !!STRAPI_URL,
+    strapi_url_wartosc: STRAPI_URL || 'BRAK',
+    strapi_token_ustawiony: !!STRAPI_TOKEN,
     status_polaczenia: 'Oczekujące...',
-    kod_bledu: null,
-    odpowiedz: null
   };
 
   try {
-    const res = await fetch(`${MEILI_URL}/indexes/products/search`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${MEILI_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ q: "", limit: 1 }), // Pobieramy tylko 1 produkt na próbę
+    const res = await fetch(`${STRAPI_URL}/api/categories?pagination[pageSize]=1`, {
+      headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` },
       cache: 'no-store'
     });
 
@@ -32,15 +24,14 @@ export async function GET() {
 
     if (res.ok) {
       const data = await res.json();
-      debugInfo.status_polaczenia = 'SUKCES! Vercel widzi bazę.';
-      debugInfo.lacznie_produktow_w_bazie = data.estimatedTotalHits || data.totalHits || data.hits?.length || 0;
+      debugInfo.status_polaczenia = 'SUKCES! Vercel widzi Strapi.';
+      debugInfo.przykładowa_kategoria = data.data?.[0]?.name || data.data?.[0]?.attributes?.name || 'Brak danych';
     } else {
-      debugInfo.status_polaczenia = 'BŁĄD: Meilisearch odrzucił połączenie.';
+      debugInfo.status_polaczenia = 'BŁĄD: Strapi odrzuciło połączenie.';
       debugInfo.odpowiedz = await res.text();
     }
-
   } catch (err: any) {
-    debugInfo.status_polaczenia = 'BŁĄD KRYTYCZNY: Brak dostępu do serwera (Firewall/Timeout).';
+    debugInfo.status_polaczenia = 'BŁĄD KRYTYCZNY: Brak dostępu (Firewall/Timeout na porcie 1337).';
     debugInfo.odpowiedz = err.message;
   }
 
