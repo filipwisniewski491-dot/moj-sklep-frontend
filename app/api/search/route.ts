@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 
-export const revalidate = 0; 
-export const dynamic = 'force-dynamic';
+// WŁĄCZAMY CACHE NA 1 GODZINĘ - TO DAJE PRĘDKOŚĆ ŚWIATŁA
+export const revalidate = 3600; 
 
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
 const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN;
 const MEILI_URL = process.env.MEILI_URL || "http://178.105.201.145:7700";
-const MEILI_KEY = process.env.MEILI_MASTER_KEY; // <- Upewnij się, że na Vercelu jest przez M!
+const MEILI_KEY = process.env.MEILI_MASTER_KEY;
 
 const getAttr = (obj: any, key: string) => obj?.[key] ?? obj?.attributes?.[key] ?? null;
 
@@ -34,58 +34,60 @@ export async function GET(request: Request) {
   let breadcrumbs: any[] = [];
 
   try {
-    // 1. ODPYTYWANIE STRAPI
     const segQuery = segments.map((s, i) => `filters[slug][$in][${i}]=${s}`).join('&');
-    const breadRes = await fetch(`${STRAPI_URL}/api/categories?${segQuery}&pagination[pageSize]=50`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, cache: 'no-store' });
     
-    if (!breadRes.ok) throw new Error(`Strapi Breadcrumbs Error: ${breadRes.status}`);
+    // ZRÓWNOLEGLENIE ZAPYTAŃ DO STRAPI (Oszczędność czasu)
+    const [breadRes, catRes] = await Promise.all([
+      fetch(`${STRAPI_URL}/api/categories?${segQuery}&pagination[pageSize]=50`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, next: { revalidate: 3600 } }),
+      fetch(`${STRAPI_URL}/api/categories?filters[slug][$eq]=${currentSlug}&populate=*`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, next: { revalidate: 3600 } })
+    ]);
     
-    const breadData = await breadRes.json();
-    const nameMap = new Map();
-    if (breadData.data) {
-        breadData.data.forEach((c: any) => nameMap.set(getAttr(c, 'slug'), getAttr(c, 'name')));
+    if (breadRes.ok) {
+        const breadData = await breadRes.json();
+        const nameMap = new Map();
+        if (breadData.data) {
+            breadData.data.forEach((c: any) => nameMap.set(getAttr(c, 'slug'), getAttr(c, 'name')));
+        }
+        let tempPath = "";
+        breadcrumbs = segments.map(s => {
+            tempPath = tempPath ? `${tempPath}/${s}` : s;
+            return { name: (nameMap.get(s) || s.replace(/-/g, ' ')).toUpperCase(), slug: s, path: tempPath };
+        });
     }
-    
-    let tempPath = "";
-    breadcrumbs = segments.map(s => {
-        tempPath = tempPath ? `${tempPath}/${s}` : s;
-        return { name: (nameMap.get(s) || s.replace(/-/g, ' ')).toUpperCase(), slug: s, path: tempPath };
-    });
 
-    const catRes = await fetch(`${STRAPI_URL}/api/categories?filters[slug][$eq]=${currentSlug}&populate=*`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, cache: 'no-store' });
-    if (!catRes.ok) throw new Error(`Strapi Category Error: ${catRes.status}`);
-    
-    const catJson = await catRes.json();
-    if (catJson.data && catJson.data.length > 0) {
-        const mainCat = catJson.data[0];
-        dbCategoryData.name = getAttr(mainCat, 'name') || currentSlug;
-        dbCategoryData.h1_dynamic = getAttr(mainCat, 'h1_dynamic') || dbCategoryData.name.toUpperCase();
-        dbCategoryData.top_seo_text = getAttr(mainCat, 'top_seo_text') || "";
-        dbCategoryData.bottom_seo_text = getAttr(mainCat, 'bottom_seo_text') || null;
-        dbCategoryData.faqs = getAttr(mainCat, 'faqs') || [];
-        allTargetCategories.add(dbCategoryData.name);
-        
-        const realPath = getAttr(mainCat, 'category_path');
-        if (realPath) {
-            const subRes = await fetch(`${STRAPI_URL}/api/categories?filters[category_path][$startsWith]=${realPath}&pagination[pageSize]=1000`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, cache: 'no-store' });
-            if (subRes.ok) {
-                const subJson = await subRes.json();
-                if (subJson.data) {
-                    subJson.data.forEach((c: any) => {
-                        const childName = getAttr(c, 'name');
-                        const childPath = getAttr(c, 'category_path');
-                        if (childName) allTargetCategories.add(childName);
-                        if (childPath && childPath !== realPath) {
-                            const depthDiff = childPath.split('/').length - realPath.split('/').length;
-                            if (depthDiff === 1) directSubcategories.add(childName);
-                        }
-                    });
+    if (catRes.ok) {
+        const catJson = await catRes.json();
+        if (catJson.data && catJson.data.length > 0) {
+            const mainCat = catJson.data[0];
+            dbCategoryData.name = getAttr(mainCat, 'name') || currentSlug;
+            dbCategoryData.h1_dynamic = getAttr(mainCat, 'h1_dynamic') || dbCategoryData.name.toUpperCase();
+            dbCategoryData.top_seo_text = getAttr(mainCat, 'top_seo_text') || "";
+            dbCategoryData.bottom_seo_text = getAttr(mainCat, 'bottom_seo_text') || null;
+            dbCategoryData.faqs = getAttr(mainCat, 'faqs') || [];
+            allTargetCategories.add(dbCategoryData.name);
+            
+            const realPath = getAttr(mainCat, 'category_path');
+            if (realPath) {
+                // To zapytanie zależy od realPath, więc musi zostać tutaj
+                const subRes = await fetch(`${STRAPI_URL}/api/categories?filters[category_path][$startsWith]=${realPath}&pagination[pageSize]=1000`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, next: { revalidate: 3600 } });
+                if (subRes.ok) {
+                    const subJson = await subRes.json();
+                    if (subJson.data) {
+                        subJson.data.forEach((c: any) => {
+                            const childName = getAttr(c, 'name');
+                            const childPath = getAttr(c, 'category_path');
+                            if (childName) allTargetCategories.add(childName);
+                            if (childPath && childPath !== realPath) {
+                                const depthDiff = childPath.split('/').length - realPath.split('/').length;
+                                if (depthDiff === 1) directSubcategories.add(childName);
+                            }
+                        });
+                    }
                 }
             }
         }
     }
   } catch (e: any) { 
-      // Zwracamy błąd Strapi bezpośrednio na ekran!
       return NextResponse.json({ 
         category: { h1_dynamic: `BŁĄD STRAPI: ${e.message}`, name: "ERROR" }, products: [], breadcrumbs: [], subcategories: [], filters: {}, totalCount: 0, faqs: [] 
       }); 
@@ -98,7 +100,6 @@ export async function GET(request: Request) {
 
   if (allTargetCategories.size === 0) allTargetCategories.add(dbCategoryData.name);
 
-  // 3. MEILISEARCH MULTI-SEARCH
   try {
       const categoryConditions = Array.from(allTargetCategories).map(c => `category = "${c.replace(/"/g, '\\"')}"`).join(" OR ");
       const baseCategoryFilter = `(${categoryConditions})`;
@@ -118,11 +119,13 @@ export async function GET(request: Request) {
       const [productsRes, facetsRes] = await Promise.all([
         fetch(`${MEILI_URL}/indexes/products/search`, {
           method: 'POST', headers: { 'Authorization': `Bearer ${MEILI_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: searchQ, filter: activeFilterArray, limit: currentLimit, sort: meiliSort }), cache: 'no-store' 
+          body: JSON.stringify({ q: searchQ, filter: activeFilterArray, limit: currentLimit, sort: meiliSort }), 
+          next: { revalidate: 60 } // Krótki cache na produkty (ceny, stany magazynowe)
         }),
         fetch(`${MEILI_URL}/indexes/products/search`, {
           method: 'POST', headers: { 'Authorization': `Bearer ${MEILI_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: searchQ, filter: [baseCategoryFilter], limit: 0, facets: ["*"] }), cache: 'no-store' 
+          body: JSON.stringify({ q: searchQ, filter: [baseCategoryFilter], limit: 0, facets: ["*"] }), 
+          next: { revalidate: 3600 } // Długi cache na strukturę filtrów
         })
       ]);
 
@@ -162,7 +165,6 @@ export async function GET(request: Request) {
         faqs: dbCategoryData.faqs
       });
   } catch (error: any) {
-      // Zwracamy błąd Meilisearch bezpośrednio na ekran!
       return NextResponse.json({ 
         category: { h1_dynamic: `BŁĄD MEILI: ${error.message}`, name: "ERROR" }, 
         products: [], breadcrumbs: [], subcategories: [], filters: {}, totalCount: 0, faqs: [] 
