@@ -1,15 +1,39 @@
-import CategoryClient from './CategoryClient';
+import { Metadata } from 'next';
 
-// MAGIA PRĘDKOŚCI: ISR - Vercel zapamięta tę stronę na 24h (86400 sekund).
-// Odświeży ją w tle bez blokowania użytkownika.
-export const revalidate = 86400; 
+export const revalidate = 60; 
+
+// === GENEROWANIE METADANYCH SEO ===
+export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  
+  const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
+  const currentSlug = resolvedParams?.slug ? resolvedParams.slug[resolvedParams.slug.length - 1] : 'Kategoria';
+  const categoryName = currentSlug.replace(/-/g, ' ').toUpperCase();
+
+  // Sprawdzamy czy w adresie URL są aktywne filtry (ignorujemy fullPath, page, sort, limit)
+  const filterKeys = Object.keys(resolvedSearchParams || {}).filter(
+    k => !['fullPath', 'limit', 'sort', 'page', 'q'].includes(k)
+  );
+  const hasFilters = filterKeys.length > 0;
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://centrumrolnictwa.pl';
+
+  return {
+    title: `Części do ${categoryName} | Sklep Rolniczy`,
+    description: `Wysokiej jakości części w kategorii ${categoryName}. Szybka wysyłka, doradztwo techniczne i sprawdzeni producenci.`,
+    // ZŁOTA ZASADA SEO: Jeśli są filtry, nie indeksuj. Śledź linki zawsze.
+    robots: hasFilters ? { index: false, follow: true } : { index: true, follow: true },
+    alternates: {
+      // Canonical ZAWSZE wskazuje na "czystą" kategorię bez parametrów ?marka=...
+      canonical: `${baseUrl}/kategoria/${fullPath}`,
+    }
+  };
+}
 
 async function getCategoryData(fullPath: string, searchParams: any) {
-  // Budujemy adres URL, żeby serwer Vercel mógł odpytać samego siebie
   const getBaseUrl = () => {
     if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
     return 'http://localhost:3000';
   };
 
@@ -17,37 +41,31 @@ async function getCategoryData(fullPath: string, searchParams: any) {
   const queryStr = new URLSearchParams(searchParams as Record<string, string>).toString();
 
   try {
-    // Równoległe, błyskawiczne pobieranie danych i filtrów
-    const [searchRes, filtersRes] = await Promise.all([
-      fetch(`${baseUrl}/api/search?fullPath=${fullPath}&${queryStr}`, { next: { revalidate: 86400 } }),
-      fetch(`${baseUrl}/api/filters?fullPath=${fullPath}&${queryStr}`, { next: { revalidate: 86400 } })
-    ]);
-
-    const searchData = searchRes.ok ? await searchRes.json() : null;
-    const filtersData = filtersRes.ok ? await filtersRes.json() : null;
-
-    return { 
-      searchData: searchData || {}, 
-      filtersData: filtersData?.filters || {} 
-    };
+    const res = await fetch(`${baseUrl}/api/search?fullPath=${fullPath}&${queryStr}`, { 
+      next: { revalidate: 60 } 
+    });
+    
+    const data = res.ok ? await res.json() : { products: [], filters: {}, category: null };
+    return { searchData: data, filtersData: data.filters || {} };
   } catch (error) {
-    console.error("Błąd generowania statycznego:", error);
-    return { searchData: {}, filtersData: {} };
+    return { searchData: { products: [] }, filtersData: {} };
   }
 }
 
-export default async function Page(props: { params: Promise<{ slug: string[] }>, searchParams: Promise<any> }) {
-  const params = await props.params;
-  const searchParams = await props.searchParams;
-  const fullPath = params.slug.join('/');
+export default async function CategoryPage({ params, searchParams }: any) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
 
-  const data = await getCategoryData(fullPath, searchParams);
+  const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
+  
+  const { searchData, filtersData } = await getCategoryData(fullPath, resolvedSearchParams);
 
-  // Przekazujemy wszystko do Twojego komponentu klienckiego!
+  const CategoryClient = (await import('./CategoryClient')).default;
+
   return (
     <CategoryClient 
-      initialData={data.searchData} 
-      initialFilters={data.filtersData} 
+      initialData={searchData} 
+      initialFilters={filtersData} 
       fullPath={fullPath} 
     />
   );

@@ -6,7 +6,11 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'centrumrolnictwa-cdn.b-cdn.net',
+        hostname: '**.b-cdn.net', // Odblokowuje wszystkie zdjęcia z BunnyCDN
+      },
+      {
+        protocol: 'http',
+        hostname: '178.105.201.145', // Odblokowuje zdjęcia bezpośrednio ze Strapi
       },
       {
         protocol: 'https',
