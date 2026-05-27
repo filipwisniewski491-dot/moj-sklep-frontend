@@ -1,3 +1,7 @@
+// w funkcji GET, zaraz na początku:
+console.log("DEBUG_MEILI_URL:", process.env.MEILI_URL);
+console.log("DEBUG_STRAPI_URL:", process.env.NEXT_PUBLIC_STRAPI_URL);
+
 import { NextResponse } from 'next/server';
 
 export const revalidate = 0; 
