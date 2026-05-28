@@ -52,7 +52,6 @@ const MEGA_MENU_DATA = [
        { title: "Chemia i smary", slug: "chemia-i-smary", links: ["Oleje silnikowe", "Smary", "Zmywacze", "Płyny chłodnicze"] }
     ]
   },
-
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
 ];
 
@@ -148,47 +147,43 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         <p className="text-xs font-bold pr-4 leading-tight">{liveSale?.text}</p>
       </div>
 
-      {/* --- TOP BAR INFO --- */}
-      <div className="bg-slate-900 text-white py-2 px-4 font-bold relative z-[60] shadow-sm border-b border-red-600/50">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-center gap-3">
-          <div className="flex items-center space-x-6 text-[10px] sm:text-xs uppercase tracking-[0.2em]">
-            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-500 transition-colors group">
+      {/* --- 1. TOP BAR INFO (Ukryty na telefonach) --- */}
+      <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
+        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
+          <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
+            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
               <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
             </a>
-            <span className="hidden md:flex items-center gap-2 text-slate-300">
+            <span className="hidden md:flex items-center gap-2 text-slate-500">
               <span className="text-emerald-500">✓</span> Ekspercki Dobór Części
             </span>
           </div>
           
-          <div className="flex items-center gap-2 bg-red-600/20 px-4 py-1 rounded-full border border-red-600/30">
-            <span className="text-[10px] uppercase tracking-widest text-red-100 hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
-            <span suppressHydrationWarning className="text-red-500 font-black tabular-nums text-sm tracking-widest">
+          <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
+            <span className="text-[10px] uppercase tracking-widest hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
+            <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest">
               ⏳ {isMounted ? `${String(timeLeft.hours).padStart(2, '0')}:${String(timeLeft.minutes).padStart(2, '0')}:${String(timeLeft.seconds).padStart(2, '0')}` : '00:00:00'}
             </span>
-          </div>
-
-          <div className="flex items-center gap-3 bg-black/40 p-1 rounded-full border border-slate-700">
-            <button aria-label="Pokaż ceny brutto" className={`text-[10px] uppercase tracking-widest px-4 py-1 rounded-full transition-all ${!isNetto ? 'bg-white text-slate-900 font-black shadow-sm' : 'text-slate-400 hover:text-white'}`} onClick={() => setIsNetto(false)}>Brutto</button>
-            <button aria-label="Pokaż ceny netto" className={`text-[10px] uppercase tracking-widest px-4 py-1 rounded-full transition-all ${isNetto ? 'bg-white text-slate-900 font-black shadow-sm' : 'text-slate-400 hover:text-white'}`} onClick={() => setIsNetto(true)}>Netto</button>
           </div>
         </div>
       </div>
 
-      {/* --- GŁÓWNY HEADER Z WYSZUKIWARKĄ --- */}
-      <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-4 md:py-6">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8">
+      {/* --- 2. GŁÓWNY HEADER Z WYSZUKIWARKĄ (Zoptymalizowany pod Mobile z dużym logo) --- */}
+      <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
+        <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
           
-          <div className="flex-shrink-0 w-full md:w-auto flex justify-center md:justify-start">
+          <div className="flex-shrink-0 flex items-center">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
-              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
-  alt="CentrumRolnictwa.pl" 
-  className="h-16 md:h-24 w-auto transition-transform hover:scale-105 duration-300" 
-  fetchPriority="high" 
-/>
+              <img 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
+                alt="CentrumRolnictwa.pl" 
+                className="h-10 sm:h-14 md:h-20 w-auto transition-transform hover:scale-105 duration-300" 
+                fetchPriority="high" 
+              />
             </Link>
           </div>
 
-          <div className="flex-1 w-full max-w-3xl relative z-50">
+          <div className="flex-1 w-full relative z-50">
              <SearchBar />
           </div>
 
@@ -204,7 +199,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
 
             <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
-                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               </div>
               <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
             </Link>
@@ -212,7 +207,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
             <Link href="/koszyk" aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
                  <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white group-hover:animate-bounce">2</div>
-                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">{getDisplayPrice(cartValue)} zł</span>
             </Link>
@@ -220,22 +215,22 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         </div>
       </header>
 
-      {/* --- MEGA MENU DESKTOP (Złoty Standard - Lepsze odstępy) --- */}
-      <div className="hidden lg:block bg-slate-900 text-white relative z-40 shadow-md">
+      {/* --- 3. MEGA MENU DESKTOP (JASNE, CZYSTE, E-COMMERCE) --- */}
+      <div className="hidden lg:block bg-white relative z-40 border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 flex items-center">
-          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-red-600 uppercase text-[11px] tracking-widest hover:bg-red-700 transition-colors shrink-0 z-10 relative">
+          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-10 relative">
             <span>☰</span> Pełny Katalog 2026
           </Link>
           
           <ul className="flex flex-1 items-center justify-center gap-6 xl:gap-8 px-4">
             {MEGA_MENU_DATA.map((cat) => (
-              <li key={cat.slug} className="group text-center py-4">
-                <Link href={`/kategoria/${cat.slug}`} className="block font-bold text-slate-300 hover:text-white transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap group-hover:underline decoration-red-600 underline-offset-4">
-                  <span className="mr-1.5 text-base align-middle">{cat.icon}</span> {cat.name}
+              <li key={cat.slug} className="group text-center py-5">
+                <Link href={`/kategoria/${cat.slug}`} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[11px] xl:text-[12px] tracking-[0.2em] whitespace-nowrap">
+                  <span className="mr-2 text-xl align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
                 </Link>
 
                 {cat.columns && cat.columns.length > 0 && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-[95vw] max-w-7xl bg-white border border-slate-200 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-b-2xl p-8 z-50 text-left text-slate-900">
+                  <div className="absolute left-0 right-0 mx-auto w-full max-w-7xl mt-4 bg-white border border-slate-100 shadow-[0_30px_60px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 rounded-2xl p-8 z-50 text-left text-slate-900">
                     <div className="grid grid-cols-4 gap-8">
                       {cat.columns.map(col => (
                         <div key={col.slug}>
@@ -305,14 +300,14 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
           </aside>
         </section>
 
-        {/* --- SILOSY SEO (Dwurzędowa Elegancka Siatka) --- */}
-        <section className="mb-20">
+        {/* --- SILOSY SEO (Większe, solidniejsze) --- */}
+        <section className="mb-24">
            <h2 className="sr-only">Kategorie Główne Sklepu Rolniczego</h2>
-           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-4">
+           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 lg:gap-8">
              {QUICK_SILOS.map((silo, index) => (
-                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} className={`bg-white border border-slate-100 p-4 lg:p-6 rounded-[24px] flex flex-col items-center justify-center text-center gap-3 hover:border-red-500 hover:shadow-lg transition-all group ${index === QUICK_SILOS.length - 1 ? 'lg:col-start-3' : ''}`}>
-                  <span className="text-3xl lg:text-4xl group-hover:scale-110 transition-transform">{silo.img}</span>
-                  <span className="text-[10px] font-black uppercase text-slate-700 tracking-wider group-hover:text-red-600 leading-tight">{silo.name}</span>
+                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} className={`bg-white border border-slate-100 p-8 lg:p-10 rounded-[40px] flex flex-col items-center justify-center text-center gap-5 hover:border-red-600 hover:shadow-2xl hover:shadow-red-600/10 transition-all duration-300 group ${index === QUICK_SILOS.length - 1 ? 'lg:col-start-3' : ''}`}>
+                  <span className="text-5xl lg:text-6xl group-hover:scale-110 transition-transform">{silo.img}</span>
+                  <span className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] group-hover:text-red-600 leading-tight max-w-[120px]">{silo.name}</span>
                 </Link>
              ))}
            </div>
@@ -392,7 +387,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         {/* --- STREFA WIEDZY --- */}
         <KnowledgeSection />
 
-        {/* --- BLOK SEO DLA STRONY GŁÓWNEJ (Sklep Rolniczy) --- */}
+        {/* --- BLOK SEO DLA STRONY GŁÓWNEJ --- */}
         <section className="mb-12 mt-16 bg-white rounded-[32px] p-8 md:p-12 border border-slate-100 shadow-sm">
           <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">Internetowy Sklep Rolniczy - Części do maszyn i ciągników</h2>
           <div className="text-xs text-slate-600 leading-relaxed columns-1 md:columns-2 gap-10 text-justify font-medium">
@@ -409,11 +404,11 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
 
       {/* --- MOBILE BOTTOM NAVIGATION --- */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-center px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe" aria-label="Nawigacja mobilna">
-        <Link href="/" className="flex flex-col items-center text-red-600">
-          <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
-          <span className="text-[9px] font-black uppercase tracking-widest">Start</span>
-        </Link>
-        <Link href="/kategorie" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+        <a href="tel:+48257888900" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors">
+          <span className="text-xl mb-1">📞</span>
+          <span className="text-[9px] font-black uppercase tracking-widest">Zadzwoń</span>
+        </a>
+        <Link href="/kategorie" className="flex flex-col items-center text-red-600">
           <span className="text-xl mb-1">☰</span>
           <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
         </Link>
@@ -421,18 +416,18 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
           <span className="text-[9px] font-black uppercase tracking-widest">Konto</span>
         </Link>
-        <Link href="/koszyk" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors relative">
-          <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white">2</div>
+        <button onClick={() => setCartOpen(true)} className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors relative">
+          {cartTotalItems > 0 && <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white">{cartTotalItems}</div>}
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
           <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
-        </Link>
+        </button>
       </nav>
 
       {/* --- STOPKA --- */}
       <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
           <div>
-            <img src="/logo-centrumrolnictwapl-2-2.webp" alt="CentrumRolnictwa Logo" className="h-10 w-auto mb-6 brightness-0 invert" loading="lazy" />
+            <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="CentrumRolnictwa Logo" className="h-10 w-auto mb-6 brightness-0 invert" loading="lazy" />
             <p className="text-[10px] font-bold text-slate-400 uppercase leading-loose tracking-widest">
               Niezawodny Sklep Rolniczy.<br/> Części, maszyny, doradztwo.
             </p>

@@ -72,7 +72,7 @@ const MEGA_MENU_DATA = [
        { title: "Chemia i smary", slug: "chemia-i-smary", links: ["Oleje silnikowe", "Smary", "Zmywacze", "Płyny chłodnicze"] }
     ]
   },
-  
+  { name: "Elektronika i precyzja", slug: "elektronika-i-precyzja", icon: "📡" },
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
 ];
 
@@ -221,7 +221,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const { items, setIsOpen: setCartOpen } = useCart() as any;
   const cartTotalItems = items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
   
-  // Do obliczania brakującej darmowej dostawy na górnym pasku
   const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
   const freeShippingThreshold = 500;
   const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
@@ -250,7 +249,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
   const isFirstRender = useRef(true);
   
-  // Zegary dla nowego nagłówka
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isMounted, setIsMounted] = useState(false);
 
@@ -481,13 +479,13 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       )}
 
       {/* ========================================================================= */}
-      {/* 🚀 JASNY, PROFESJONALNY GLOBALNY HEADER (Czysty E-commerce) */}
+      {/* 🚀 JASNY, PROFESJONALNY GLOBALNY HEADER (Zoptymalizowany pod Mobile) */}
       {/* ========================================================================= */}
       
-      {/* --- 1. TOP BAR INFO (Jasny) --- */}
-      <div className="bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-center gap-3">
-          <div className="flex items-center space-x-6 text-[10px] sm:text-xs uppercase tracking-[0.2em]">
+      {/* --- 1. TOP BAR INFO (Ukryty na telefonach, widoczny od tabletów w górę) --- */}
+      <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
+        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
+          <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
             <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
               <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
             </a>
@@ -505,20 +503,24 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         </div>
       </div>
 
-      {/* --- 2. GŁÓWNY HEADER Z WYSZUKIWARKĄ --- */}
-      <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-4 md:py-6">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8">
+      {/* --- 2. GŁÓWNY HEADER Z WYSZUKIWARKĄ (Skompresowany na Mobile) --- */}
+      <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
+        <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
           
-          <div className="flex-shrink-0 w-full md:w-auto flex justify-center md:justify-start">
+          {/* Mniejsze Logo na mobile dla oszczędności miejsca */}
+          <div className="flex-shrink-0 flex items-center">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
-              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
-  alt="CentrumRolnictwa.pl" 
-  className="h-16 md:h-24 w-auto transition-transform hover:scale-105 duration-300" 
-  fetchPriority="high"/>
+              <img 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
+                alt="CentrumRolnictwa.pl" 
+                className="h-10 sm:h-14 md:h-20 w-auto transition-transform hover:scale-105 duration-300" 
+                fetchPriority="high" 
+              />
             </Link>
           </div>
 
-          <div className="flex-1 w-full max-w-3xl relative z-50">
+          {/* Wyszukiwarka - Zajmuje resztę szerokości od razu obok Logo na telefonie */}
+          <div className="flex-1 w-full relative z-50">
              <SearchBar />
           </div>
 
@@ -561,13 +563,13 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           
           <ul className="flex flex-1 items-center justify-center gap-6 xl:gap-8 px-4">
             {MEGA_MENU_DATA.map((cat) => (
-              <li key={cat.slug} className="group text-center py-4">
-                <Link href={`/kategoria/${cat.slug}`} className="block font-bold text-slate-600 hover:text-red-600 transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap">
-                  <span className="mr-1.5 text-base align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
+              <li key={cat.slug} className="group text-center py-5">
+                <Link href={`/kategoria/${cat.slug}`} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[11px] xl:text-[12px] tracking-[0.2em] whitespace-nowrap">
+                  <span className="mr-2 text-xl align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
                 </Link>
 
                 {cat.columns && cat.columns.length > 0 && (
-                 <div className="absolute left-1/2 -translate-x-1/2 top-full w-[95vw] max-w-7xl bg-white border border-slate-200 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-b-2xl p-8 z-50 text-left text-slate-900">
+                  <div className="absolute left-0 right-0 mx-auto w-full max-w-7xl mt-4 bg-white border border-slate-100 shadow-[0_30px_60px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 rounded-2xl p-8 z-50 text-left text-slate-900">
                     <div className="grid grid-cols-4 gap-8">
                       {cat.columns.map(col => (
                         <div key={col.slug}>
@@ -799,10 +801,10 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
       {/* --- MOBILE BOTTOM NAVIGATION --- */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-center px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe" aria-label="Nawigacja mobilna">
-        <Link href="/" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
-          <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
-          <span className="text-[9px] font-black uppercase tracking-widest">Start</span>
-        </Link>
+        <a href="tel:+48257888900" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors">
+          <span className="text-xl mb-1">📞</span>
+          <span className="text-[9px] font-black uppercase tracking-widest">Zadzwoń</span>
+        </a>
         <Link href="/kategorie" className="flex flex-col items-center text-red-600">
           <span className="text-xl mb-1">☰</span>
           <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
@@ -817,6 +819,33 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
         </button>
       </nav>
+
+      {/* --- STOPKA --- */}
+      <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
+          <div>
+            <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="CentrumRolnictwa Logo" className="h-10 w-auto mb-6 brightness-0 invert" loading="lazy" />
+            <p className="text-[10px] font-bold text-slate-400 uppercase leading-loose tracking-widest">
+              Niezawodny Sklep Rolniczy.<br/> Części, maszyny, doradztwo.
+            </p>
+          </div>
+          <div>
+             <h4 className="text-white font-black mb-6 uppercase text-[11px] tracking-widest">Sklep</h4>
+             <ul className="space-y-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {QUICK_SILOS.slice(0, 4).map(cat => (
+                  <li key={cat.slug}><Link href={`/kategoria/${cat.slug}`} className="hover:text-red-500 transition-colors">{cat.name}</Link></li>
+                ))}
+             </ul>
+          </div>
+          <div className="md:col-span-2 bg-slate-800/50 p-8 rounded-[32px] border border-slate-700 flex flex-col justify-center">
+             <h4 className="text-slate-300 font-black mb-4 uppercase text-[10px] tracking-[0.2em]">Infolinia i Doradztwo Techniczne</h4>
+             <a href="tel:+48257888900" className="font-black text-3xl md:text-4xl text-white tracking-tighter tabular-nums mb-3 hover:text-red-500 transition-colors w-fit">25 788 89 00</a>
+             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Czynne Pn-Pt: 8:00 - 16:00
+             </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
