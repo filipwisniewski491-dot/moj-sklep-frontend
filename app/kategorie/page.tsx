@@ -61,11 +61,14 @@ const MEGA_MENU_DATA = [
 ];
 
 export default function CatalogIndexPage() {
-  const { items, setIsOpen } = useCart();
+  const { items } = useCart();
   const [cartCount, setCartCount] = useState(0);
   const [cartValue, setCartValue] = useState(0);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isMounted, setIsMounted] = useState(false);
+  
+  // Stan dla urządzeń mobilnych - który dział jest rozwinięty
+  const [openMobileCat, setOpenMobileCat] = useState<string | null>(null);
 
   const freeShippingThreshold = 500;
   const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
@@ -105,6 +108,10 @@ export default function CatalogIndexPage() {
       const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
       window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
     }
+  };
+
+  const toggleMobileCategory = (slug: string) => {
+    setOpenMobileCat(openMobileCat === slug ? null : slug);
   };
 
   return (
@@ -154,15 +161,6 @@ export default function CatalogIndexPage() {
               </div>
               <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
             </Link>
-            <button onClick={() => setIsOpen?.(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
-              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
-                 {cartCount > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartCount}</div>}
-                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-              </div>
-              <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
-                {cartCount > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
-              </span>
-            </button>
           </nav>
         </div>
       </header>
@@ -184,11 +182,11 @@ export default function CatalogIndexPage() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-10 md:py-16 relative z-10">
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
+      <main className="max-w-7xl mx-auto px-4 py-8 md:py-16 relative z-10">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 items-start">
            
-           {/* STICKY SIDEBAR (Nawigacja boczna Top B2B) */}
-           <aside className="w-full lg:w-1/4 shrink-0 lg:sticky lg:top-8 hidden md:block">
+           {/* STICKY SIDEBAR (Nawigacja boczna Top B2B - WIDOCZNA TYLKO NA DESKTOP) */}
+           <aside className="w-full lg:w-1/4 shrink-0 lg:sticky lg:top-8 hidden lg:block">
               <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
                  <h3 className="font-black uppercase tracking-widest text-slate-900 text-xs mb-6 border-b border-slate-100 pb-4">
                    Struktura Kategorii
@@ -210,45 +208,70 @@ export default function CatalogIndexPage() {
               </div>
            </aside>
 
-           {/* GŁÓWNA SIATKA (Katalog Kaskadowy) */}
-           <div className="w-full lg:w-3/4 flex flex-col gap-12">
-              {MEGA_MENU_DATA.map((cat) => (
-                <section key={cat.slug} id={cat.slug} className="scroll-mt-8 bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
-                   
-                   <div className="bg-slate-50 p-6 md:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 md:w-16 md:h-16 bg-white border border-slate-200 shadow-sm rounded-2xl flex items-center justify-center text-3xl">
-                          {cat.icon}
+           {/* GŁÓWNA SIATKA (Katalog Kaskadowy / Akordeon na Mobile) */}
+           <div className="w-full lg:w-3/4 flex flex-col gap-4 lg:gap-12">
+              {MEGA_MENU_DATA.map((cat) => {
+                const isOpenOnMobile = openMobileCat === cat.slug;
+                
+                return (
+                  <section key={cat.slug} id={cat.slug} className="scroll-mt-8 bg-white rounded-[24px] lg:rounded-[40px] border border-slate-100 shadow-sm overflow-hidden transition-all duration-300">
+                     
+                     {/* NAGŁÓWEK KATEGORII (Klikalny na Mobile) */}
+                     <div 
+                        className={`bg-slate-50 p-4 md:p-8 flex items-center justify-between gap-4 border-slate-100 cursor-pointer lg:cursor-default transition-colors ${isOpenOnMobile ? 'border-b bg-red-50/30' : ''}`}
+                        onClick={() => toggleMobileCategory(cat.slug)}
+                     >
+                        <div className="flex items-center gap-3 md:gap-4 flex-1">
+                          <div className={`w-12 h-12 md:w-16 md:h-16 border shadow-sm rounded-xl md:rounded-2xl flex items-center justify-center text-2xl md:text-3xl transition-colors ${isOpenOnMobile ? 'bg-red-600 border-red-700 text-white grayscale-0' : 'bg-white border-slate-200 grayscale'}`}>
+                            {cat.icon}
+                          </div>
+                          <h2 className={`text-lg md:text-2xl font-black uppercase tracking-tight flex-1 ${isOpenOnMobile ? 'text-red-700' : 'text-slate-900'}`}>{cat.name}</h2>
                         </div>
-                        <h2 className="text-xl md:text-2xl font-black uppercase text-slate-900 tracking-tight">{cat.name}</h2>
-                      </div>
-                      <Link href={`/kategoria/${cat.slug}`} className="bg-slate-900 text-white px-6 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-colors shadow-md text-center">
-                        Otwórz ten dział ➔
-                      </Link>
-                   </div>
-
-                   <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                      {cat.columns?.map(col => (
-                        <div key={col.slug}>
-                           <Link href={`/kategoria/${cat.slug}/${col.slug}`} className="text-red-600 font-black uppercase tracking-widest text-[11px] mb-4 block hover:text-slate-900 border-b-2 border-red-100 w-fit pb-1 transition-colors">
-                             {col.title}
-                           </Link>
-                           <ul className="space-y-3">
-                             {col.links.map(link => (
-                               <li key={link}>
-                                 <Link href={`/kategoria/${cat.slug}/${col.slug}/${generateSlug(link)}`} className="text-sm font-bold text-slate-600 hover:text-red-600 hover:translate-x-1 transition-transform flex items-center gap-2.5 group">
-                                   <span className="w-1.5 h-1.5 bg-slate-200 rounded-full group-hover:bg-red-600 transition-colors"></span>
-                                   {link}
-                                 </Link>
-                               </li>
-                             ))}
-                           </ul>
+                        
+                        <div className="flex items-center gap-2">
+                          {/* Przycisk widoczny tylko na Desktop */}
+                          <Link href={`/kategoria/${cat.slug}`} className="hidden lg:block bg-slate-900 text-white px-6 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-colors shadow-md text-center">
+                            Otwórz ten dział ➔
+                          </Link>
+                          {/* Ikona rozwijania widoczna tylko na Mobile */}
+                          <div className={`lg:hidden w-10 h-10 rounded-full flex items-center justify-center border shadow-sm transition-transform duration-300 ${isOpenOnMobile ? 'bg-red-100 border-red-200 text-red-600 rotate-180' : 'bg-white border-slate-200 text-slate-400'}`}>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                          </div>
                         </div>
-                      ))}
-                   </div>
+                     </div>
 
-                </section>
-              ))}
+                     {/* ZAWARTOŚĆ PODKATEGORII (Akordeon Mobile / Zawsze otwarte na Desktop) */}
+                     <div className={`p-4 md:p-8 animate-in fade-in slide-in-from-top-4 duration-300 ${isOpenOnMobile ? 'block' : 'hidden lg:block'}`}>
+                        
+                        {/* Główny link mobilny przeniesiony na samą górę sekcji, dla wygody kciuka */}
+                        <Link href={`/kategoria/${cat.slug}`} className="lg:hidden w-full mb-8 bg-slate-900 text-white px-6 py-4 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 transition-colors shadow-lg flex items-center justify-center gap-2 active:scale-95">
+                          Przeglądaj wszystkie z {cat.name} ➔
+                        </Link>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
+                          {cat.columns?.map(col => (
+                            <div key={col.slug}>
+                               <Link href={`/kategoria/${cat.slug}/${col.slug}`} className="text-red-600 font-black uppercase tracking-widest text-[11px] lg:text-[12px] mb-4 block hover:text-slate-900 border-b-2 border-red-100 w-fit pb-1.5 transition-colors">
+                                 {col.title}
+                               </Link>
+                               <ul className="space-y-3 lg:space-y-4">
+                                 {col.links.map(link => (
+                                   <li key={link}>
+                                     <Link href={`/kategoria/${cat.slug}/${col.slug}/${generateSlug(link)}`} className="text-sm font-bold text-slate-600 hover:text-red-600 hover:translate-x-1.5 transition-transform flex items-center gap-3 group py-1">
+                                       <span className="w-1.5 h-1.5 bg-slate-200 rounded-full group-hover:bg-red-600 transition-colors"></span>
+                                       {link}
+                                     </Link>
+                                   </li>
+                                 ))}
+                               </ul>
+                            </div>
+                          ))}
+                        </div>
+                     </div>
+
+                  </section>
+                )
+              })}
            </div>
         </div>
       </main>
