@@ -4,6 +4,8 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import SearchBar from '@/components/SearchBar';
+import CrossSellModule from '@/components/CrossSellModule';
 
 // Dynamiczny import koszyka
 const useCart = dynamic(
@@ -30,18 +32,97 @@ const generateSlug = (text: string) => {
     .replace(/-+/g, '-');
 };
 
+const MEGA_MENU_DATA = [
+  { 
+    name: "Części do ciągników", slug: "czesci-do-ciagnikow", icon: "🚜",
+    columns: [
+      { title: "Silnik i osprzęt", slug: "silnik-i-osprzet", links: ["Węże", "Prowadnice", "Uszczelki", "Śruby i mocowania", "Zawory", "Tłoki"] },
+      { title: "Układ napędowy", slug: "uklad-napedowy-i-sprzegla", links: ["Kołki", "Kosze", "Krzyżaki", "Mechanizmy różnicowe", "Tarcze sprzęgła"] },
+      { title: "Układ paliwowy", slug: "uklad-paliwowy-i-wydechowy", links: ["Pompy wtryskowe", "Wtryskiwacze", "Tłumiki", "Filtry paliwa"] },
+      { title: "Kabina i elektryka", slug: "kabina-i-oblachowanie", links: ["Lusterka", "Szyby", "Fotele", "Oświetlenie", "Rozruszniki"] }
+    ]
+  },
+  { 
+    name: "Części do maszyn", slug: "czesci-do-maszyn", icon: "⚙️",
+    columns: [
+      { title: "Uprawa ziemi", slug: "uprawa-ziemi", links: ["Lemiesze", "Dłuta", "Odkładnice", "Piętki"] },
+      { title: "Zbiór i żniwa", slug: "zbior-i-zniwa", links: ["Bagnety", "Nożyki", "Paski klinowe", "Palce podbieracza"] }
+    ]
+  },
+  { 
+    name: "Hydraulika siłowa", slug: "hydraulika-silowa", icon: "🗜️",
+    columns: [
+      { title: "Elementy układu", slug: "elementy-ukladu", links: ["Pompy hydrauliczne", "Rozdzielacze", "Siłowniki", "Szybkozłącza"] }
+    ]
+  }, 
+  { 
+    name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", icon: "🔧",
+    columns: [
+       { title: "Materiały i narzędzia", slug: "wyposazenie-warsztatu", links: ["Narzędzia ręczne", "Elektronarzędzia", "Odzież BHP"] },
+       { title: "Chemia i smary", slug: "chemia-i-smary", links: ["Oleje silnikowe", "Smary", "Zmywacze", "Płyny chłodnicze"] }
+    ]
+  },
+  { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
+];
+
+const MiniProductCard = ({ product }: { product: any }) => {
+  const { addItem, setIsOpen } = useCart() as any;
+  const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
+  const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
+  const sku = product.sku || "BRAK SKU";
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault(); 
+    e.stopPropagation();
+    addItem({ id: product.id || sku, name: product.name, price: price, image: imageUrl || '', quantity: 1, crossSell: [], category: '' });
+    setIsOpen(true);
+  };
+
+  return (
+    <div className="group bg-white border border-slate-100 rounded-[32px] p-2 hover:shadow-xl transition-all duration-300 flex flex-col h-full">
+      <Link href={`/produkt/${product.slug || sku}`} className="absolute inset-0 z-0"></Link>
+      <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4 pointer-events-none">
+        {imageUrl ? (
+          <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Brak zdjęcia</span>
+        )}
+      </div>
+      <div className="flex flex-col px-3 pb-4 flex-1 pointer-events-none">
+        <h3 className="font-bold text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs tracking-tight">{product.name}</h3>
+        <div className="mt-auto pt-3 border-t border-slate-50 flex items-end justify-between pointer-events-auto z-10">
+          <div className="flex flex-col">
+            <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
+          </div>
+          <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0">
+            <span className="text-sm">🛒</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ProductClient({ product, fullUrl }: { product: any, fullUrl: string }) {
   const [selectedImgIdx, setSelectedImgIdx] = useState(0); 
   const [showSticky, setShowSticky] = useState(false);
   const [countdownText, setCountdownText] = useState('');
   const [cartCount, setCartCount] = useState(0);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [skuCopied, setSkuCopied] = useState(false);
 
   const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
   
   const cart = useCart();
   const { addItem, setIsOpen, items } = cart || {};
 
+  const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
+  const freeShippingThreshold = 500;
+  const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
+  const [isMounted, setIsMounted] = useState(false);
+
   useEffect(() => {
+    setIsMounted(true);
     if (items) {
       const total = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
       setCartCount(total);
@@ -85,7 +166,21 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // === OPTYMALIZACJE ===
+  useEffect(() => {
+    if (product?.category) {
+      const categoryName = typeof product.category === 'object' ? product.category.name : product.category;
+      fetch(`/api/search?q=${encodeURIComponent(categoryName)}&limit=5`)
+        .then(res => res.json())
+        .then(data => {
+           if (data && data.products) {
+             const filtered = data.products.filter((p: any) => p.sku !== product.sku);
+             setRelatedProducts(filtered);
+           }
+        })
+        .catch(err => console.error("Błąd pobierania cross-selli", err));
+    }
+  }, [product.category, product.sku]);
+
   const displayImages = useMemo(() => {
     let cdnImages: string[] = [];
     if (product.external_images) {
@@ -99,20 +194,12 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   }, [product.external_images, product.images]);
 
   const mainImageUrl = displayImages[selectedImgIdx] || null;
-
   const seoDescription = product.seo_description || product.description || '';
   const symptoms = product.symptoms;
   const expertAdvice = product.expert_advice;
 
-  const faq = useMemo(() => 
-    typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [], 
-    [product.faq]
-  );
-
-  const attributes = useMemo(() => 
-    typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {}, 
-    [product.attributes]
-  );
+  const faq = useMemo(() => typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [], [product.faq]);
+  const attributes = useMemo(() => typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {}, [product.attributes]);
 
   const breadcrumbPath = useMemo((): string[] => {
     if (product.category_text) {
@@ -121,63 +208,135 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return ["Kategoria"];
   }, [product.category_text]);
 
-  const jsonLd = useMemo(() => ({
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    "name": product.name,
-    "image": displayImages,
-    "description": seoDescription.replace(/<[^>]*>?/gm, '') || product.name,
-    "sku": product.sku,
-    "offers": {
-      "@type": "Offer",
-      "url": fullUrl, 
-      "priceCurrency": "PLN",
-      "price": (typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0).toFixed(2),
-      "availability": "https://schema.org/InStock",
-      "itemCondition": "https://schema.org/NewCondition"
-    }
-  }), [product, displayImages, seoDescription, fullUrl]);
-
   const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const [mainPrice, centsPrice] = numPrice.toFixed(2).split('.');
   const hasCents = centsPrice !== '00';
 
   const handleAddToCartMain = () => {
     if (addItem) {
-      addItem({ 
-        id: product.id, 
-        name: product.name, 
-        price: product.price, 
-        image: mainImageUrl || '', 
-        quantity: 1,
-        crossSell: product.crossSell || [], 
-        category: product.category || '' 
-      });
+      addItem({ id: product.id, name: product.name, price: product.price, image: mainImageUrl || '', quantity: 1, crossSell: product.crossSell || [], category: product.category || '' });
+      if (setIsOpen) setIsOpen(true);
+    }
+  };
+
+  const handleCopySku = () => {
+    if(product.sku) {
+      navigator.clipboard.writeText(product.sku);
+      setSkuCopied(true);
+      setTimeout(() => setSkuCopied(false), 2000);
+    }
+  };
+
+  // --- LOGIKA DOPASOWANIA I ZESTAWÓW ---
+  const fitsBrands = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Marka'] || attributes['Pasuje do'];
+  const fitsModels = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
+  const hasCompatibility = !!(fitsBrands || fitsModels);
+
+  const bundleProduct = relatedProducts.length > 0 ? relatedProducts[0] : null;
+  const bundleProductPrice = bundleProduct ? (typeof bundleProduct.price === 'number' ? bundleProduct.price : parseFloat(bundleProduct.price) || 0) : 0;
+  const bundleTotalPrice = bundleProduct ? (numPrice + bundleProductPrice) : 0;
+  const bundleDiscountPrice = bundleProduct ? (bundleTotalPrice * 0.95) : 0;
+
+  const handleAddBundle = () => {
+    if (addItem && bundleProduct) {
+      addItem({ id: product.id, name: product.name, price: product.price, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
+      const bundleImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
+      addItem({ id: bundleProduct.id || bundleProduct.sku, name: bundleProduct.name, price: bundleProductPrice * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
       if (setIsOpen) setIsOpen(true);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 relative">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-      
-      <header className="border-b py-4 px-6 bg-white sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center w-full">
-          <Link href="/" className="text-red-700 font-black flex items-center gap-2 hover:translate-x-[-4px] transition-transform uppercase text-[10px] tracking-widest">
-            ← WRÓĆ DO SKLEPU
-          </Link>
-          <div className="font-black text-xl tracking-tighter">CentrumRolnictwa<span className="text-slate-500">.pl</span></div>
-          
-          <button aria-label="Otwórz koszyk" onClick={() => setIsOpen?.(true)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors relative">
-             <span className="text-xl">🛒</span>
-             {cartCount > 0 && (
-               <span className="absolute -top-1 -right-1 bg-red-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-pulse shadow-md shadow-red-600/30">
-                 {cartCount}
-               </span>
-             )}
-          </button>
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0 relative">
+      <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
+        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
+          <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
+            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
+              <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
+            </a>
+            <span className="hidden md:flex items-center gap-2 text-slate-500">
+              <span className="text-emerald-500">✓</span> Ekspercki Dobór Części
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
+            <span className="text-[10px] uppercase tracking-widest hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
+            <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest">
+              ⏳ {isMounted ? countdownText.split(': ')[1] || countdownText : '00:00:00'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
+        <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
+          <div className="flex-shrink-0 flex items-center">
+            <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
+              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="CentrumRolnictwa.pl" className="h-10 sm:h-14 md:h-20 w-auto transition-transform hover:scale-105 duration-300" fetchPriority="high" />
+            </Link>
+          </div>
+          <div className="flex-1 w-full relative z-50">
+             <SearchBar />
+          </div>
+          <nav className="hidden md:flex items-center space-x-6 text-slate-800">
+            <div className="hidden xl:block text-right mr-4">
+               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">
+                 Do darmowej: <span className="text-red-600 font-black">{Math.max(0, freeShippingThreshold - cartValue).toFixed(2)} zł</span>
+               </p>
+               <div className="w-40 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
+                 <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
+               </div>
+            </div>
+            <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group">
+              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+              </div>
+              <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
+            </Link>
+            <button onClick={() => setIsOpen?.(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
+              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
+                 {cartCount > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartCount}</div>}
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              </div>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
+                {cartCount > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
+              </span>
+            </button>
+          </nav>
         </div>
       </header>
+
+      <div className="hidden lg:block bg-white relative z-40 border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 flex items-center">
+          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-10 relative">
+            <span>☰</span> Pełny Katalog 2026
+          </Link>
+          <ul className="flex flex-1 items-center justify-center gap-6 xl:gap-8 px-4">
+            {MEGA_MENU_DATA.map((cat) => (
+              <li key={cat.slug} className="group text-center py-5">
+                <Link href={`/kategoria/${cat.slug}`} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[11px] xl:text-[12px] tracking-[0.2em] whitespace-nowrap">
+                  <span className="mr-2 text-xl align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
+                </Link>
+                {cat.columns && cat.columns.length > 0 && (
+                  <div className="absolute left-0 right-0 mx-auto w-full max-w-7xl mt-4 bg-white border border-slate-100 shadow-[0_30px_60px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 rounded-2xl p-8 z-50 text-left text-slate-900">
+                    <div className="grid grid-cols-4 gap-8">
+                      {cat.columns.map(col => (
+                        <div key={col.slug}>
+                          <Link href={`/kategoria/${cat.slug}/${col.slug}`} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">{col.title}</Link>
+                          <ul className="space-y-2.5">
+                            {col.links.map(link => (
+                                <li key={generateSlug(link)}><Link href={`/kategoria/${cat.slug}/${col.slug}/${generateSlug(link)}`} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">{link}</Link></li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
@@ -227,86 +386,155 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                     aria-label={`Zobacz zdjęcie ${idx + 1}`}
                     className={`relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${selectedImgIdx === idx ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50 hover:bg-slate-100'}`}
                   >
-                    <Image 
-                      loader={bunnyLoader} 
-                      src={imgUrl} 
-                      alt={`Miniatura produktu ${idx + 1}`} 
-                      fill 
-                      sizes="96px" 
-                      className="object-contain mix-blend-multiply p-2" 
-                    />
+                    <Image loader={bunnyLoader} src={imgUrl} alt={`Miniatura produktu ${idx + 1}`} fill sizes="96px" className="object-contain mix-blend-multiply p-2" />
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="flex flex-col h-full justify-center">
+          <div className="flex flex-col h-full justify-start">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-slate-100 pb-4">
-              <div className="flex gap-2">
-                <span className="bg-green-100 text-green-800 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest">W Magazynie (24h)</span>
-                <span className="bg-slate-100 text-slate-700 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest">SKU: {product.sku}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span> W Magazynie</span>
+                
+                {/* 1-Click SKU Copy */}
+                <button 
+                  onClick={handleCopySku}
+                  className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest border transition-all flex items-center gap-1 cursor-pointer ${skuCopied ? 'bg-green-600 text-white border-green-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+                >
+                  SKU: {product.sku} {skuCopied ? '✓ Skopiowano' : '📋'}
+                </button>
               </div>
-              <div className="flex items-center gap-2 bg-yellow-50 px-3 py-1.5 rounded-full border border-yellow-100">
-                <div className="flex text-yellow-600 text-xs">★★★★★</div>
-                <span className="text-[10px] font-bold text-yellow-800 uppercase tracking-widest">4.8/5.0</span>
+              <div className="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
+                <div className="flex text-amber-400 text-xs">★★★★★</div>
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">4.8/5.0</span>
               </div>
             </div>
 
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-tight mb-6 tracking-tight">{product.name}</h1>
 
-            <div className="bg-red-50 text-red-900 p-5 rounded-2xl mb-8 border-2 border-red-200 flex items-start gap-4 shadow-sm relative overflow-hidden">
-               <div className="text-3xl mt-1">⏱️</div>
+            {/* CENA I PRZYCISK OD RAZU POD TYTUŁEM */}
+            <div className="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                <div>
-                  <p className="text-xs font-black uppercase tracking-widest mb-1 text-red-700 flex items-center gap-1.5">
+                 <div className="flex items-baseline gap-1 mb-1">
+                   <span className="text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter">{mainPrice}</span>
+                   {hasCents && <span className="text-3xl font-bold text-slate-500">.{centsPrice}</span>}
+                   <span className="text-2xl font-bold text-slate-500 ml-1">zł</span>
+                 </div>
+                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Cena brutto (VAT 23%)</p>
+               </div>
+               
+               <div className="flex-1 md:max-w-[280px]">
+                 <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-base lg:text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-600/30 flex items-center justify-center gap-3">
+                   <span>DODAJ DO KOSZYKA ➔</span>
+                 </button>
+               </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-8 border-b border-slate-100 pb-8">
+              <span className="flex items-center gap-1.5">🔒 Bezpieczne płatności</span>
+              <span className="text-slate-300">•</span>
+              <span className="flex items-center gap-1.5">💳 BLIK / PayU</span>
+              <span className="text-slate-300">•</span>
+              <span className="flex items-center gap-1.5">🔄 14 dni na zwrot</span>
+            </div>
+
+            {/* SEKCJA "PASUJE DO" */}
+            {hasCompatibility && (
+              <div className="mb-6 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4">
+                 <div className="text-2xl">✅</div>
+                 <div>
+                    <p className="text-[10px] font-black uppercase text-emerald-800 tracking-widest mb-1">Gwarancja dopasowania</p>
+                    <p className="text-sm font-bold text-emerald-950 leading-snug">
+                      Element sprawdzony. Pasuje do: <span className="font-black">{fitsBrands} {fitsModels}</span>
+                    </p>
+                 </div>
+              </div>
+            )}
+
+            {/* ZEGAR ZJECHAŁ W DÓŁ */}
+            <div className="bg-slate-50 text-slate-800 p-5 rounded-2xl mb-4 border border-slate-200 flex items-start gap-4">
+               <div className="text-2xl mt-0.5">📦</div>
+               <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-1 text-slate-500 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
-                    Ekspresowa Realizacja
+                    Ekspresowa Wysyłka
                   </p>
-                  <p className="text-sm font-black leading-tight text-slate-800">{countdownText}</p>
+                  <p className="text-sm font-bold leading-tight">{countdownText}</p>
                </div>
             </div>
 
-            <div className="mb-8">
-               <div className="flex items-baseline gap-1 mb-1">
-                 <span className="text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter">{mainPrice}</span>
-                 {hasCents && <span className="text-3xl font-bold text-slate-500">.{centsPrice}</span>}
-                 <span className="text-2xl font-bold text-slate-500 ml-1">zł</span>
-               </div>
-               <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Cena brutto (VAT 23%)</p>
-            </div>
-
-            <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="w-full bg-red-600 text-white py-6 rounded-2xl font-black text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.01] active:scale-95 shadow-xl shadow-red-600/20 flex items-center justify-center gap-3">
-               <span>DODAJ DO KOSZYKA ➔</span>
-            </button>
-
-            <div className="mt-6 bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-5 shadow-sm relative overflow-hidden group">
-              <div className="relative w-16 h-11 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-                <Image 
-                  src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop" 
-                  alt="Doradca Maciek" 
-                  width={64} 
-                  height={64} 
-                  className="object-cover object-top" 
-                />
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden group">
+              <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
+                <Image src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop" alt="Doradca Maciek" fill sizes="56px" className="object-cover object-top" />
               </div>
               <div className="flex-1">
-                <p className="font-black uppercase text-[10px] text-red-700 tracking-widest mb-0.5">Twój opiekun techniczny</p>
-                <p className="font-bold text-slate-800 text-sm leading-tight mb-1">Chcesz upewnić się, czy część pasuje?</p>
-                <a href="tel:+48500600700" className="inline-flex items-center gap-2 font-black text-white bg-green-700 hover:bg-green-800 shadow-md shadow-green-700/20 px-4 py-2 rounded-xl mt-1 text-xs uppercase tracking-widest transition-colors">
+                <p className="font-black uppercase text-[9px] text-red-700 tracking-widest mb-0.5">Twój opiekun techniczny</p>
+                <p className="font-bold text-slate-800 text-xs leading-tight mb-2">Chcesz upewnić się, czy część na pewno pasuje?</p>
+                <a href="tel:+48500600700" className="inline-flex items-center gap-1.5 font-black text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-colors">
                   📞 +48 500 600 700
                 </a>
               </div>
             </div>
-
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
-              <span>🔒 Bezpieczne płatności</span>
-              <span className="text-slate-300">•</span>
-              <span>💳 BLIK / PayU</span>
-              <span className="text-slate-300">•</span>
-              <span>🔄 14 dni na zwrot</span>
-            </div>
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* 🚀 NOWOŚĆ: KUP W ZESTAWIE (BUNDLE UP-SELL) */}
+        {/* ========================================================================= */}
+        {bundleProduct && (
+          <section className="mt-12 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 bg-red-600 text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest shadow-md">
+               Kup w zestawie i oszczędź 5%
+             </div>
+             
+             <h3 className="text-xl lg:text-2xl font-black text-slate-900 uppercase tracking-tight mb-8">Często kupowane razem</h3>
+             
+             <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+                {/* Produkt Główny */}
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
+                    {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt="Main" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
+                  </div>
+                  <div>
+                    <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
+                    <p className="text-xs font-bold text-slate-800 line-clamp-2">{product.name}</p>
+                    <p className="text-sm font-black text-slate-900 mt-1">{numPrice.toFixed(2)} zł</p>
+                  </div>
+                </div>
+
+                <div className="text-3xl font-black text-slate-300">＋</div>
+
+                {/* Produkt Dobrany */}
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
+                     {(() => {
+                        const bImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
+                        return bImg ? <Image loader={bunnyLoader} src={bImg} alt="Bundle" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
+                     })()}
+                  </div>
+                  <div>
+                    <span className="bg-slate-100 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Rekomendowane</span>
+                    <p className="text-xs font-bold text-slate-800 line-clamp-2">{bundleProduct.name}</p>
+                    <p className="text-sm font-black text-slate-900 mt-1">{bundleProductPrice.toFixed(2)} zł</p>
+                  </div>
+                </div>
+                
+                <div className="text-3xl font-black text-slate-300 hidden lg:block">＝</div>
+                <div className="w-full h-px bg-slate-100 lg:hidden"></div>
+                
+                {/* Podsumowanie i przycisk */}
+                <div className="flex flex-col items-center lg:items-end w-full lg:w-auto shrink-0 bg-red-50 p-6 rounded-2xl border border-red-100">
+                   <p className="line-through text-slate-400 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
+                   <p className="text-3xl lg:text-4xl font-black text-red-600 tracking-tighter leading-none mb-4">{bundleDiscountPrice.toFixed(2)} <span className="text-lg">zł</span></p>
+                   <button onClick={handleAddBundle} className="w-full lg:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-md hover:scale-[1.02] active:scale-95">
+                     DODAJ ZESTAW ➔
+                   </button>
+                </div>
+             </div>
+          </section>
+        )}
 
         <div className="mt-12 grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-8">
@@ -364,42 +592,113 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             )}
           </div>
         </div>
+
+        {product.crossSell && product.crossSell.length > 0 && (
+           <CrossSellModule skus={product.crossSell} />
+        )}
+
+        {relatedProducts.length > 0 && (
+          <section className="mt-16 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 relative z-10 gap-4">
+                <div>
+                  <h3 className="text-[11px] font-black uppercase tracking-widest text-red-600 mb-2 flex items-center gap-2">
+                    Klienci wybierali również
+                  </h3>
+                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight">Inni oglądali też</h2>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 relative z-10">
+                 {relatedProducts.map(p => (
+                   <MiniProductCard key={p.id || p.sku} product={p} />
+                 ))}
+              </div>
+          </section>
+        )}
       </main>
 
-      <div className={`fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
+      {/* ========================================================================= */}
+      {/* 🚀 STICKY ADD TO CART (Pływający nad dolnym menu) */}
+      {/* ========================================================================= */}
+      <div className={`fixed bottom-[60px] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-full md:translate-y-[120%]'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="hidden md:flex items-center gap-4">
             {mainImageUrl && (
-              <div className="relative w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden shrink-0">
-                <Image loader={bunnyLoader} src={mainImageUrl} alt={product.name} fill sizes="44px" className="object-contain p-1 mix-blend-multiply" />
+              <div className="relative w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden shrink-0">
+                <Image loader={bunnyLoader} src={mainImageUrl} alt={product.name} fill sizes="48px" className="object-contain p-1 mix-blend-multiply" />
               </div>
             )}
             <div>
-              <p className="text-xs font-black text-slate-900 line-clamp-1 max-w-xs tracking-tight">{product.name}</p>
-              <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">SKU: {product.sku}</p>
+              <p className="text-sm font-black text-slate-900 line-clamp-1 max-w-sm tracking-tight">{product.name}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">SKU: {product.sku}</p>
             </div>
           </div>
           
           <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto justify-between md:justify-end">
             <div className="hidden lg:flex items-center gap-2 border-r pr-6 border-slate-100 text-[11px] text-slate-600 font-bold">
-               📞 Wsparcie: <span className="font-black text-slate-900">+48 500 600 700</span>
+               📞 Zadzwoń: <span className="font-black text-slate-900">+48 500 600 700</span>
             </div>
             
             <div className="text-left md:text-right shrink-0">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Suma:</p>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Cena z VAT:</p>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter leading-none">{mainPrice}</span>
-                {hasCents && <span className="text-xs font-bold text-slate-500 leading-none">.{centsPrice}</span>}
+                <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">{mainPrice}</span>
+                {hasCents && <span className="text-sm font-bold text-slate-500 leading-none">.{centsPrice}</span>}
                 <span className="text-xs font-bold text-slate-500 ml-0.5 leading-none">zł</span>
               </div>
             </div>
             
-            <button onClick={handleAddToCartMain} className="bg-red-600 hover:bg-red-700 text-white font-black text-[11px] uppercase tracking-widest px-6 md:px-8 py-3.5 rounded-xl transition-all shadow-md shrink-0">
+            <button onClick={handleAddToCartMain} className="bg-red-600 hover:bg-red-700 text-white font-black text-[11px] md:text-xs uppercase tracking-widest px-6 md:px-10 py-3.5 md:py-4 rounded-xl transition-all shadow-lg shadow-red-600/30 shrink-0 hover:scale-[1.02] active:scale-95">
               DODAJ DO KOSZYKA ➔
             </button>
           </div>
         </div>
       </div>
+
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-center px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe" aria-label="Nawigacja mobilna">
+        <a href="tel:+48257888900" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors">
+          <span className="text-xl mb-1">📞</span>
+          <span className="text-[9px] font-black uppercase tracking-widest">Zadzwoń</span>
+        </a>
+        <Link href="/kategorie" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors">
+          <span className="text-xl mb-1">☰</span>
+          <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
+        </Link>
+        <Link href="/konto" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Konto</span>
+        </Link>
+        <button onClick={() => setIsOpen?.(true)} className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative group">
+          {cartCount > 0 && <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white animate-bounce">{cartCount}</div>}
+          <svg className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
+        </button>
+      </nav>
+
+      <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
+          <div>
+            <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="CentrumRolnictwa Logo" className="h-10 w-auto mb-6 brightness-0 invert" loading="lazy" />
+            <p className="text-[10px] font-bold text-slate-400 uppercase leading-loose tracking-widest">
+              Niezawodny Sklep Rolniczy.<br/> Części, maszyny, doradztwo.
+            </p>
+          </div>
+          <div>
+             <h4 className="text-white font-black mb-6 uppercase text-[11px] tracking-widest">Sklep</h4>
+             <ul className="space-y-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {QUICK_SILOS.slice(0, 4).map(cat => (
+                  <li key={cat.slug}><Link href={`/kategoria/${cat.slug}`} className="hover:text-red-500 transition-colors">{cat.name}</Link></li>
+                ))}
+             </ul>
+          </div>
+          <div className="md:col-span-2 bg-slate-800/50 p-8 rounded-[32px] border border-slate-700 flex flex-col justify-center">
+             <h4 className="text-slate-300 font-black mb-4 uppercase text-[10px] tracking-[0.2em]">Infolinia i Doradztwo Techniczne</h4>
+             <a href="tel:+48257888900" className="font-black text-3xl md:text-4xl text-white tracking-tighter tabular-nums mb-3 hover:text-red-500 transition-colors w-fit">25 788 89 00</a>
+             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Czynne Pn-Pt: 8:00 - 16:00
+             </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
