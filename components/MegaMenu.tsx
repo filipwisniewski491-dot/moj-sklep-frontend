@@ -39,7 +39,7 @@ const MEGA_MENU_DATA = [
     ]
   }, 
   { 
-    name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", icon: "🔧",
+    name: "Warsztat", slug: "warsztat-i-uniwersalne", icon: "🔧",
     columns: [
        { title: "Materiały i narzędzia", slug: "wyposazenie-warsztatu", links: ["Narzędzia ręczne", "Elektronarzędzia", "Odzież BHP"] },
        { title: "Chemia i smary", slug: "chemia-i-smary", links: ["Oleje silnikowe", "Smary", "Zmywacze", "Płyny chłodnicze"] }
