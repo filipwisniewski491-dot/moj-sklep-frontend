@@ -340,7 +340,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <button onClick={() => setIsOpen?.(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200 mt-1">
-                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
                 Koszyk
@@ -427,43 +427,50 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-tight mb-6 tracking-tight">{product.name}</h1>
 
-            <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-               <div>
-                 {/* Zaktualizowana, prestiżowa etykieta VIP */}
+            <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+               
+               {/* LEWA STRONA: CZYSTY BLOK CENOWY */}
+               <div className="flex flex-col">
+                 
+                 {/* Subtelny status VIP i przekreślona cena nad główną kwotą */}
                  {currentTier.level > 1 && (
-                   <div className="flex items-center gap-3 mb-2">
-                     <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-amber-500/40 px-3 py-1.5 rounded-xl shadow-lg relative overflow-hidden group cursor-default">
-                        {/* Interaktywny błysk przy najechaniu */}
-                        <div className="absolute inset-0 w-[200%] h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 skew-x-12"></div>
-                        <span className="text-amber-400 text-sm">👑</span>
-                        <span className="text-[10px] font-black uppercase text-amber-400 tracking-widest">{currentTier.name}</span>
-                        <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900 px-2 py-0.5 rounded-md text-[10px] font-black shadow-inner ml-1 border border-yellow-200/50">
-                          -{currentTier.discountPercent * 100}%
-                        </span>
-                     </div>
-                     {/* Przekreślona stara cena (lepiej widoczna) */}
-                     <span className="text-sm text-slate-400 line-through font-black decoration-red-500/60 decoration-2">{numPrice.toFixed(2)} zł</span>
+                   <div className="flex items-center gap-2 mb-1">
+                     <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-1">
+                       <span className="text-sm">👑</span> {currentTier.name} (-{currentTier.discountPercent * 100}%)
+                     </span>
+                     <span className="text-sm text-slate-400 line-through font-bold">{numPrice.toFixed(2)} zł</span>
                    </div>
                  )}
-                 <div className="flex items-baseline gap-1 mb-1">
+                 
+                 {/* Główna cena */}
+                 <div className="flex items-baseline gap-1">
                    <span className="text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter">{mainPrice}</span>
                    {hasCents && <span className="text-3xl font-bold text-slate-500">.{centsPrice}</span>}
                    <span className="text-2xl font-bold text-slate-500 ml-1">zł</span>
                  </div>
-                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Cena brutto (VAT 23%)</p>
+                 
+                 {/* Detale: VAT i Skarbonka w jednej, czystej linii pod ceną */}
+                 <div className="flex items-center gap-3 mt-2">
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Brutto (VAT 23%)</p>
+                    {cashbackEarned > 0 && (
+                      <>
+                        <div className="w-px h-3 bg-slate-200"></div>
+                        <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                          <span>💰</span> +{cashbackEarned.toFixed(2)} zł do skarbonki
+                        </p>
+                      </>
+                    )}
+                 </div>
+
                </div>
                
-               <div className="flex-1 md:max-w-[280px] flex flex-col gap-2">
+               {/* PRAWA STRONA: CZYSTY PRZYCISK */}
+               <div className="flex-1 md:max-w-[280px]">
                  <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="relative z-50 w-full bg-red-600 text-white py-5 rounded-2xl font-black text-base lg:text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-600/30 flex items-center justify-center gap-3 cursor-pointer">
                    <span>DODAJ DO KOSZYKA ➔</span>
                  </button>
-                 
-                 <div className="text-center bg-emerald-50 border border-emerald-100 rounded-xl py-2 px-3 mt-1">
-                    <p className="text-[10px] font-black uppercase text-emerald-800 tracking-widest">
-                       💰 Zyskujesz <span className="text-emerald-600 text-xs">+{cashbackEarned.toFixed(2)} zł</span> do Skarbonki
-                    </p>
-                 </div>
                </div>
+               
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-8 border-b border-slate-100 pb-8">
@@ -675,7 +682,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         </div>
       </div>
 
-      {/* Komponent z nawigacją mobilną */}
       <MobileBottomNav />
 
       <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">
