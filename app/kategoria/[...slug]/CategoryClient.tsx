@@ -517,12 +517,59 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
                 {Array.from({ length: 6 }).map((_, idx) => <ProductSkeleton key={idx} isListView={isListView} />)}
               </div>
             ) : products.length === 0 ? (
-              <div className="bg-white rounded-[40px] p-16 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center">
-                <span className="text-6xl mb-6 block">🚜</span>
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-widest mb-3">Brak wyników</h2>
-                <p className="text-slate-600 font-medium text-sm max-w-md mx-auto mb-8">Prawdopodobnie przefiltrowałeś zbyt wąsko lub asortyment przeniósł się do podkategorii.</p>
-                <div className="flex gap-4">
-                  <button aria-label="Wyczyść wszystkie filtry" onClick={() => router.push(`/kategoria/${fullPath}`)} className="bg-slate-100 text-slate-800 px-6 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[48px]">Wyczyść filtry</button>
+              <div className="bg-white rounded-[32px] lg:rounded-[40px] p-6 lg:p-12 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
+                {/* Ozdobny pasek u góry */}
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 to-orange-500"></div>
+                
+                <span className="text-5xl lg:text-6xl mb-6 block drop-shadow-sm">⚙️</span>
+                
+                <h2 className="text-2xl lg:text-3xl font-black text-slate-900 uppercase tracking-tight mb-3">
+                  Pusty magazyn? To tylko pozory.
+                </h2>
+                
+                <p className="text-slate-600 font-medium text-sm lg:text-base max-w-2xl mx-auto mb-8 leading-relaxed">
+                  {searchQ 
+                    ? <>Nie znaleźliśmy w tej kategorii nic pod frazą <strong className="text-slate-900">"{searchQ}"</strong>. Producenci często aktualizują numery OEM lub część występuje pod inną nazwą.</>
+                    : <>Prawdopodobnie użyłeś zbyt wielu filtrów naraz. W rolnictwie detale mają znaczenie, ale czasem warto spojrzeć szerzej na całą kategorię.</>
+                  }
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mb-10">
+                  {/* Akcja 1: Zadzwoń (Najsilniejszy magnes na konwersję) */}
+                  <a href="tel:+48123456789" className="bg-red-600 text-white px-6 py-4 rounded-xl font-black text-[11px] lg:text-xs uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2 shadow-md min-h-[48px]">
+                    <span className="text-base">📞</span> Zadzwoń – dobierzemy część
+                  </a>
+                  
+                  {/* Akcja 2: Wyczyść i wróć do bazy */}
+                  <button onClick={() => {
+                    setSearchQ(''); setMinPrice(''); setMaxPrice('');
+                    router.push(`/kategoria/${fullPath}`);
+                  }} className="bg-slate-100 text-slate-800 px-6 py-4 rounded-xl font-black text-[11px] lg:text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 min-h-[48px]">
+                    <span className="text-base">🔄</span> Zresetuj wszystkie filtry
+                  </button>
+                </div>
+
+                {/* Akcja 3: Szybka wyszukiwarka ratunkowa */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 lg:p-6 w-full max-w-xl text-left">
+                  <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <span className="text-red-600">●</span> Szukaj ponownie w całym sklepie
+                  </h3>
+                  <div className="flex gap-2 mt-4">
+                    <input 
+                      type="text" 
+                      placeholder="Wpisz numer OEM lub nazwę..." 
+                      className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-800 outline-none focus:border-red-600 bg-white" 
+                      value={searchQ} 
+                      onChange={(e) => setSearchQ(e.target.value)} 
+                      onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} 
+                    />
+                    <button 
+                      onClick={() => updateUrlParams('q', searchQ)} 
+                      className="bg-slate-900 text-white px-5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-colors"
+                    >
+                      Szukaj
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
