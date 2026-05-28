@@ -182,7 +182,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
               <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
   alt="CentrumRolnictwa.pl" 
-  className="h-14 md:h-20 w-auto transition-transform hover:scale-105 duration-300" 
+  className="h-16 md:h-24 w-auto transition-transform hover:scale-105 duration-300" 
   fetchPriority="high" 
 />
             </Link>
