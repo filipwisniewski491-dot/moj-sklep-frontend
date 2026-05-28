@@ -88,30 +88,31 @@ const MiniProductCard = ({ product }: { product: any }) => {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); 
     e.stopPropagation();
-    addItem({ id: product.id || sku, name: product.name, price: price, image: imageUrl || '', quantity: 1, crossSell: [], category: '' });
-    setIsOpen(true);
+    addItem({ id: product.documentId || product.id || sku, name: product.name, price: price, image: imageUrl || '', quantity: 1, crossSell: [], category: '' });
+    if (setIsOpen) setIsOpen(true);
   };
 
   return (
-    <div className="group bg-white border border-slate-100 rounded-[32px] p-2 hover:shadow-xl transition-all duration-300 flex flex-col h-full relative">
-      <Link href={`/produkt/${product.slug || sku}`} className="absolute inset-0 z-0"></Link>
-      <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4 pointer-events-none z-0">
-        {imageUrl ? (
-          <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
-        ) : (
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Brak zdjęcia</span>
-        )}
-      </div>
-      <div className="flex flex-col px-3 pb-4 flex-1 pointer-events-none z-0">
-        <h3 className="font-bold text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs tracking-tight">{product.name}</h3>
-        <div className="mt-auto pt-3 border-t border-slate-50 flex items-end justify-between pointer-events-auto z-10">
-          <div className="flex flex-col">
-            <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
-          </div>
-          <button onClick={handleAddToCart} className="relative z-50 bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer">
-            <span className="text-sm">🛒</span>
-          </button>
+    <div className="group bg-white border border-slate-100 rounded-[32px] hover:shadow-xl transition-all duration-300 flex flex-col h-full overflow-hidden">
+      <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2">
+        <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4">
+          {imageUrl ? (
+            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+          ) : (
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Brak zdjęcia</span>
+          )}
         </div>
+        <div className="px-3 flex-1 flex flex-col">
+          <h3 className="font-bold text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs tracking-tight">{product.name}</h3>
+        </div>
+      </Link>
+      <div className="px-5 pb-5 pt-3 border-t border-slate-50 flex items-end justify-between bg-white mt-auto z-10">
+        <div className="flex flex-col">
+          <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
+        </div>
+        <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50">
+          <span className="text-sm">🛒</span>
+        </button>
       </div>
     </div>
   );
@@ -180,46 +181,41 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // Kaskadowe ładowanie PRAWDZIWYCH produktów powiązanych
+  // INTELIGENTNY KASKADOWY FALLBACK DLA PRODUKTÓW
   useEffect(() => {
-    const fetchRelated = async () => {
+    const fetchRealProducts = async () => {
       try {
-        let searchTerm = '';
-        
-        // 1. Próbujemy nazwy kategorii
-        if (product?.category?.name) searchTerm = product.category.name;
-        else if (typeof product?.category === 'string') searchTerm = product.category;
-        
-        // 2. Jeśli brak, bierzemy tekst ze ścieżki
-        if (!searchTerm && product?.category_text) {
-          const parts = product.category_text.split('>');
-          searchTerm = parts[parts.length - 1].trim();
-        }
-        
-        // 3. Fallback do 1 słowa nazwy produktu
-        if (!searchTerm && product?.name) {
-          searchTerm = product.name.split(' ')[0];
-        }
-
-        // Faza 1: Szukamy dedykowanych
-        let res = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&limit=8`);
+        // 1. Zaczynamy od wyszukiwania po najmocniejszym słowie kluczowym z nazwy (np. "Lampa")
+        const firstWord = product?.name?.split(' ')[0] || '';
+        let res = await fetch(`/api/search?q=${encodeURIComponent(firstWord)}&limit=10`);
         let data = await res.json();
-        let validProducts = (data?.products || []).filter((p: any) => p.sku !== product.sku);
+        let valid = (data?.products || []).filter((p: any) => p.sku !== product.sku);
 
-        // Faza 2: Jeśli API nie znajdzie (zbyt rzadka kategoria), bierzemy ogólne byle były prawdziwe
-        if (validProducts.length < 2) {
-          res = await fetch(`/api/search?limit=8`);
+        // 2. Jeśli za mało wyników, szukamy po całej nazwie kategorii
+        if (valid.length < 2 && product?.category_text) {
+          const parts = product.category_text.split('>');
+          const catName = parts[parts.length - 1].trim();
+          res = await fetch(`/api/search?q=${encodeURIComponent(catName)}&limit=10`);
           data = await res.json();
-          validProducts = (data?.products || []).filter((p: any) => p.sku !== product.sku);
+          valid = (data?.products || []).filter((p: any) => p.sku !== product.sku);
         }
 
-        setRelatedProducts(validProducts.slice(0, 5));
+        // 3. TOTALNY FALLBACK: Pobieramy OSTATNIE prawdziwe produkty ze sklepu (zawsze coś musi być!)
+        if (valid.length < 2) {
+          res = await fetch(`/api/search?limit=15`);
+          data = await res.json();
+          valid = (data?.products || []).filter((p: any) => p.sku !== product.sku);
+        }
+
+        if (valid.length > 0) {
+          setRelatedProducts(valid.slice(0, 5));
+        }
       } catch (err) {
         console.error("Błąd pobierania cross-selli:", err);
       }
     };
 
-    if (product) fetchRelated();
+    if (product) fetchRealProducts();
   }, [product]);
 
   const displayImages = useMemo(() => {
@@ -255,7 +251,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   const handleAddToCartMain = () => {
     if (addItem) {
-      addItem({ id: product.id || product.sku || 'main', name: product.name, price: numPrice, image: mainImageUrl || '', quantity: 1, crossSell: product.crossSell || [], category: product.category || '' });
+      addItem({ id: product.documentId || product.id || product.sku || 'main', name: product.name, price: numPrice, image: mainImageUrl || '', quantity: 1, crossSell: product.crossSell || [], category: product.category || '' });
       if (setIsOpen) setIsOpen(true);
     }
   };
@@ -268,13 +264,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     }
   };
 
-  // Usunięcie marek producentów (np. GRANIT, KRAMP) z "Pasuje do"
   const getCleanCompatibility = () => {
     const rawMatch = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Pasuje do'];
     const rawModel = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
-    
-    // Lista producentów części, a nie maszyn
-    const ignoredBrands = ['GRANIT', 'KRAMP', 'GRENE', 'BAP', 'BEPCO', 'WARYŃSKI', 'ROLMUS'];
+    const ignoredBrands = ['GRANIT', 'KRAMP', 'GRENE', 'BAP', 'BEPCO', 'WARYŃSKI', 'ROLMUS', 'KERBL'];
     
     let isMatchValid = rawMatch && !ignoredBrands.some(b => rawMatch.toUpperCase().includes(b));
     let isModelValid = rawModel && !ignoredBrands.some(b => rawModel.toUpperCase().includes(b));
@@ -294,9 +287,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   const handleAddBundle = () => {
     if (addItem && bundleProduct) {
-      addItem({ id: product.id || product.sku || 'main', name: product.name, price: numPrice, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
+      addItem({ id: product.documentId || product.id || product.sku || 'main', name: product.name, price: numPrice, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
       const bundleImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
-      addItem({ id: bundleProduct.id || bundleProduct.sku || 'bundle', name: bundleProduct.name, price: bundleProductPrice * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
+      addItem({ id: bundleProduct.documentId || bundleProduct.id || bundleProduct.sku || 'bundle', name: bundleProduct.name, price: bundleProductPrice * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
       if (setIsOpen) setIsOpen(true);
     }
   };
