@@ -2,33 +2,64 @@ import { Metadata } from 'next';
 
 export const revalidate = 60; 
 
-// === GENEROWANIE METADANYCH SEO ===
+// === GENEROWANIE METADANYCH SEO Z OBSŁUGĄ FASETOWANIA (LONG-TAIL) ===
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   
   const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
   const currentSlug = resolvedParams?.slug ? resolvedParams.slug[resolvedParams.slug.length - 1] : 'Kategoria';
-  const categoryName = currentSlug.replace(/-/g, ' ').toUpperCase();
+  
+  // Podstawowa nazwa kategorii, np. "SILNIK I OSPRZĘT"
+  const baseCategoryName = currentSlug.replace(/-/g, ' ').toUpperCase();
 
-  const filterKeys = Object.keys(resolvedSearchParams || {}).filter(
-    k => !['fullPath', 'limit', 'sort', 'page', 'q'].includes(k)
-  );
-  const hasFilters = filterKeys.length > 0;
+  // 1. Definiujemy, które parametry URL to nasze "Złote Filtry SEO" (Indexable Facets)
+  const seoFriendlyParams = ['Pasuje do marki', 'Pasuje do modelu', 'page'];
+  
+  // Pobieramy wszystkie aktualne parametry z URL (pomijając systemowy 'fullPath')
+  const allParamKeys = Object.keys(resolvedSearchParams || {}).filter(k => k !== 'fullPath');
+
+  // Sprawdzamy, czy włączony jest jakikolwiek "śmieciowy" filtr (np. cena, sortowanie, wyszukiwarka)
+  const hasNonSeoFilters = allParamKeys.some(key => !seoFriendlyParams.includes(key));
+
+  // 2. Pobieramy wartości Złotych Filtrów, aby zaktualizować Tagi SEO
+  const brand = resolvedSearchParams?.['Pasuje do marki'];
+  const model = resolvedSearchParams?.['Pasuje do modelu'];
+
+  // 3. Budujemy dynamiczną nazwę pod H1 i Title
+  let dynamicCategoryName = baseCategoryName;
+  if (brand) {
+    dynamicCategoryName += ` do ${brand.toUpperCase()}`;
+    if (model) {
+      dynamicCategoryName += ` ${model.toUpperCase()}`;
+    }
+  }
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.VERCEL_URL}` || 'https://centrumrolnictwa.pl';
 
-  // Możesz tutaj również zaciągnąć top_seo_text do description, ale bazowe jest bezpieczniejsze
+  // 4. Budujemy precyzyjny Canonical URL
+  const canonicalUrlObj = new URLSearchParams();
+  if (brand) canonicalUrlObj.set('Pasuje do marki', brand);
+  if (model) canonicalUrlObj.set('Pasuje do modelu', model);
+  
+  const canonicalQueryString = canonicalUrlObj.toString() ? `?${canonicalUrlObj.toString()}` : '';
+  const canonicalUrl = `${baseUrl}/kategoria/${fullPath}${canonicalQueryString}`;
+
+  // 5. Zwracamy zoptymalizowane Tagi
   return {
-    title: `Części do ${categoryName} | Sklep Rolniczy`,
-    description: `Wysokiej jakości części w kategorii ${categoryName}. Szybka wysyłka, doradztwo techniczne i sprawdzeni producenci.`,
-    robots: hasFilters ? { index: false, follow: true } : { index: true, follow: true },
+    title: `Części do ${dynamicCategoryName} | Sklep Rolniczy`,
+    description: brand 
+      ? `Wysokiej jakości części w kategorii ${baseCategoryName} przeznaczone do maszyn ${brand} ${model || ''}. Szybka wysyłka i doradztwo techniczne.`
+      : `Wysokiej jakości części w kategorii ${baseCategoryName}. Szybka wysyłka, doradztwo techniczne i sprawdzeni producenci.`,
+    // Złota reguła: Jeśli są "śmieciowe filtry" -> noindex. Jeśli są tylko filtry SEO lub brak filtrów -> index!
+    robots: hasNonSeoFilters ? { index: false, follow: true } : { index: true, follow: true },
     alternates: {
-      canonical: `${baseUrl}/kategoria/${fullPath}`,
+      canonical: canonicalUrl,
     }
   };
 }
 
+// === POBIERANIE DANYCH Z API ===
 async function getCategoryData(fullPath: string, searchParams: any) {
   const getBaseUrl = () => {
     if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
@@ -52,6 +83,7 @@ async function getCategoryData(fullPath: string, searchParams: any) {
   }
 }
 
+// === GŁÓWNY KOMPONENT STRONY KATEGORII ===
 export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
