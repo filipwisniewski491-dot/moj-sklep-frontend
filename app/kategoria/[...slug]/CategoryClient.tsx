@@ -462,7 +462,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
       
-      {/* --- POWIADOMIENIE BŁĘDU --- */}
+      {/* --- POWIADOMIENIE BŁĘDU (Szuflada Mobile) --- */}
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
@@ -481,24 +481,24 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       )}
 
       {/* ========================================================================= */}
-      {/* 🚀 NOWY, GLOBALNY HEADER (TOP BAR + WYSZUKIWARKA + MEGA MENU) */}
+      {/* 🚀 JASNY, PROFESJONALNY GLOBALNY HEADER (Czysty E-commerce) */}
       {/* ========================================================================= */}
       
-      {/* --- 1. TOP BAR INFO --- */}
-      <div className="bg-slate-900 text-white py-2 px-4 font-bold relative z-[60] shadow-sm border-b border-red-600/50">
+      {/* --- 1. TOP BAR INFO (Jasny) --- */}
+      <div className="bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-center gap-3">
           <div className="flex items-center space-x-6 text-[10px] sm:text-xs uppercase tracking-[0.2em]">
-            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-500 transition-colors group">
+            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
               <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
             </a>
-            <span className="hidden md:flex items-center gap-2 text-slate-300">
+            <span className="hidden md:flex items-center gap-2 text-slate-500">
               <span className="text-emerald-500">✓</span> Ekspercki Dobór Części
             </span>
           </div>
           
-          <div className="flex items-center gap-2 bg-red-600/20 px-4 py-1 rounded-full border border-red-600/30">
-            <span className="text-[10px] uppercase tracking-widest text-red-100 hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
-            <span suppressHydrationWarning className="text-red-500 font-black tabular-nums text-sm tracking-widest">
+          <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
+            <span className="text-[10px] uppercase tracking-widest hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
+            <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest">
               ⏳ {isMounted ? `${String(timeLeft.hours).padStart(2, '0')}:${String(timeLeft.minutes).padStart(2, '0')}:${String(timeLeft.seconds).padStart(2, '0')}` : '00:00:00'}
             </span>
           </div>
@@ -531,7 +531,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
             <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
-                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               </div>
               <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
             </Link>
@@ -539,28 +539,28 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             <Link href="/koszyk" aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
                  <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white group-hover:animate-bounce">2</div>
-                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
-                {cartValue.toFixed(2)} zł
+                {cartTotalItems > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
               </span>
             </Link>
           </nav>
         </div>
       </header>
 
-      {/* --- 3. MEGA MENU DESKTOP --- */}
-      <div className="hidden lg:block bg-slate-900 text-white relative z-40 shadow-md">
+      {/* --- 3. MEGA MENU DESKTOP (JASNE, CZYSTE, E-COMMERCE) --- */}
+      <div className="hidden lg:block bg-white relative z-40 border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 flex items-center">
-          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-red-600 uppercase text-[11px] tracking-widest hover:bg-red-700 transition-colors shrink-0 z-10 relative">
+          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-10 relative">
             <span>☰</span> Pełny Katalog 2026
           </Link>
           
           <ul className="flex flex-1 items-center justify-center gap-6 xl:gap-8 px-4">
             {MEGA_MENU_DATA.map((cat) => (
               <li key={cat.slug} className="group text-center py-4">
-                <Link href={`/kategoria/${cat.slug}`} className="block font-bold text-slate-300 hover:text-white transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap group-hover:underline decoration-red-600 underline-offset-4">
-                  <span className="mr-1.5 text-base align-middle">{cat.icon}</span> {cat.name}
+                <Link href={`/kategoria/${cat.slug}`} className="block font-bold text-slate-600 hover:text-red-600 transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap">
+                  <span className="mr-1.5 text-base align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
                 </Link>
 
                 {cat.columns && cat.columns.length > 0 && (
@@ -749,6 +749,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             </div>
           )}
 
+          {/* ZMIANA: Pływający przycisk filtrów wyżej (bottom-20) aby nie wchodził na paski */}
           <div className="lg:hidden mt-8 flex justify-center sticky bottom-20 z-[45]">
              <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 w-full max-w-[90%] border border-slate-700 transition-transform active:scale-95 min-h-[48px]">
                FILTRUJ I ZNAJDŹ {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
