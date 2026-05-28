@@ -5,6 +5,7 @@ import Image from 'next/image';
 import SearchBar from '@/components/SearchBar';
 import VehicleGarage from '@/components/VehicleGarage';
 import KnowledgeSection from '@/components/KnowledgeSection';
+import { useCart } from '@/store/useCart'; // DODANY IMPORT KOSZYKA
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -72,9 +73,14 @@ const QUICK_SILOS = [
 export default function HomeClient({ initialProducts }: { initialProducts: any[] }) {
   const [products] = useState<any[]>(initialProducts || []);
   const [isNetto, setIsNetto] = useState(false); 
-  const [cartValue, setCartValue] = useState(120); 
-  const freeShippingThreshold = 500; 
   
+  // PODPIĘCIE PRAWDZIWEGO KOSZYKA
+  const { items, setIsOpen: setCartOpen } = useCart() as any;
+  const cartTotalItems = items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+  const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
+  const freeShippingThreshold = 500; 
+  const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
+
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [liveSale, setLiveSale] = useState<{text: string, id: number} | null>(null);
   const [isMounted, setIsMounted] = useState(false); 
@@ -119,8 +125,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
   const getDisplayPrice = (priceBrutto: number) => {
     return isNetto ? (priceBrutto / 1.23).toFixed(2) : parseFloat(priceBrutto as any).toFixed(2);
   };
-
-  const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -168,7 +172,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         </div>
       </div>
 
-      {/* --- 2. GŁÓWNY HEADER Z WYSZUKIWARKĄ (Zoptymalizowany pod Mobile z dużym logo) --- */}
+      {/* --- 2. GŁÓWNY HEADER Z WYSZUKIWARKĄ (Skompresowany na Mobile) --- */}
       <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
         <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
           
@@ -190,7 +194,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
           <nav className="hidden md:flex items-center space-x-6 text-slate-800">
             <div className="hidden xl:block text-right mr-4">
                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">
-                 Do darmowej: <span className="text-red-600 font-black">{(freeShippingThreshold - cartValue).toFixed(2)} zł</span>
+                 Do darmowej: <span className="text-red-600 font-black">{Math.max(0, freeShippingThreshold - cartValue).toFixed(2)} zł</span>
                </p>
                <div className="w-40 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
                  <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
@@ -204,18 +208,20 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
               <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
             </Link>
             
-            <Link href="/koszyk" aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
+            <button onClick={() => setCartOpen(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
-                 <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white group-hover:animate-bounce">2</div>
+                 {cartTotalItems > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white group-hover:animate-bounce">{cartTotalItems}</div>}
                  <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
-              <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">{getDisplayPrice(cartValue)} zł</span>
-            </Link>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
+                {cartTotalItems > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
+              </span>
+            </button>
           </nav>
         </div>
       </header>
 
-      {/* --- 3. MEGA MENU DESKTOP (JASNE, CZYSTE, E-COMMERCE) --- */}
+      {/* --- 3. MEGA MENU DESKTOP --- */}
       <div className="hidden lg:block bg-white relative z-40 border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 flex items-center">
           <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-10 relative">
@@ -300,7 +306,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
           </aside>
         </section>
 
-        {/* --- SILOSY SEO (Większe, solidniejsze) --- */}
+        {/* --- SILOSY SEO --- */}
         <section className="mb-24">
            <h2 className="sr-only">Kategorie Główne Sklepu Rolniczego</h2>
            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 lg:gap-8">
@@ -373,7 +379,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                           {getDisplayPrice(product.price)} <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isNetto ? 'zł netto' : 'zł brutto'}</span>
                         </span>
                       </div>
-                      <button aria-label="Dodaj do koszyka" className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center gap-2 relative z-20">
+                      <button aria-label="Dodaj do koszyka" onClick={() => setCartOpen(true)} className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center gap-2 relative z-20">
                         <span>🛒</span> Dodaj do koszyka
                       </button>
                     </div>
