@@ -235,7 +235,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                 </Link>
 
                 {cat.columns && cat.columns.length > 0 && (
-                  <div className="absolute left-0 top-full w-full bg-white border border-slate-200 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-b-2xl p-8 z-50 text-left text-slate-900">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-[95vw] max-w-7xl bg-white border border-slate-200 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-b-2xl p-8 z-50 text-left text-slate-900">
                     <div className="grid grid-cols-4 gap-8">
                       {cat.columns.map(col => (
                         <div key={col.slug}>
