@@ -52,7 +52,7 @@ const MEGA_MENU_DATA = [
        { title: "Chemia i smary", slug: "chemia-i-smary", links: ["Oleje silnikowe", "Smary", "Zmywacze", "Płyny chłodnicze"] }
     ]
   },
-  { name: "Elektronika i precyzja", slug: "elektronika-i-precyzja", icon: "📡" },
+
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
 ];
 
