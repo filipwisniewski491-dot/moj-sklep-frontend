@@ -79,14 +79,6 @@ const QUICK_SILOS = [
   { name: "Materiały eksploatacyjne", slug: "materialy-eksploatacyjne", img: "📦" }
 ];
 
-// Awaryjne produkty dla modułu Zestawów (Gdy API nie zwróci podobnych z kategorii)
-const fallbackRelated = [
-  { id: 'f1', name: 'Uniwersalny smar łożyskowy 400g', price: 18.50, sku: 'SM-400', images: [{url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop'}] },
-  { id: 'f2', name: 'Zestaw rękawic warsztatowych (5 par)', price: 25.00, sku: 'BHP-05', images: [{url: 'https://images.unsplash.com/photo-1584443152528-98e3b333eeac?q=80&w=200&auto=format&fit=crop'}] },
-  { id: 'f3', name: 'Zmywacz przemysłowy w sprayu 500ml', price: 22.90, sku: 'CH-500', images: [{url: 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?q=80&w=200&auto=format&fit=crop'}] },
-  { id: 'f4', name: 'Opaska zaciskowa wzmocniona 50-70mm', price: 4.50, sku: 'OP-50', images: [{url: 'https://images.unsplash.com/photo-1530982011887-3cc11cc85693?q=80&w=200&auto=format&fit=crop'}] },
-];
-
 const MiniProductCard = ({ product }: { product: any }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
@@ -101,22 +93,23 @@ const MiniProductCard = ({ product }: { product: any }) => {
   };
 
   return (
-    <div className="group bg-white border border-slate-100 rounded-[32px] p-2 hover:shadow-xl transition-all duration-300 flex flex-col h-full">
+    <div className="group bg-white border border-slate-100 rounded-[32px] p-2 hover:shadow-xl transition-all duration-300 flex flex-col h-full relative">
       <Link href={`/produkt/${product.slug || sku}`} className="absolute inset-0 z-0"></Link>
-      <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4 pointer-events-none">
+      <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4 pointer-events-none z-0">
         {imageUrl ? (
           <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
         ) : (
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Brak zdjęcia</span>
         )}
       </div>
-      <div className="flex flex-col px-3 pb-4 flex-1 pointer-events-none">
+      <div className="flex flex-col px-3 pb-4 flex-1 pointer-events-none z-0">
         <h3 className="font-bold text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs tracking-tight">{product.name}</h3>
         <div className="mt-auto pt-3 border-t border-slate-50 flex items-end justify-between pointer-events-auto z-10">
           <div className="flex flex-col">
             <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
           </div>
-          <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0">
+          {/* Naprawiony przycisk - z-index i pointer events */}
+          <button onClick={handleAddToCart} className="relative z-50 bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer">
             <span className="text-sm">🛒</span>
           </button>
         </div>
@@ -173,11 +166,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => clearInterval(interval);
   }, []);
 
-  // Wymuszony Sticky Bar jeśli przycisk ucieknie z ekranu (Naprawa UX Mobile)
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Zmienia stan na true TYLKO gdy główny przycisk NIE jest widoczny na ekranie
         setShowSticky(!entry.isIntersecting);
       },
       { root: null, rootMargin: '0px', threshold: 0 }
@@ -190,26 +181,28 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // Niezawodne ładowanie produktów powiązanych (Zabezpieczenie przed pustym API)
+  // Pobieranie TYLKO PRAWDZIWYCH podobnych produktów z API
   useEffect(() => {
     if (product?.category) {
       const categoryName = typeof product.category === 'object' ? product.category.name : product.category;
-      fetch(`/api/search?q=${encodeURIComponent(categoryName)}&limit=5`)
+      // Pobieramy trochę więcej wyników, żeby było z czego odfiltrować obecny produkt
+      fetch(`/api/search?q=${encodeURIComponent(categoryName)}&limit=6`)
         .then(res => res.json())
         .then(data => {
            if (data && data.products && data.products.length > 0) {
              const filtered = data.products.filter((p: any) => p.sku !== product.sku);
-             setRelatedProducts(filtered.length > 0 ? filtered : fallbackRelated);
+             // Bierzemy maksymalnie 5 produktów (1 na zestaw, 4 na "inni oglądali")
+             setRelatedProducts(filtered.slice(0, 5));
            } else {
-             setRelatedProducts(fallbackRelated);
+             setRelatedProducts([]); // Zero sztucznych demówek
            }
         })
         .catch(err => {
            console.error("Błąd pobierania cross-selli", err);
-           setRelatedProducts(fallbackRelated);
+           setRelatedProducts([]);
         });
     } else {
-      setRelatedProducts(fallbackRelated);
+      setRelatedProducts([]);
     }
   }, [product.category, product.sku]);
 
@@ -246,7 +239,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   const handleAddToCartMain = () => {
     if (addItem) {
-      addItem({ id: product.id, name: product.name, price: product.price, image: mainImageUrl || '', quantity: 1, crossSell: product.crossSell || [], category: product.category || '' });
+      addItem({ id: product.id || product.sku || 'main', name: product.name, price: numPrice, image: mainImageUrl || '', quantity: 1, crossSell: product.crossSell || [], category: product.category || '' });
       if (setIsOpen) setIsOpen(true);
     }
   };
@@ -259,21 +252,23 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     }
   };
 
-  // --- LOGIKA DOPASOWANIA I ZESTAWÓW (Oczyszczona z ogólnych producentów) ---
   const fitsBrands = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Pasuje do'];
   const fitsModels = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
   const hasCompatibility = !!(fitsBrands || fitsModels);
 
+  // Produkt nr 1 z powiązanych to "Bundle", reszta to "Inni oglądali też"
   const bundleProduct = relatedProducts.length > 0 ? relatedProducts[0] : null;
   const bundleProductPrice = bundleProduct ? (typeof bundleProduct.price === 'number' ? bundleProduct.price : parseFloat(bundleProduct.price) || 0) : 0;
   const bundleTotalPrice = bundleProduct ? (numPrice + bundleProductPrice) : 0;
   const bundleDiscountPrice = bundleProduct ? (bundleTotalPrice * 0.95) : 0;
 
+  const othersViewedProducts = relatedProducts.slice(1, 5); // Pozostałe max 4 sztuki
+
   const handleAddBundle = () => {
     if (addItem && bundleProduct) {
-      addItem({ id: product.id, name: product.name, price: product.price, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
+      addItem({ id: product.id || product.sku || 'main', name: product.name, price: numPrice, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
       const bundleImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
-      addItem({ id: bundleProduct.id || bundleProduct.sku, name: bundleProduct.name, price: bundleProductPrice * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
+      addItem({ id: bundleProduct.id || bundleProduct.sku || 'bundle', name: bundleProduct.name, price: bundleProductPrice * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
       if (setIsOpen) setIsOpen(true);
     }
   };
@@ -458,7 +453,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                </div>
                
                <div className="flex-1 md:max-w-[280px]">
-                 <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-base lg:text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-600/30 flex items-center justify-center gap-3">
+                 <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="relative z-50 w-full bg-red-600 text-white py-5 rounded-2xl font-black text-base lg:text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-600/30 flex items-center justify-center gap-3 cursor-pointer">
                    <span>DODAJ DO KOSZYKA ➔</span>
                  </button>
                </div>
@@ -472,7 +467,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               <span className="flex items-center gap-1.5">🔄 14 dni na zwrot</span>
             </div>
 
-            {/* SEKCJA "PASUJE DO" (Oczyszczona z producentów) */}
+            {/* SEKCJA "PASUJE DO" */}
             {hasCompatibility && (
               <div className="mb-6 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4">
                  <div className="text-2xl">✅</div>
@@ -512,61 +507,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         </div>
 
         {/* ========================================================================= */}
-        {/* 🚀 NOWOŚĆ: KUP W ZESTAWIE (BUNDLE UP-SELL) */}
+        {/* OPISY, SPECYFIKACJE I FAQ */}
         {/* ========================================================================= */}
-        {bundleProduct && (
-          <section className="mt-12 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 bg-red-600 text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest shadow-md">
-               Kup w zestawie i oszczędź 5%
-             </div>
-             
-             <h3 className="text-xl lg:text-2xl font-black text-slate-900 uppercase tracking-tight mb-8">Często kupowane razem</h3>
-             
-             <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-                {/* Produkt Główny */}
-                <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
-                  <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                    {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt="Main" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
-                  </div>
-                  <div>
-                    <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
-                    <p className="text-xs font-bold text-slate-800 line-clamp-2">{product.name}</p>
-                    <p className="text-sm font-black text-slate-900 mt-1">{numPrice.toFixed(2)} zł</p>
-                  </div>
-                </div>
-
-                <div className="text-3xl font-black text-slate-300">＋</div>
-
-                {/* Produkt Dobrany */}
-                <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
-                  <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                     {(() => {
-                        const bImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
-                        return bImg ? <Image loader={bunnyLoader} src={bImg} alt="Bundle" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
-                     })()}
-                  </div>
-                  <div>
-                    <span className="bg-slate-100 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Rekomendowane</span>
-                    <p className="text-xs font-bold text-slate-800 line-clamp-2">{bundleProduct.name}</p>
-                    <p className="text-sm font-black text-slate-900 mt-1">{bundleProductPrice.toFixed(2)} zł</p>
-                  </div>
-                </div>
-                
-                <div className="text-3xl font-black text-slate-300 hidden lg:block">＝</div>
-                <div className="w-full h-px bg-slate-100 lg:hidden"></div>
-                
-                {/* Podsumowanie i przycisk */}
-                <div className="flex flex-col items-center lg:items-end w-full lg:w-auto shrink-0 bg-red-50 p-6 rounded-2xl border border-red-100">
-                   <p className="line-through text-slate-400 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
-                   <p className="text-3xl lg:text-4xl font-black text-red-600 tracking-tighter leading-none mb-4">{bundleDiscountPrice.toFixed(2)} <span className="text-lg">zł</span></p>
-                   <button onClick={handleAddBundle} className="w-full lg:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-md hover:scale-[1.02] active:scale-95">
-                     DODAJ ZESTAW ➔
-                   </button>
-                </div>
-             </div>
-          </section>
-        )}
-
         <div className="mt-12 grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-8">
             {seoDescription && (
@@ -625,10 +567,75 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         </div>
 
         {/* ========================================================================= */}
-        {/* 🚀 INNI OGLĄDALI TEŻ (Dynamiczne pobieranie po tej samej kategorii) */}
+        {/* CROSS-SELL: MODUŁ EKSPERTA (Jeśli dodano w Strapi ręcznie) */}
         {/* ========================================================================= */}
-        {relatedProducts.length > 0 && (
-          <section className="mt-16 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
+        {product.crossSell && product.crossSell.length > 0 && (
+           <div className="mt-12">
+             <CrossSellModule skus={product.crossSell} />
+           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* 🚀 NOWOŚĆ (Przeniesiona na dół): KUP W ZESTAWIE (BUNDLE UP-SELL) */}
+        {/* ========================================================================= */}
+        {bundleProduct && (
+          <section className="mt-16 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 bg-red-600 text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest shadow-md">
+               Kup w zestawie i oszczędź 5%
+             </div>
+             
+             <h3 className="text-xl lg:text-2xl font-black text-slate-900 uppercase tracking-tight mb-8">Często kupowane razem</h3>
+             
+             <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+                {/* Produkt Główny */}
+                <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
+                  <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
+                    {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt="Main" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
+                  </div>
+                  <div>
+                    <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
+                    <p className="text-xs font-bold text-slate-800 line-clamp-2">{product.name}</p>
+                    <p className="text-sm font-black text-slate-900 mt-1">{numPrice.toFixed(2)} zł</p>
+                  </div>
+                </div>
+
+                <div className="text-3xl font-black text-slate-300">＋</div>
+
+                {/* Produkt Dobrany */}
+                <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
+                  <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
+                     {(() => {
+                        const bImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
+                        return bImg ? <Image loader={bunnyLoader} src={bImg} alt="Bundle" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
+                     })()}
+                  </div>
+                  <div>
+                    <span className="bg-slate-100 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Rekomendowane</span>
+                    <p className="text-xs font-bold text-slate-800 line-clamp-2">{bundleProduct.name}</p>
+                    <p className="text-sm font-black text-slate-900 mt-1">{bundleProductPrice.toFixed(2)} zł</p>
+                  </div>
+                </div>
+                
+                <div className="text-3xl font-black text-slate-300 hidden lg:block">＝</div>
+                <div className="w-full h-px bg-slate-100 lg:hidden"></div>
+                
+                {/* Podsumowanie i przycisk */}
+                <div className="flex flex-col items-center lg:items-end w-full lg:w-auto shrink-0 bg-red-50 p-6 rounded-2xl border border-red-100">
+                   <p className="line-through text-slate-400 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
+                   <p className="text-3xl lg:text-4xl font-black text-red-600 tracking-tighter leading-none mb-4">{bundleDiscountPrice.toFixed(2)} <span className="text-lg">zł</span></p>
+                   <button onClick={handleAddBundle} className="relative z-50 w-full lg:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-md hover:scale-[1.02] active:scale-95 cursor-pointer">
+                     DODAJ ZESTAW ➔
+                   </button>
+                </div>
+             </div>
+          </section>
+        )}
+
+        {/* ========================================================================= */}
+        {/* 🚀 INNI OGLĄDALI TEŻ (Przeniesione na sam dół) */}
+        {/* ========================================================================= */}
+        {othersViewedProducts.length > 0 && (
+          <section className="mt-12 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 relative z-10 gap-4">
                 <div>
                   <h3 className="text-[11px] font-black uppercase tracking-widest text-red-600 mb-2 flex items-center gap-2">
@@ -638,7 +645,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 relative z-10">
-                 {relatedProducts.map(p => (
+                 {othersViewedProducts.map(p => (
                    <MiniProductCard key={p.id || p.sku} product={p} />
                  ))}
               </div>
@@ -677,7 +684,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               </div>
             </div>
             
-            <button onClick={handleAddToCartMain} className="bg-red-600 hover:bg-red-700 text-white font-black text-[11px] md:text-xs uppercase tracking-widest px-6 md:px-10 py-3.5 md:py-4 rounded-xl transition-all shadow-lg shadow-red-600/30 shrink-0 hover:scale-[1.02] active:scale-95">
+            <button onClick={handleAddToCartMain} className="relative z-50 bg-red-600 hover:bg-red-700 text-white font-black text-[11px] md:text-xs uppercase tracking-widest px-6 md:px-10 py-3.5 md:py-4 rounded-xl transition-all shadow-lg shadow-red-600/30 shrink-0 hover:scale-[1.02] active:scale-95 cursor-pointer">
               DODAJ DO KOSZYKA ➔
             </button>
           </div>
@@ -697,7 +704,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
           <span className="text-[9px] font-black uppercase tracking-widest">Konto</span>
         </Link>
-        <button onClick={() => setIsOpen?.(true)} className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative group">
+        <button onClick={() => setIsOpen?.(true)} className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative group cursor-pointer z-50">
           {cartCount > 0 && <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white animate-bounce">{cartCount}</div>}
           <svg className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
           <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
