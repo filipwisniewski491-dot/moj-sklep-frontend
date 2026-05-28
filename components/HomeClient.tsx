@@ -5,7 +5,9 @@ import Image from 'next/image';
 import SearchBar from '@/components/SearchBar';
 import VehicleGarage from '@/components/VehicleGarage';
 import KnowledgeSection from '@/components/KnowledgeSection';
-import { useCart } from '@/store/useCart'; // DODANY IMPORT KOSZYKA
+import { useCart } from '@/store/useCart';
+import MegaMenu from '@/components/MegaMenu';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -13,56 +15,12 @@ const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   return `${cleanSrc}?width=${width}&format=webp`;
 };
 
-const generateSlug = (text: string) => {
-  if (!text) return '';
-  return text.toLowerCase()
-    .replace(/[ą]/g, 'a').replace(/[ć]/g, 'c').replace(/[ę]/g, 'e')
-    .replace(/[ł]/g, 'l').replace(/[ń]/g, 'n').replace(/[ó]/g, 'o')
-    .replace(/[ś]/g, 's').replace(/[źż]/g, 'z')
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
-    .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
-};
-
-const MEGA_MENU_DATA = [
-  { 
-    name: "Części do ciągników", slug: "czesci-do-ciagnikow", icon: "🚜",
-    columns: [
-      { title: "Silnik i osprzęt", slug: "silnik-i-osprzet", links: ["Węże", "Prowadnice", "Uszczelki", "Śruby i mocowania", "Zawory", "Tłoki"] },
-      { title: "Układ napędowy", slug: "uklad-napedowy-i-sprzegla", links: ["Kołki", "Kosze", "Krzyżaki", "Mechanizmy różnicowe", "Tarcze sprzęgła"] },
-      { title: "Układ paliwowy", slug: "uklad-paliwowy-i-wydechowy", links: ["Pompy wtryskowe", "Wtryskiwacze", "Tłumiki", "Filtry paliwa"] },
-      { title: "Kabina i elektryka", slug: "kabina-i-oblachowanie", links: ["Lusterka", "Szyby", "Fotele", "Oświetlenie", "Rozruszniki"] }
-    ]
-  },
-  { 
-    name: "Części do maszyn", slug: "czesci-do-maszyn", icon: "⚙️",
-    columns: [
-      { title: "Uprawa ziemi", slug: "uprawa-ziemi", links: ["Lemiesze", "Dłuta", "Odkładnice", "Piętki"] },
-      { title: "Zbiór i żniwa", slug: "zbior-i-zniwa", links: ["Bagnety", "Nożyki", "Paski klinowe", "Palce podbieracza"] }
-    ]
-  },
-  { 
-    name: "Hydraulika siłowa", slug: "hydraulika-silowa", icon: "🗜️",
-    columns: [
-      { title: "Elementy układu", slug: "elementy-ukladu", links: ["Pompy hydrauliczne", "Rozdzielacze", "Siłowniki", "Szybkozłącza"] }
-    ]
-  }, 
-  { 
-    name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", icon: "🔧",
-    columns: [
-       { title: "Materiały i narzędzia", slug: "wyposazenie-warsztatu", links: ["Narzędzia ręczne", "Elektronarzędzia", "Odzież BHP"] },
-       { title: "Chemia i smary", slug: "chemia-i-smary", links: ["Oleje silnikowe", "Smary", "Zmywacze", "Płyny chłodnicze"] }
-    ]
-  },
-  { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
-];
-
 const QUICK_SILOS = [
   { name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", img: "🔧" },
   { name: "Części uniwersalne", slug: "czesci-uniwersalne", img: "🔩" },
   { name: "Chemia i smary", slug: "chemia-i-smary", img: "🛢️" },
   { name: "Części do ciągników", slug: "czesci-do-ciagnikow", img: "🚜" },
   { name: "Hydraulika siłowa", slug: "hydraulika-silowa", img: "🗜️" },
-  { name: "Elektronika i precyzja", slug: "elektronika-i-precyzja", img: "📡" },
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", img: "🐄" },
   { name: "Części do maszyn", slug: "czesci-do-maszyn", img: "⚙️" },
   { name: "Części ciągniki/maszyny", slug: "czesci-do-ciagnikow-i-maszyn", img: "🔗" },
@@ -74,7 +32,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
   const [products] = useState<any[]>(initialProducts || []);
   const [isNetto, setIsNetto] = useState(false); 
   
-  // PODPIĘCIE PRAWDZIWEGO KOSZYKA
   const { items, setIsOpen: setCartOpen } = useCart() as any;
   const cartTotalItems = items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
   const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
@@ -142,7 +99,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* --- POWIADOMIENIE LIVE SALES --- */}
       <div className={`fixed bottom-24 md:bottom-8 left-4 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-[100] border-l-4 border-red-600 transition-all duration-500 ease-out transform ${liveSale ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -151,7 +107,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         <p className="text-xs font-bold pr-4 leading-tight">{liveSale?.text}</p>
       </div>
 
-      {/* --- 1. TOP BAR INFO (Ukryty na telefonach) --- */}
       <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
@@ -162,7 +117,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
               <span className="text-emerald-500">✓</span> Ekspercki Dobór Części
             </span>
           </div>
-          
           <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
             <span className="text-[10px] uppercase tracking-widest hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
             <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest">
@@ -172,25 +126,16 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         </div>
       </div>
 
-      {/* --- 2. GŁÓWNY HEADER Z WYSZUKIWARKĄ (Skompresowany na Mobile) --- */}
       <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
         <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
-          
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
-              <img 
-                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
-                alt="CentrumRolnictwa.pl" 
-                className="h-10 sm:h-14 md:h-20 w-auto transition-transform hover:scale-105 duration-300" 
-                fetchPriority="high" 
-              />
+              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="CentrumRolnictwa.pl" className="h-10 sm:h-14 md:h-20 w-auto transition-transform hover:scale-105 duration-300" fetchPriority="high" />
             </Link>
           </div>
-
           <div className="flex-1 w-full relative z-50">
              <SearchBar />
           </div>
-
           <nav className="hidden md:flex items-center space-x-6 text-slate-800">
             <div className="hidden xl:block text-right mr-4">
                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">
@@ -200,18 +145,16 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                  <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
                </div>
             </div>
-
             <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
-                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               </div>
               <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
             </Link>
-            
             <button onClick={() => setCartOpen(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
-                 {cartTotalItems > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white group-hover:animate-bounce">{cartTotalItems}</div>}
-                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                 {cartTotalItems > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartTotalItems}</div>}
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
                 {cartTotalItems > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
@@ -221,84 +164,25 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         </div>
       </header>
 
-      {/* --- 3. MEGA MENU DESKTOP --- */}
-      <div className="hidden lg:block bg-white relative z-40 border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 flex items-center">
-          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-10 relative">
-            <span>☰</span> Pełny Katalog 2026
-          </Link>
-          
-          <ul className="flex flex-1 items-center justify-center gap-6 xl:gap-8 px-4">
-            {MEGA_MENU_DATA.map((cat) => (
-              <li key={cat.slug} className="group text-center py-5">
-                <Link href={`/kategoria/${cat.slug}`} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[11px] xl:text-[12px] tracking-[0.2em] whitespace-nowrap">
-                  <span className="mr-2 text-xl align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
-                </Link>
-
-                {cat.columns && cat.columns.length > 0 && (
-                  <div className="absolute left-0 right-0 mx-auto w-full max-w-7xl mt-4 bg-white border border-slate-100 shadow-[0_30px_60px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 rounded-2xl p-8 z-50 text-left text-slate-900">
-                    <div className="grid grid-cols-4 gap-8">
-                      {cat.columns.map(col => (
-                        <div key={col.slug}>
-                          <Link href={`/kategoria/${cat.slug}/${col.slug}`} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
-                            {col.title}
-                          </Link>
-                          <ul className="space-y-2.5">
-                            {col.links.map(link => {
-                              const linkSlug = generateSlug(link);
-                              return (
-                                <li key={linkSlug}>
-                                  <Link href={`/kategoria/${cat.slug}/${col.slug}/${linkSlug}`} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
-                                    {link}
-                                  </Link>
-                                </li>
-                              )
-                            })}
-                          </ul>
-                        </div>
-                      ))}
-                      <div className="col-span-4 lg:col-span-1 lg:col-start-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col justify-between">
-                         <div>
-                            <span className="bg-red-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-md mb-4 inline-block shadow-sm">Polecane dla mechanika</span>
-                            <h4 className="font-black uppercase text-lg text-slate-900 leading-tight mb-2">Chemia i Oleje</h4>
-                            <p className="text-xs text-slate-500 font-medium">Zabezpiecz maszynę na sezon. Zamów komplet smarów i płynów z szybką wysyłką.</p>
-                         </div>
-                         <Link href={`/kategoria/${cat.slug}`} className="mt-4 text-[10px] font-black text-slate-900 uppercase tracking-widest hover:text-red-600 flex items-center gap-1 transition-colors">
-                           Zobacz cały dział <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
-                         </Link>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      {/* Tytanicznie odchudzone MEGA MENU z komponentu! */}
+      <MegaMenu />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* --- HERO & WIRTUALNY GARAŻ --- */}
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
-          
           <article className="lg:col-span-3 bg-slate-900 rounded-[32px] md:rounded-[48px] p-8 md:p-14 flex flex-col justify-center items-start text-white relative overflow-hidden shadow-xl border border-slate-800">
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600 rounded-full blur-[140px] opacity-20 -mr-20 -mt-20"></div>
-            
             <span className="bg-white/10 text-white border border-white/20 text-[10px] font-black px-4 py-1.5 rounded-full mb-6 uppercase tracking-widest relative z-10 backdrop-blur-sm">Sezon Polowy 2026</span>
-            
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black mb-6 relative z-10 leading-[1.1] uppercase tracking-tight text-slate-50">
               Awaria na polu to <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-600">strata czasu i pieniędzy.</span>
             </h1>
-            
             <p className="text-slate-400 mb-10 max-w-lg relative z-10 text-sm md:text-base font-medium leading-relaxed">
               Zapewnij ciągłość pracy swojemu gospodarstwu. Zamów oryginalne części i sprawdzone zamienniki OEM z najszybszą dostawą kurierską.
             </p>
-            
             <Link href="/kategorie" className="bg-red-600 text-white px-8 py-5 rounded-2xl font-black uppercase text-[11px] lg:text-xs tracking-widest hover:bg-red-700 transition-all relative z-10 shadow-lg shadow-red-600/30 flex items-center gap-3 w-full sm:w-auto justify-center">
               Przeglądaj Katalog Części <span className="text-lg">➔</span>
             </Link>
           </article>
-
           <aside className="lg:col-span-1 hidden lg:block h-full">
             <div className="h-full">
               <VehicleGarage />
@@ -306,12 +190,11 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
           </aside>
         </section>
 
-        {/* --- SILOSY SEO --- */}
         <section className="mb-24">
            <h2 className="sr-only">Kategorie Główne Sklepu Rolniczego</h2>
-           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 lg:gap-8">
+           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 lg:gap-8">
              {QUICK_SILOS.map((silo, index) => (
-                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} className={`bg-white border border-slate-100 p-8 lg:p-10 rounded-[40px] flex flex-col items-center justify-center text-center gap-5 hover:border-red-600 hover:shadow-2xl hover:shadow-red-600/10 transition-all duration-300 group ${index === QUICK_SILOS.length - 1 ? 'lg:col-start-3' : ''}`}>
+                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} className={`bg-white border border-slate-100 p-8 lg:p-10 rounded-[40px] flex flex-col items-center justify-center text-center gap-5 hover:border-red-600 hover:shadow-2xl hover:shadow-red-600/10 transition-all duration-300 group`}>
                   <span className="text-5xl lg:text-6xl group-hover:scale-110 transition-transform">{silo.img}</span>
                   <span className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] group-hover:text-red-600 leading-tight max-w-[120px]">{silo.name}</span>
                 </Link>
@@ -319,7 +202,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
            </div>
         </section>
 
-        {/* --- PRODUKTY (BESTSELLERY Z SERWERA) --- */}
         <section className="mb-24">
           <div className="flex justify-between items-end mb-8 border-b-2 border-slate-100 pb-6">
             <div>
@@ -379,7 +261,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                           {getDisplayPrice(product.price)} <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isNetto ? 'zł netto' : 'zł brutto'}</span>
                         </span>
                       </div>
-                      <button aria-label="Dodaj do koszyka" onClick={() => setCartOpen(true)} className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center gap-2 relative z-20">
+                      <button aria-label="Dodaj do koszyka" onClick={() => setCartOpen(true)} className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center gap-2 relative z-20 cursor-pointer">
                         <span>🛒</span> Dodaj do koszyka
                       </button>
                     </div>
@@ -390,46 +272,24 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
           </div>
         </section>
 
-        {/* --- STREFA WIEDZY --- */}
         <KnowledgeSection />
 
-        {/* --- BLOK SEO DLA STRONY GŁÓWNEJ --- */}
         <section className="mb-12 mt-16 bg-white rounded-[32px] p-8 md:p-12 border border-slate-100 shadow-sm">
           <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">Internetowy Sklep Rolniczy - Części do maszyn i ciągników</h2>
           <div className="text-xs text-slate-600 leading-relaxed columns-1 md:columns-2 gap-10 text-justify font-medium">
             <p className="mb-4">
-              Prowadzenie nowoczesnego gospodarstwa wymaga niezawodnego sprzętu. Jako profesjonalny <strong>internetowy sklep rolniczy</strong>, dostarczamy najwyższej jakości części zamienne do ciągników (Ursus, Zetor, John Deere, Massey Ferguson, Case) oraz maszyn polowych. Nasz katalog obejmuje tysiące oryginalnych podzespołów oraz wyselekcjonowanych, sprawdzonych w polu zamienników OEM. Niezależnie od tego, czy potrzebujesz filtrów do bieżącego serwisu, czy skomplikowanych elementów hydrauliki siłowej – znajdziesz je u nas.
+              Prowadzenie nowoczesnego gospodarstwa wymaga niezawodnego sprzętu. Jako profesjonalny <strong>internetowy sklep rolniczy</strong>, dostarczamy najwyższej jakości części zamienne do ciągników oraz maszyn polowych. Nasz katalog obejmuje tysiące oryginalnych podzespołów oraz wyselekcjonowanych, sprawdzonych w polu zamienników OEM. Niezależnie od tego, czy potrzebujesz filtrów do bieżącego serwisu, czy skomplikowanych elementów hydrauliki siłowej – znajdziesz je u nas.
             </p>
             <p>
-              Rozumiemy, że w trakcie sezonu liczy się każda godzina. Dlatego nasz system logistyczny został zoptymalizowany pod kątem błyskawicznej wysyłki. Zamówienia złożone do godziny 15:00 na części warsztatowe, chemię rolniczą czy elektrykę nadajemy tego samego dnia. CentrumRolnictwa.pl to nie tylko sprzedaż, to przede wszystkim doradztwo techniczne – nasi specjaliści pomogą Ci dobrać odpowiedni model części do Twojej maszyny po numerze VIN lub katalogowym (OEM).
+              Rozumiemy, że w trakcie sezonu liczy się każda godzina. Dlatego nasz system logistyczny został zoptymalizowany pod kątem błyskawicznej wysyłki. Zamówienia złożone do godziny 15:00 nadajemy tego samego dnia. CentrumRolnictwa.pl to nie tylko sprzedaż, to przede wszystkim doradztwo techniczne – nasi specjaliści pomogą Ci dobrać odpowiedni model części po numerze VIN lub katalogowym (OEM).
             </p>
           </div>
         </section>
-
       </main>
 
-      {/* --- MOBILE BOTTOM NAVIGATION --- */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-center px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe" aria-label="Nawigacja mobilna">
-        <a href="tel:+48257888900" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors">
-          <span className="text-xl mb-1">📞</span>
-          <span className="text-[9px] font-black uppercase tracking-widest">Zadzwoń</span>
-        </a>
-        <Link href="/kategorie" className="flex flex-col items-center text-red-600">
-          <span className="text-xl mb-1">☰</span>
-          <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
-        </Link>
-        <Link href="/konto" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
-          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-          <span className="text-[9px] font-black uppercase tracking-widest">Konto</span>
-        </Link>
-        <button onClick={() => setCartOpen(true)} className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors relative">
-          {cartTotalItems > 0 && <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white">{cartTotalItems}</div>}
-          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-          <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
-        </button>
-      </nav>
+      {/* Nawigacja Mobilna z Komponentu! */}
+      <MobileBottomNav />
 
-      {/* --- STOPKA --- */}
       <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
           <div>

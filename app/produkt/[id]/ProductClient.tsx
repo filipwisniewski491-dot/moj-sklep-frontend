@@ -3,10 +3,10 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import dynamic from 'next/dynamic';
 import SearchBar from '@/components/SearchBar';
-import CrossSellModule from '@/components/CrossSellModule';
 import { useCart } from '@/store/useCart';
+import MegaMenu from '@/components/MegaMenu';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -27,46 +27,12 @@ const generateSlug = (text: string) => {
     .replace(/-+/g, '-');
 };
 
-const MEGA_MENU_DATA = [
-  { 
-    name: "Części do ciągników", slug: "czesci-do-ciagnikow", icon: "🚜",
-    columns: [
-      { title: "Silnik i osprzęt", slug: "silnik-i-osprzet", links: ["Węże", "Prowadnice", "Uszczelki", "Śruby i mocowania", "Zawory", "Tłoki"] },
-      { title: "Układ napędowy", slug: "uklad-napedowy-i-sprzegla", links: ["Kołki", "Kosze", "Krzyżaki", "Mechanizmy różnicowe", "Tarcze sprzęgła"] },
-      { title: "Układ paliwowy", slug: "uklad-paliwowy-i-wydechowy", links: ["Pompy wtryskowe", "Wtryskiwacze", "Tłumiki", "Filtry paliwa"] },
-      { title: "Kabina i elektryka", slug: "kabina-i-oblachowanie", links: ["Lusterka", "Szyby", "Fotele", "Oświetlenie", "Rozruszniki"] }
-    ]
-  },
-  { 
-    name: "Części do maszyn", slug: "czesci-do-maszyn", icon: "⚙️",
-    columns: [
-      { title: "Uprawa ziemi", slug: "uprawa-ziemi", links: ["Lemiesze", "Dłuta", "Odkładnice", "Piętki"] },
-      { title: "Zbiór i żniwa", slug: "zbior-i-zniwa", links: ["Bagnety", "Nożyki", "Paski klinowe", "Palce podbieracza"] }
-    ]
-  },
-  { 
-    name: "Hydraulika siłowa", slug: "hydraulika-silowa", icon: "🗜️",
-    columns: [
-      { title: "Elementy układu", slug: "elementy-ukladu", links: ["Pompy hydrauliczne", "Rozdzielacze", "Siłowniki", "Szybkozłącza"] }
-    ]
-  }, 
-  { 
-    name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", icon: "🔧",
-    columns: [
-       { title: "Materiały i narzędzia", slug: "wyposazenie-warsztatu", links: ["Narzędzia ręczne", "Elektronarzędzia", "Odzież BHP"] },
-       { title: "Chemia i smary", slug: "chemia-i-smary", links: ["Oleje silnikowe", "Smary", "Zmywacze", "Płyny chłodnicze"] }
-    ]
-  },
-  { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
-];
-
 const QUICK_SILOS = [
   { name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", img: "🔧" },
   { name: "Części uniwersalne", slug: "czesci-uniwersalne", img: "🔩" },
   { name: "Chemia i smary", slug: "chemia-i-smary", img: "🛢️" },
   { name: "Części do ciągników", slug: "czesci-do-ciagnikow", img: "🚜" },
   { name: "Hydraulika siłowa", slug: "hydraulika-silowa", img: "🗜️" },
-  { name: "Elektronika i precyzja", slug: "elektronika-i-precyzja", img: "📡" },
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", img: "🐄" },
   { name: "Części do maszyn", slug: "czesci-do-maszyn", img: "⚙️" },
   { name: "Części ciągniki/maszyny", slug: "czesci-do-ciagnikow-i-maszyn", img: "🔗" },
@@ -76,7 +42,7 @@ const QUICK_SILOS = [
 
 const MiniProductCard = ({ product }: { product: any }) => {
   const { addItem, setIsOpen } = useCart();
-  const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
+  const imageUrl = product.image || product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
   const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const sku = product.sku || "BRAK SKU";
 
@@ -105,7 +71,7 @@ const MiniProductCard = ({ product }: { product: any }) => {
         <div className="flex flex-col">
           <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
         </div>
-        <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer pointer-events-auto">
+        <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50">
           <span className="text-sm">🛒</span>
         </button>
       </div>
@@ -117,14 +83,12 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const [selectedImgIdx, setSelectedImgIdx] = useState(0); 
   const [showSticky, setShowSticky] = useState(false);
   const [countdownText, setCountdownText] = useState('');
-  const [cartCount, setCartCount] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [skuCopied, setSkuCopied] = useState(false);
 
   const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
   
   const { addItem, setIsOpen, items } = useCart();
-
   const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
   const freeShippingThreshold = 500;
   const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
@@ -132,11 +96,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   useEffect(() => {
     setIsMounted(true);
-    if (items) {
-      const total = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-      setCartCount(total);
-    }
-  }, [items]);
+  }, []);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -175,58 +135,68 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // NOWY: Zgodny z API Mechanizm Pobierania Produktów Powiązanych
   useEffect(() => {
     let isMounted = true;
 
-    const fetchRealProducts = async () => {
+    const fetchRelated = async () => {
       try {
-        let valid = [];
-        let realPath = '';
+        let validProducts: any[] = [];
 
-        // KROK 1: Próba znalezienia produktów w DOKŁADNIE tej samej kategorii co nasz produkt
-        if (product?.category_text) {
-          // Zamieniamy tekst typu "Maszyny > Uprawa" na prawidłowy slug "maszyny/uprawa" (zgodnie z route.ts)
-          realPath = product.category_text.split('>').map((s: string) => generateSlug(s.trim())).join('/');
+        // 1. Zaczynamy od sztywnego Cross-Sella jeśli istnieje
+        if (product?.crossSell && Array.isArray(product.crossSell) && product.crossSell.length > 0) {
+          const res = await fetch(`/api/cross-sell?skus=${product.crossSell.join(',')}`);
+          if (res.ok) {
+            const data = await res.json();
+            validProducts = data.products || [];
+          }
+        }
+
+        // 2. Dobieranie brakujących z API Search z zastosowaniem "FullPath Hacka"
+        if (validProducts.length < 5) {
+          let searchValid: any[] = [];
           
-          if (realPath) {
-            const res = await fetch(`/api/search?fullPath=${realPath}&limit=10`);
+          if (product?.name) {
+            const firstWord = product.name.split(' ')[0];
+            const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(firstWord)}&limit=10`);
             if (res.ok) {
               const data = await res.json();
-              valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
             }
           }
-        }
 
-        // KROK 2: Fallback! Jeśli w tej podkategorii nie było nic (tylko 1 produkt), pobieramy ogólny warsztat
-        if (valid.length < 2) {
-          const fallbackPath = 'warsztat-i-uniwersalne';
-          const res = await fetch(`/api/search?fullPath=${fallbackPath}&limit=10`);
-          if (res.ok) {
-            const data = await res.json();
-            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+          if (searchValid.length < 2 && product?.category_text) {
+            const parts = product.category_text.split('>');
+            const lastCat = parts[parts.length - 1].trim();
+            const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(lastCat)}&limit=10`);
+            if (res.ok) {
+              const data = await res.json();
+              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+            }
           }
-        }
 
-        // KROK 3: Ostateczny Fallback! Bestsellery z ciągników
-        if (valid.length < 2) {
-          const ultimateFallback = 'czesci-do-ciagnikow';
-          const res = await fetch(`/api/search?fullPath=${ultimateFallback}&limit=10`);
-          if (res.ok) {
-            const data = await res.json();
-            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+          if (searchValid.length < 2) {
+            const res = await fetch(`/api/search?fullPath=kategoria&limit=15`);
+            if (res.ok) {
+              const data = await res.json();
+              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+            }
           }
+
+          const existingSkus = validProducts.map((p: any) => p.sku);
+          const filteredSearch = searchValid.filter((p: any) => !existingSkus.includes(p.sku));
+
+          validProducts = [...validProducts, ...filteredSearch];
         }
 
-        if (isMounted && valid.length > 0) {
-          setRelatedProducts(valid.slice(0, 5));
+        if (isMounted && validProducts.length > 0) {
+          setRelatedProducts(validProducts.slice(0, 5));
         }
       } catch (err) {
-        console.error("Błąd pobierania powiązanych:", err);
+        console.error("Błąd pobierania cross-selli:", err);
       }
     };
 
-    if (product) fetchRealProducts();
+    if (product) fetchRelated();
 
     return () => { isMounted = false; };
   }, [product]);
@@ -301,7 +271,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const handleAddBundle = () => {
     if (addItem && bundleProduct) {
       addItem({ id: product.documentId || product.id || product.sku || 'main', name: product.name, price: numPrice, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
-      const bundleImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
+      const bundleImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
       addItem({ id: bundleProduct.documentId || bundleProduct.id || bundleProduct.sku || 'bundle', name: bundleProduct.name, price: bundleProductPrice * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
       if (setIsOpen) setIsOpen(true);
     }
@@ -355,49 +325,19 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             </Link>
             <button onClick={() => setIsOpen?.(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
-                 {cartCount > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartCount}</div>}
+                 {/* Licznik koszyka na desktop */}
                  <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
-                {cartCount > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
+                Koszyk
               </span>
             </button>
           </nav>
         </div>
       </header>
 
-      <div className="hidden lg:block bg-white relative z-40 border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 flex items-center">
-          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-10 relative">
-            <span>☰</span> Pełny Katalog 2026
-          </Link>
-          <ul className="flex flex-1 items-center justify-center gap-6 xl:gap-8 px-4">
-            {MEGA_MENU_DATA.map((cat) => (
-              <li key={cat.slug} className="group text-center py-5">
-                <Link href={`/kategoria/${cat.slug}`} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[11px] xl:text-[12px] tracking-[0.2em] whitespace-nowrap">
-                  <span className="mr-2 text-xl align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
-                </Link>
-                {cat.columns && cat.columns.length > 0 && (
-                  <div className="absolute left-0 right-0 mx-auto w-full max-w-7xl mt-4 bg-white border border-slate-100 shadow-[0_30px_60px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 rounded-2xl p-8 z-50 text-left text-slate-900">
-                    <div className="grid grid-cols-4 gap-8">
-                      {cat.columns.map(col => (
-                        <div key={col.slug}>
-                          <Link href={`/kategoria/${cat.slug}/${col.slug}`} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">{col.title}</Link>
-                          <ul className="space-y-2.5">
-                            {col.links.map(link => (
-                                <li key={generateSlug(link)}><Link href={`/kategoria/${cat.slug}/${col.slug}/${generateSlug(link)}`} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">{link}</Link></li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      {/* Komponent Mega Menu */}
+      <MegaMenu />
 
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
@@ -594,12 +534,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </div>
         </div>
 
-        {product.crossSell && product.crossSell.length > 0 && (
-           <div className="mt-12">
-             <CrossSellModule skus={product.crossSell} />
-           </div>
-        )}
-
+        {/* 🚀 KUP W ZESTAWIE (BUNDLE UP-SELL) NA SAMYM DOLE */}
         {bundleProduct && (
           <section className="mt-16 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
              <div className="absolute top-0 right-0 bg-red-600 text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest shadow-md">
@@ -625,7 +560,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                 <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                      {(() => {
-                        const bImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
+                        const bImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
                         return bImg ? <Image loader={bunnyLoader} src={bImg} alt="Bundle" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
                      })()}
                   </div>
@@ -650,6 +585,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </section>
         )}
 
+        {/* 🚀 INNI OGLĄDALI TEŻ */}
         {othersViewedProducts.length > 0 && (
           <section className="mt-12 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 relative z-10 gap-4">
@@ -704,25 +640,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         </div>
       </div>
 
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-center px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe" aria-label="Nawigacja mobilna">
-        <a href="tel:+48257888900" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative z-50">
-          <span className="text-xl mb-1">📞</span>
-          <span className="text-[9px] font-black uppercase tracking-widest">Zadzwoń</span>
-        </a>
-        <Link href="/kategorie" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative z-50">
-          <span className="text-xl mb-1">☰</span>
-          <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
-        </Link>
-        <Link href="/konto" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors relative z-50">
-          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-          <span className="text-[9px] font-black uppercase tracking-widest">Konto</span>
-        </Link>
-        <button onClick={() => setIsOpen?.(true)} className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative group cursor-pointer z-50">
-          {cartCount > 0 && <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white animate-bounce">{cartCount}</div>}
-          <svg className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
-          <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
-        </button>
-      </nav>
+      {/* Komponent z nawigacją mobilną */}
+      <MobileBottomNav />
 
       <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
