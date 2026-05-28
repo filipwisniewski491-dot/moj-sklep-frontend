@@ -25,7 +25,6 @@ const generateSlug = (text: string) => {
     .replace(/^-|-$/g, '');
 };
 
-// Prosty parser Markdown dla Bottom SEO Text
 const parseMarkdown = (text: string) => {
   if (!text) return '';
   let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl lg:text-2xl font-black mt-8 mb-4 text-slate-900">$1</h2>');
@@ -57,7 +56,7 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
 
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
-      <Link href={`/produkt/${product.slug || sku}`} className="absolute inset-0 z-0"></Link>
+      <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do ${product.name}`} className="absolute inset-0 z-0"></Link>
 
       <div className={`absolute top-4 right-4 z-10 flex items-center gap-1.5 px-2 py-1 lg:px-2.5 lg:py-1 rounded-lg border shadow-sm ${isShippingToday ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
         <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isShippingToday ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
@@ -67,7 +66,7 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
       <div className={`bg-slate-50 rounded-[24px] lg:rounded-[32px] overflow-hidden relative flex items-center justify-center border border-slate-50 shadow-inner shrink-0 pointer-events-none ${isListView ? 'w-28 h-28 lg:w-36 lg:h-36 p-4' : 'aspect-square mb-3 lg:mb-4 p-4 lg:p-8 w-full'}`}>
         {imageUrl ? (
           <div className="relative w-full h-full">
-            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name || 'Produkt'} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={idx < 4} className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name || 'Zdjęcie produktu'} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={idx < 4} className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center opacity-20 group-hover:opacity-40 transition-opacity">
@@ -82,16 +81,16 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
         <h2 className="font-black text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs lg:text-sm tracking-normal">{product.name}</h2>
         <div className={`flex ${isListView ? 'flex-row items-center justify-between gap-6' : 'flex-col gap-3'} pt-3 lg:pt-4 border-t border-slate-50 w-full pointer-events-auto z-10 ${isListView ? 'mt-0' : 'mt-auto'}`}>
           <div className="flex flex-col">
-            <span className="text-[8px] lg:text-[9px] font-black text-slate-400 mb-0.5 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(netPrice)} zł netto</span>
-            <span className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)} <span className="text-[9px] lg:text-xs font-bold text-slate-400">zł</span></span>
+            <span className="text-[8px] lg:text-[9px] font-black text-slate-500 mb-0.5 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(netPrice)} zł netto</span>
+            <span className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)} <span className="text-[9px] lg:text-xs font-bold text-slate-500">zł</span></span>
           </div>
           <div className={`flex items-center gap-1.5 ${isListView ? 'w-[200px]' : 'w-full'}`}>
             <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl h-10 lg:h-11 px-1 flex-1">
-              <button onClick={(e) => { e.preventDefault(); setQty(Math.max(1, qty - 1)); }} className="w-1/3 h-full font-black text-slate-400 hover:text-red-600 flex items-center justify-center">-</button>
-              <input type="number" value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-1/3 text-center bg-transparent text-[10px] lg:text-xs font-black text-slate-900 outline-none appearance-none p-0 m-0" />
-              <button onClick={(e) => { e.preventDefault(); setQty(qty + 1); }} className="w-1/3 h-full font-black text-slate-400 hover:text-emerald-600 flex items-center justify-center">+</button>
+              <button aria-label="Zmniejsz ilość" onClick={(e) => { e.preventDefault(); setQty(Math.max(1, qty - 1)); }} className="w-1/3 h-full font-black text-slate-500 hover:text-red-600 flex items-center justify-center p-2">-</button>
+              <input aria-label="Ilość" type="number" value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-1/3 text-center bg-transparent text-[10px] lg:text-xs font-black text-slate-900 outline-none appearance-none p-0 m-0" />
+              <button aria-label="Zwiększ ilość" onClick={(e) => { e.preventDefault(); setQty(qty + 1); }} className="w-1/3 h-full font-black text-slate-500 hover:text-emerald-600 flex items-center justify-center p-2">+</button>
             </div>
-            <button onClick={handleAddToCart} className="bg-slate-900 text-white px-3 lg:px-4 h-10 lg:h-11 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:scale-105 active:scale-95 transition-all shadow-md shrink-0">
+            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="bg-slate-900 text-white px-3 lg:px-4 h-10 lg:h-11 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:scale-105 active:scale-95 transition-all shadow-md shrink-0">
               <span className="text-sm">🛒</span><span className="ml-1.5 hidden min-[360px]:inline">Dodaj</span>
             </button>
           </div>
@@ -131,26 +130,26 @@ const SearchableSelect = ({ label, options, value, onChange, placeholder }: any)
 
   return (
     <div className="w-full relative" ref={wrapperRef}>
-      <h3 className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-2">{label}</h3>
-      <div className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3 flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}>
-        <span className={value ? "text-slate-900 line-clamp-1" : "text-slate-500"}>{value || placeholder}</span>
-        <svg className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-      </div>
+      <h3 className="text-slate-500 font-black uppercase text-[10px] tracking-widest mb-2">{label}</h3>
+      <button aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3 flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}>
+        <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value || placeholder}</span>
+        <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+      </button>
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md">
-            <input type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-2.5 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-2.5 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white">
-            <div className={`px-4 py-3 text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</div>
+            <button aria-label="Wyczyść wybór" className={`w-full text-left px-4 py-3 text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</button>
             {filteredOptions.length === 0 ? (
-              <div className="px-4 py-4 text-xs text-slate-400 italic text-center">Brak wyników</div>
+              <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div>
             ) : (
               filteredOptions.map(([val, count]) => (
-                <div key={val} className={`px-4 py-3 text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}>
+                <button aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-3 text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}>
                   <span className="line-clamp-1 pr-2">{val}</span>
                   <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 border border-slate-200">{count as number}</span>
-                </div>
+                </button>
               ))
             )}
           </div>
@@ -186,10 +185,11 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [isListView, setIsListView] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showAllSubcats, setShowAllSubcats] = useState(false);
-  const [activeFaq, setActiveFaq] = useState<number | null>(null); // Do rozwijania FAQ
+  const [activeFaq, setActiveFaq] = useState<number | null>(null); 
 
   const isFirstRender = useRef(true);
 
+  // Blokowanie scrolla pod otwartą szufladą
   useEffect(() => {
     if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
@@ -319,40 +319,40 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         <div className="flex justify-between items-center">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
           {hasActiveFilter && (
-            <button onClick={() => updateUrlParams(filterKey, null)} className="text-[9px] text-red-600 font-black uppercase hover:underline bg-red-50 px-2 py-1 rounded-md">Wyczyść ✕</button>
+            <button aria-label={`Wyczyść filtr ${filterKey}`} onClick={() => updateUrlParams(filterKey, null)} className="text-[10px] text-red-600 font-black uppercase hover:underline bg-red-50 px-3 py-1.5 rounded-md min-w-[44px]">Wyczyść ✕</button>
           )}
         </div>
         
         {isLongList && (
           <div className="relative mb-3">
-            <input type="text" placeholder={`Szukaj w ${filterKey.toLowerCase()}...`} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-[10px] font-bold text-slate-700 outline-none focus:border-red-600 transition-colors" value={filterSearchQuery[filterKey] || ''} onChange={(e) => setFilterSearchQuery(prev => ({ ...prev, [filterKey]: e.target.value }))} />
-            <span className="absolute right-3 top-2 text-slate-300 text-xs">🔍</span>
+            <input aria-label={`Szukaj w filtrze ${filterKey}`} type="text" placeholder={`Szukaj w ${filterKey.toLowerCase()}...`} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2.5 text-[10px] font-bold text-slate-700 outline-none focus:border-red-600 transition-colors" value={filterSearchQuery[filterKey] || ''} onChange={(e) => setFilterSearchQuery(prev => ({ ...prev, [filterKey]: e.target.value }))} />
+            <span className="absolute right-3 top-2.5 text-slate-400 text-xs">🔍</span>
           </div>
         )}
         
         <div className={`space-y-2 ${isExpanded ? 'max-h-[300px] overflow-y-auto pr-2 custom-scrollbar' : ''}`}>
           {displayEntries.length === 0 ? (
-            <div className="text-[9px] text-slate-400 uppercase font-black tracking-widest py-2">Brak wyników</div>
+            <div className="text-[9px] text-slate-500 uppercase font-black tracking-widest py-2">Brak wyników</div>
           ) : (
             displayEntries.map(([val, count]) => {
               const isChecked = searchParams.get(filterKey) === val;
               return (
-                <label key={val} className="flex items-center justify-between cursor-pointer group" onClick={() => {const currentVal = searchParams.get(filterKey); updateUrlParams(filterKey, currentVal === val ? null : val);}}>
+                <label key={val} className="flex items-center justify-between cursor-pointer group py-1" onClick={() => {const currentVal = searchParams.get(filterKey); updateUrlParams(filterKey, currentVal === val ? null : val);}}>
                   <div className="flex items-center gap-3">
                     <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-200 bg-slate-50 group-hover:border-red-400'}`}>
                       {isChecked && <div className="w-2.5 h-2.5 bg-red-600 rounded-[2px]"></div>}
                     </div>
                     <span className={`text-sm transition-colors line-clamp-1 ${isChecked ? 'text-red-600 font-black' : 'text-slate-600 font-medium group-hover:text-slate-900'}`}>{val}</span>
                   </div>
-                  <span className="text-[9px] font-black text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full flex-shrink-0">{count}</span>
+                  <span className="text-[9px] font-black text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full flex-shrink-0">{count}</span>
                 </label>
               );
             })
           )}
         </div>
 
-        {isLongList && !isExpanded && (<button onClick={() => setExpandedFilters(prev => ({ ...prev, [filterKey]: true }))} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center gap-1 w-full pt-2 border-t border-slate-50">+ Pokaż więcej ({sortedEntries.length - 5})</button>)}
-        {isLongList && isExpanded && (<button onClick={() => { setExpandedFilters(prev => ({ ...prev, [filterKey]: false })); setFilterSearchQuery(prev => ({ ...prev, [filterKey]: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center gap-1 w-full pt-2 border-t border-slate-50">- Zwiń listę</button>)}
+        {isLongList && !isExpanded && (<button aria-label="Pokaż więcej opcji filtru" onClick={() => setExpandedFilters(prev => ({ ...prev, [filterKey]: true }))} className="text-[10px] p-2 font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center gap-1 w-full pt-2 border-t border-slate-50">+ Pokaż więcej ({sortedEntries.length - 5})</button>)}
+        {isLongList && isExpanded && (<button aria-label="Zwiń opcje filtru" onClick={() => { setExpandedFilters(prev => ({ ...prev, [filterKey]: false })); setFilterSearchQuery(prev => ({ ...prev, [filterKey]: '' })); }} className="text-[10px] p-2 font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center gap-1 w-full pt-2 border-t border-slate-50">- Zwiń listę</button>)}
       </div>
     );
   };
@@ -361,18 +361,19 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
       <header className="border-b py-4 px-6 bg-white sticky top-0 z-[60] shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center w-full">
-          <Link href="/" className="font-black text-xl tracking-tighter hover:text-red-600 transition-colors">
-            CentrumRolnictwa<span className="text-slate-400">.pl</span>
+          <Link href="/" aria-label="Strona główna CentrumRolnictwa.pl" className="font-black text-xl tracking-tighter hover:text-red-600 transition-colors">
+            CentrumRolnictwa<span className="text-slate-500">.pl</span>
           </Link>
-          <button onClick={() => setCartOpen(true)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors relative shadow-inner border border-slate-100">
+          <button aria-label="Otwórz koszyk" onClick={() => setCartOpen(true)} className="p-3 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors relative shadow-inner border border-slate-100">
              <span className="text-xl">🛒</span>
              {cartTotalItems > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md shadow-red-600/30">{cartTotalItems}</span>}
           </button>
         </div>
       </header>
 
+      {/* Przycisk otwierający szufladę na Mobile */}
       <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[45] w-full max-w-[90%] flex justify-center">
-        <button onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 w-full border border-slate-700 transition-transform active:scale-95">
+        <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 w-full border border-slate-700 transition-transform active:scale-95 min-h-[48px]">
           FILTRUJ I ZNAJDŹ {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
         </button>
       </div>
@@ -380,29 +381,28 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       <div className="bg-white border-b pt-8 pb-6 px-6 relative z-20">
         <div className="max-w-7xl mx-auto">
           {breadcrumbs.length > 0 && (
-            <nav className="flex text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 gap-2 items-center flex-wrap">
-              <Link href="/" className="hover:text-red-600 transition-colors">Start</Link>
+            <nav className="flex text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2 items-center flex-wrap" aria-label="Breadcrumb">
+              <Link href="/" className="hover:text-red-600 transition-colors p-1">Start</Link>
               {breadcrumbs.map((crumb, idx) => (
                 <React.Fragment key={idx}>
-                  <span className="text-slate-200">/</span>
-                  <Link href={`/kategoria/${crumb.path}`} className="hover:text-red-600 transition-colors">{crumb.name}</Link>
+                  <span className="text-slate-300">/</span>
+                  <Link href={`/kategoria/${crumb.path}`} className="hover:text-red-600 transition-colors p-1">{crumb.name}</Link>
                 </React.Fragment>
               ))}
             </nav>
           )}
 
           {savedGarage && (
-            <div className="mb-4 bg-slate-900 text-white w-fit px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-800 shadow-md">
+            <div className="mb-4 bg-slate-900 text-white w-fit px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-800 shadow-md">
               <span className="text-emerald-500 animate-pulse">●</span> Filtry aktywne dla: {savedGarage.make} {savedGarage.model}
-              <button onClick={clearGarage} className="text-red-500 hover:text-red-400 font-bold ml-2">Wyczyść ✕</button>
+              <button aria-label="Wyczyść garaż" onClick={clearGarage} className="text-red-500 hover:text-red-400 font-bold ml-2 p-1 min-w-[30px]">✕</button>
             </div>
           )}
           
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase italic text-slate-900 mb-2 max-w-4xl leading-tight">{displayH1}</h1>
           
-          {/* TOP SEO TEXT WYGENEROWANY PRZEZ AI */}
           {categoryData?.top_seo_text && (
-            <p className="text-sm text-slate-500 max-w-3xl mb-6 leading-relaxed font-medium">
+            <p className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium">
               {categoryData.top_seo_text}
             </p>
           )}
@@ -410,16 +410,16 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           {subcategories.length > 0 && (
             <div className="mb-4 border-t border-slate-100 pt-5">
               <div className="flex justify-between items-end mb-4">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Wybierz podkategorię:</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wybierz podkategorię:</span>
               </div>
               <div className="flex flex-wrap gap-2 lg:gap-3">
                 {(showAllSubcats ? subcategories : subcategories.slice(0, 7)).map(sub => (
-                    <Link key={sub} href={`/kategoria/${fullPath}/${generateSlug(sub)}`} className="px-4 py-2.5 lg:px-5 lg:py-2.5 bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white rounded-xl text-[10px] lg:text-[11px] font-black uppercase tracking-widest transition-all shadow-sm">
+                    <Link aria-label={`Przejdź do podkategorii ${sub}`} key={sub} href={`/kategoria/${fullPath}/${generateSlug(sub)}`} className="px-4 py-3 lg:px-5 lg:py-2.5 bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white rounded-xl text-[10px] lg:text-[11px] font-black uppercase tracking-widest transition-all shadow-sm">
                       {sub}
                     </Link>
                 ))}
                 {subcategories.length > 7 && (
-                  <button onClick={() => setShowAllSubcats(!showAllSubcats)} className="px-4 py-2.5 lg:px-5 lg:py-2.5 bg-slate-50 border-2 border-slate-200 text-slate-600 hover:border-red-600 hover:text-red-600 rounded-xl text-[10px] lg:text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5">
+                  <button aria-label="Pokaż wszystkie podkategorie" onClick={() => setShowAllSubcats(!showAllSubcats)} className="px-4 py-3 lg:px-5 lg:py-2.5 bg-slate-50 border-2 border-slate-200 text-slate-700 hover:border-red-600 hover:text-red-600 rounded-xl text-[10px] lg:text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 min-h-[44px]">
                     {showAllSubcats ? <><span>↑</span> Zwiń listę</> : <><span>+ {subcategories.length - 7}</span> więcej ▾</>}
                   </button>
                 )}
@@ -430,14 +430,14 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-slate-100 mt-2 relative z-10 hidden lg:flex">
             <div className="flex items-center gap-4">
               <div className="h-1 w-12 bg-red-600"></div>
-              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Katalog: {totalCount} części</p>
+              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Katalog: {totalCount} części</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200 shadow-inner">
-                <button onClick={() => setIsListView(false)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${!isListView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Siatka 🔳</button>
-                <button onClick={() => setIsListView(true)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${isListView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Lista ☰</button>
+                <button aria-label="Widok siatki" onClick={() => setIsListView(false)} className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all min-w-[44px] ${!isListView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Siatka 🔳</button>
+                <button aria-label="Widok listy" onClick={() => setIsListView(true)} className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all min-w-[44px] ${isListView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Lista ☰</button>
               </div>
-              <select className="bg-slate-50 border border-slate-200 text-slate-700 text-[11px] font-black uppercase tracking-widest rounded-xl px-4 py-2.5 outline-none focus:border-red-600 cursor-pointer shadow-sm" value={searchParams.get('sort') || ''} onChange={(e) => updateUrlParams('sort', e.target.value)}>
+              <select aria-label="Sortuj produkty" className="bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-black uppercase tracking-widest rounded-xl px-4 py-3 outline-none focus:border-red-600 cursor-pointer shadow-sm min-h-[44px]" value={searchParams.get('sort') || ''} onChange={(e) => updateUrlParams('sort', e.target.value)}>
                 <option value="">Sortowanie Domyślne</option>
                 <option value="price_asc">Cena: rosnąco</option>
                 <option value="price_desc">Cena: malejąco</option>
@@ -450,29 +450,27 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         
-        {/* POŁĄCZONY PANEL NAWIGACYJNY (WYSZUKIWARKA + GARAGE + FILTRY + CTA) */}
-        <aside className={`${isMobileFiltersOpen ? 'fixed inset-0 z-[100] bg-white flex flex-col' : 'hidden lg:block w-full lg:w-80 flex-shrink-0'}`}>
-          <div className={`${isMobileFiltersOpen ? 'flex-1 overflow-y-auto p-5 pb-32 custom-scrollbar' : 'space-y-6'}`}>
-            
-            {isMobileFiltersOpen && (
-               <div className="sticky top-0 bg-slate-900 text-white p-5 flex justify-between items-center z-10 shadow-md mb-6 rounded-b-2xl">
-                  <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
-                  <button onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-3 py-1.5 rounded-lg text-xs font-black uppercase transition-colors">✕ Zamknij</button>
-               </div>
-            )}
+        {/* SZUFLADA NA MOBILE: fix z-index 9999 oraz h-100dvh z całkowitym przykryciem */}
+        <aside className={`${isMobileFiltersOpen ? 'fixed inset-0 z-[9999] bg-white w-full h-[100dvh] flex flex-col m-0 p-0 overflow-hidden' : 'hidden lg:block w-full lg:w-80 flex-shrink-0'}`}>
+          
+          {isMobileFiltersOpen && (
+             <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
+                <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
+                <button aria-label="Zamknij filtry" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[44px]">✕ Zamknij</button>
+             </div>
+          )}
 
-            <div className={`bg-white rounded-[32px] border border-slate-100 shadow-sm ${!isMobileFiltersOpen ? 'p-6' : 'p-0 border-none shadow-none'}`}>
+          <div className={`${isMobileFiltersOpen ? 'flex-1 overflow-y-auto p-5 pb-8 custom-scrollbar bg-white' : 'space-y-6'}`}>
+            <div className={`bg-white ${!isMobileFiltersOpen ? 'rounded-[32px] border border-slate-100 shadow-sm p-6' : 'p-0 border-none shadow-none'}`}>
               
-              {/* Sekcja 1: Szukaj po OEM */}
               <div className="mb-6 pb-6 border-b border-slate-100">
                 <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
                 <form onSubmit={(e) => { e.preventDefault(); updateUrlParams('q', searchQ); setIsMobileFiltersOpen(false); }} className="relative">
-                  <input type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-400" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
-                  <button type="submit" className="absolute right-1.5 top-1.5 bg-slate-900 hover:bg-red-600 text-white p-2 rounded-lg transition-colors shadow-md">🔍</button>
+                  <input aria-label="Wyszukaj produkt po numerze OEM lub nazwie" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
+                  <button aria-label="Szukaj" type="submit" className="absolute right-2 top-2 bottom-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[44px]">🔍</button>
                 </form>
               </div>
 
-              {/* Sekcja 2: Dobierz do maszyny (Garage) */}
               <div className="mb-6 pb-6 border-b border-slate-100">
                 <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
                 <div className="space-y-3">
@@ -481,42 +479,39 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
                 </div>
               </div>
 
-              {/* Sekcja 3: Filtry Techniczne */}
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900">Parametry</h3>
-                {activeFiltersCount > 0 && <button onClick={() => router.push(`/kategoria/${fullPath}`)} className="text-[9px] text-red-600 font-black uppercase hover:underline">Wyczyść</button>}
+                {activeFiltersCount > 0 && <button aria-label="Wyczyść wszystkie filtry" onClick={() => router.push(`/kategoria/${fullPath}`)} className="text-[10px] text-red-600 font-black uppercase hover:underline p-2">Wyczyść</button>}
               </div>
 
               <div className="mb-6 border-b border-slate-100 pb-6">
                 <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-500 mb-3">Zakres Cenowy (zł)</h4>
                 <div className="flex gap-2 items-center">
-                  <input type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-red-600" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
-                  <span className="text-slate-400 font-black">-</span>
-                  <input type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-red-600" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
+                  <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
+                  <span className="text-slate-500 font-black">-</span>
+                  <input aria-label="Cena maksymalna" type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
                 </div>
-                <button onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-700 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">Zastosuj cenę</button>
+                <button aria-label="Zastosuj filtr cenowy" onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[44px]">Zastosuj cenę</button>
               </div>
 
               <div className="space-y-8">
                 {techFilterKeys.map((filterKey) => renderFilterBlock(filterKey))}
               </div>
 
-              {/* Sekcja 4: Call to action - Mega ważne dla konwersji */}
               <div className="mt-8 bg-slate-900 p-5 rounded-2xl relative overflow-hidden">
                  <div className="absolute -right-4 -bottom-4 text-6xl opacity-10">📞</div>
                  <h4 className="text-white font-black uppercase text-sm mb-2 relative z-10">Nie możesz znaleźć części?</h4>
                  <p className="text-slate-400 text-xs mb-4 relative z-10 leading-relaxed">Nasz doradca techniczny dobierze dla Ciebie zamiennik w 3 minuty. Zadzwoń do nas podając objawy lub numer OEM.</p>
-                 <a href="tel:+48123456789" className="block w-full bg-red-600 hover:bg-red-500 text-white text-center py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-md relative z-10">
+                 <a href="tel:+48123456789" aria-label="Zadzwoń do doradcy" className="block w-full bg-red-600 hover:bg-red-500 text-white text-center py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-md relative z-10 min-h-[48px]">
                    📞 Zadzwoń teraz
                  </a>
               </div>
-
             </div>
           </div>
           
           {isMobileFiltersOpen && (
-             <div className="fixed bottom-0 left-0 w-full p-4 bg-white border-t z-10 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-                 <button onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform">Pokaż {products.length} wyników ➔</button>
+             <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                 <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[48px]">Pokaż {products.length} wyników ➔</button>
              </div>
           )}
         </aside>
@@ -531,9 +526,9 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
               <div className="bg-white rounded-[40px] p-16 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center">
                 <span className="text-6xl mb-6 block">🚜</span>
                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-widest mb-3">Brak wyników</h2>
-                <p className="text-slate-500 font-medium text-sm max-w-md mx-auto mb-8">Prawdopodobnie przefiltrowałeś zbyt wąsko lub asortyment przeniósł się do podkategorii.</p>
+                <p className="text-slate-600 font-medium text-sm max-w-md mx-auto mb-8">Prawdopodobnie przefiltrowałeś zbyt wąsko lub asortyment przeniósł się do podkategorii.</p>
                 <div className="flex gap-4">
-                  <button onClick={() => router.push(`/kategoria/${fullPath}`)} className="bg-slate-100 text-slate-700 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors">Wyczyść filtry</button>
+                  <button aria-label="Wyczyść wszystkie filtry" onClick={() => router.push(`/kategoria/${fullPath}`)} className="bg-slate-100 text-slate-800 px-6 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[48px]">Wyczyść filtry</button>
                 </div>
               </div>
             ) : (
@@ -547,27 +542,25 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
           {totalCount > 0 && !loading && (
             <div className="mt-12 flex flex-col items-center gap-4 border-t border-slate-100 pt-8">
-              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Wyświetlono {products.length} z {totalCount} części</p>
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Wyświetlono {products.length} z {totalCount} części</p>
               <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
                 <div className="h-full bg-red-600 transition-all duration-500 rounded-full" style={{ width: `${Math.min(100, (products.length / totalCount) * 100)}%` }} />
               </div>
               {products.length < totalCount && (
-                <button onClick={() => setDisplayLimit(prev => prev + 24)} className="mt-2 bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-red-600 transition-all transform hover:scale-[1.02] shadow-md">Załaduj kolejne produkty ➔</button>
+                <button aria-label="Załaduj więcej produktów" onClick={() => setDisplayLimit(prev => prev + 24)} className="mt-2 bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-red-600 transition-all transform hover:scale-[1.02] shadow-md min-h-[48px]">Załaduj kolejne produkty ➔</button>
               )}
             </div>
           )}
 
-          {/* === BOTTOM SEO TEXT === */}
           {categoryData?.bottom_seo_text && (
             <div className="mt-24 pt-12 border-t border-slate-200">
               <div 
-                className="prose prose-slate max-w-none text-sm lg:text-base text-slate-600 leading-relaxed"
+                className="prose prose-slate max-w-none text-sm lg:text-base text-slate-700 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: parseMarkdown(categoryData.bottom_seo_text) }}
               />
             </div>
           )}
 
-          {/* === FAQ Z WYKORZYSTANIEM GOOGLE LONG-TAIL === */}
           {categoryData?.faqs && categoryData.faqs.length > 0 && (
             <div className="mt-12 mb-12">
               <h2 className="text-2xl font-black text-slate-900 mb-6">Najczęściej zadawane pytania (FAQ)</h2>
@@ -575,14 +568,16 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
                 {categoryData.faqs.map((faq: any, idx: number) => (
                   <div key={idx} className="bg-white border border-slate-200 rounded-2xl overflow-hidden transition-all shadow-sm hover:shadow-md">
                     <button 
+                      aria-label={activeFaq === idx ? "Zwiń odpowiedź" : "Rozwiń odpowiedź"}
+                      aria-expanded={activeFaq === idx}
                       onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                      className="w-full px-6 py-4 flex justify-between items-center text-left focus:outline-none"
+                      className="w-full px-6 py-5 flex justify-between items-center text-left focus:outline-none min-h-[48px]"
                     >
                       <span className="font-bold text-slate-900 pr-4">{faq.question}</span>
                       <span className={`text-red-600 font-black text-xl transition-transform ${activeFaq === idx ? 'rotate-45' : ''}`}>+</span>
                     </button>
                     {activeFaq === idx && (
-                      <div className="px-6 pb-5 pt-0 text-slate-600 text-sm leading-relaxed border-t border-slate-50 mt-2 pt-4">
+                      <div className="px-6 pb-5 pt-0 text-slate-700 text-sm leading-relaxed border-t border-slate-50 mt-2 pt-4">
                         {faq.answer}
                       </div>
                     )}
