@@ -511,7 +511,10 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           
           <div className="flex-shrink-0 w-full md:w-auto flex justify-center md:justify-start">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
-              <img src="/logo-centrumrolnictwapl-2-2.webp" alt="CentrumRolnictwa.pl" className="h-10 md:h-12 w-auto transition-transform hover:scale-105 duration-300" fetchPriority="high" />
+              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
+  alt="CentrumRolnictwa.pl" 
+  className="h-10 md:h-12 w-auto transition-transform hover:scale-105 duration-300" 
+  fetchPriority="high"/>
             </Link>
           </div>
 
