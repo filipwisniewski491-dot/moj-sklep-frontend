@@ -83,7 +83,8 @@ const MiniProductCard = ({ product }: { product: any }) => {
 export default function ProductClient({ product, fullUrl }: { product: any, fullUrl: string }) {
   const [selectedImgIdx, setSelectedImgIdx] = useState(0); 
   const [showSticky, setShowSticky] = useState(false);
-  const [countdownText, setCountdownText] = useState('');
+  const [timeLeftStr, setTimeLeftStr] = useState('');
+  const [isShippingToday, setIsShippingToday] = useState(true);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [skuCopied, setSkuCopied] = useState(false);
 
@@ -103,6 +104,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     setIsMounted(true);
   }, []);
 
+  // Odświeżony, minimalistyczny licznik wysyłki
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date();
@@ -114,11 +116,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
-      if (now.getHours() < 14) {
-        setCountdownText(`Zamów w ciągu ${hours} godz. ${minutes} min, a wyślemy JESZCZE DZISIAJ!`);
-      } else {
-        setCountdownText(`Wysyłka JUTRO RANO. Do kolejnego odlotu kuriera: ${hours} godz. ${minutes} min`);
-      }
+      setTimeLeftStr(`${hours}g ${minutes}m`);
+      setIsShippingToday(now.getHours() < 14);
     };
     calculateTimeLeft();
     const interval = setInterval(calculateTimeLeft, 60000);
@@ -147,7 +146,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
       try {
         let validProducts: any[] = [];
 
-        // 1. Zaczynamy od sztywnego Cross-Sella jeśli istnieje
         if (product?.crossSell && Array.isArray(product.crossSell) && product.crossSell.length > 0) {
           const res = await fetch(`/api/cross-sell?skus=${product.crossSell.join(',')}`);
           if (res.ok) {
@@ -156,7 +154,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           }
         }
 
-        // 2. Dobieranie brakujących z API Search
         if (validProducts.length < 5) {
           let searchValid: any[] = [];
           
@@ -233,7 +230,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return ["Kategoria"];
   }, [product.category_text]);
 
-  // MATEMATYKA B2B DLA CENNIKA
   const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const priceAfterDiscount = numPrice * (1 - currentTier.discountPercent);
   const cashbackEarned = priceAfterDiscount * CONSTANT_CASHBACK_PERCENT;
@@ -289,6 +285,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0 relative">
+      
+      {/* GÓRNY PASEK Z CZYSTYM LICZNIKIEM */}
       <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
@@ -300,9 +298,11 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             </span>
           </div>
           <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
-            <span className="text-[10px] uppercase tracking-widest hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
+            <span className="text-[10px] uppercase tracking-widest hidden md:inline">
+              {isShippingToday ? 'Wysyłamy dzisiaj. Zamów w:' : 'Wysyłka jutro. Zamów w:'}
+            </span>
             <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest">
-              ⏳ {isMounted ? countdownText.split(': ')[1] || countdownText : '00:00:00'}
+              ⏳ {isMounted ? timeLeftStr : '00g 00m'}
             </span>
           </div>
         </div>
@@ -329,9 +329,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             </div>
             
             <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group relative">
+              {/* ULTRA MINIMALISTYCZNY STATUS VIP */}
               {currentTier.level > 1 && (
                 <div className="absolute -top-3 whitespace-nowrap bg-gradient-to-r from-slate-900 to-slate-800 text-amber-400 text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md shadow-md border border-amber-500/30 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity z-10 flex items-center gap-1">
-                  <span>👑</span> {currentTier.name}
+                  <span>👑</span> VIP -{currentTier.discountPercent * 100}%
                 </div>
               )}
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200 mt-1">
@@ -342,7 +343,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <button onClick={() => setIsOpen?.(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200 mt-1">
-                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
                 Koszyk
@@ -451,7 +452,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                  
                  <div className="flex items-center gap-3 mt-2">
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Brutto (VAT 23%)</p>
-                    {/* Zmieniono warunek na >= 0, aby wyświetlało się zawsze, nawet przy produktach za 0 zł */}
                     {cashbackEarned >= 0 && (
                       <>
                         <div className="w-px h-3 bg-slate-200"></div>
@@ -493,6 +493,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               </div>
             )}
 
+            {/* Zaktualizowany box z informacją o kurierze - logiki dostawy */}
             <div className="bg-slate-50 text-slate-800 p-5 rounded-2xl mb-4 border border-slate-200 flex items-start gap-4">
                <div className="text-2xl mt-0.5">📦</div>
                <div>
@@ -500,7 +501,11 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                     <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
                     Ekspresowa Wysyłka
                   </p>
-                  <p className="text-sm font-bold leading-tight">{countdownText}</p>
+                  <p className="text-sm font-bold leading-tight">
+                    {isShippingToday 
+                      ? `Zamów w ciągu ${timeLeftStr}, a wyślemy paczkę JESZCZE DZISIAJ!` 
+                      : `Wysyłka JUTRO RANO. Czas na zamówienie: ${timeLeftStr}`}
+                  </p>
                </div>
             </div>
 
