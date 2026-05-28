@@ -7,14 +7,17 @@ import MegaMenu from '@/components/MegaMenu';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useCart } from '@/store/useCart';
 
-// Mockowane dane użytkownika (do czasu wpięcia backendu)
+// Mockowane dane użytkownika
 const MOCK_USER = {
   name: "Jan Kowalski",
   company: "Gospodarstwo Rolne Kowalski",
   tier: "Srebrny Partner",
-  cashbackBalance: 124.50, // Złotówki w skarbonce
+  cashbackBalance: 124.50,
   nextTierGoal: 5000,
   currentSpent: 3850,
+  totalSavedLifetime: 1450.00,
+  savedFromTier: 1100.00,
+  savedFromCashback: 350.00,
   savedVehicles: [
     { id: 1, make: "Ursus", model: "C-360" },
     { id: 2, make: "Zetor", model: "7211" }
@@ -25,6 +28,18 @@ const MOCK_USER = {
   ]
 };
 
+// Poziomy lojalnościowe do wyświetlenia w tabeli
+const LOYALTY_TIERS = [
+  { name: 'Standard', minSpent: 0, discount: '0%' },
+  { name: 'Brązowy Partner', minSpent: 2000, discount: '2%' },
+  { name: 'Srebrny Partner', minSpent: 5000, discount: '3%' },
+  { name: 'Złoty Partner', minSpent: 10000, discount: '5%' },
+  { name: 'Platynowy Partner', minSpent: 15000, discount: '7%' },
+  { name: 'Diamentowy Partner', minSpent: 25000, discount: '9%' },
+  { name: 'Konto Hurtowe', minSpent: 50000, discount: '10%' },
+  { name: 'Partner VIP', minSpent: 100000, discount: '15%' }
+];
+
 export default function AccountPage() {
   const { items } = useCart();
   const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
@@ -32,10 +47,10 @@ export default function AccountPage() {
   const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
   
   const tierProgress = Math.min((MOCK_USER.currentSpent / MOCK_USER.nextTierGoal) * 100, 100);
+  const [showRules, setShowRules] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
-      {/* GLOBALNY HEADER */}
       <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
         <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
           <div className="flex-shrink-0 flex items-center">
@@ -55,7 +70,7 @@ export default function AccountPage() {
                  <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
                </div>
             </div>
-            <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer text-red-600 transition-all group">
+            <Link href="/konto" className="flex flex-col items-center cursor-pointer text-red-600 transition-all group">
               <div className="p-3 bg-red-50 border-red-200 rounded-full transition-colors border shadow-inner">
                  <svg className="w-5 h-5 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
               </div>
@@ -74,7 +89,6 @@ export default function AccountPage() {
 
         <div className="flex flex-col lg:flex-row gap-8">
           
-          {/* MENU BOCZNE KONTA */}
           <aside className="w-full lg:w-1/4 shrink-0">
              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm sticky top-8">
                 <div className="border-b border-slate-100 pb-6 mb-6 text-center">
@@ -108,62 +122,149 @@ export default function AccountPage() {
              </div>
           </aside>
 
-          {/* GŁÓWNA ZAWARTOŚĆ DASHBOARDU */}
           <div className="w-full lg:w-3/4 flex flex-col gap-8">
             
-            {/* WIDGETY GÓRNE: SKARBONKA I STATUS */}
+            {/* WIDGETY GÓRNE: SKARBONKA I OSZCZĘDNOŚCI */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               
-               {/* Skarbonka (Cashback) */}
+               <div className="bg-emerald-600 rounded-[32px] p-8 text-white relative overflow-hidden shadow-xl border border-emerald-500">
+                 <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-emerald-400 rounded-full blur-[80px] opacity-30 -mr-10 -mt-10"></div>
+                 <div className="relative z-10">
+                   <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-100 mb-2 flex items-center gap-2">
+                     <span className="text-white text-lg">📈</span> Zaoszczędziłeś już
+                   </h3>
+                   <div className="flex items-baseline gap-1 mb-4">
+                     <span className="text-5xl font-black tracking-tighter">{MOCK_USER.totalSavedLifetime.toFixed(2)}</span>
+                     <span className="text-xl font-bold text-emerald-200">zł</span>
+                   </div>
+                   
+                   <div className="space-y-2 border-t border-emerald-500/50 pt-4 mt-2">
+                      <div className="flex justify-between items-center text-xs font-medium text-emerald-50">
+                         <span>Stałe rabaty statusu:</span>
+                         <span className="font-black text-white">{MOCK_USER.savedFromTier.toFixed(2)} zł</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-medium text-emerald-50">
+                         <span>Odebrane ze Skarbonki:</span>
+                         <span className="font-black text-white">{MOCK_USER.savedFromCashback.toFixed(2)} zł</span>
+                      </div>
+                   </div>
+                 </div>
+               </div>
+
                <div className="bg-slate-900 rounded-[32px] p-8 text-white relative overflow-hidden shadow-xl">
                  <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-red-600 rounded-full blur-[80px] opacity-30 -mr-10 -mt-10"></div>
                  <div className="relative z-10">
                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-2">
-                     <span className="text-emerald-400 text-lg">💰</span> Skarbonka Warsztatowa
+                     <span className="text-red-500 text-lg">💰</span> Skarbonka Warsztatowa
                    </h3>
                    <div className="flex items-baseline gap-1 mb-2">
                      <span className="text-5xl font-black tracking-tighter">{MOCK_USER.cashbackBalance.toFixed(2)}</span>
                      <span className="text-xl font-bold text-slate-400">zł</span>
                    </div>
-                   <p className="text-xs text-slate-300 font-medium mb-6">Zgromadzone środki gotowe do obniżenia kwoty Twojego następnego zamówienia.</p>
-                   <Link href="/kategorie" className="inline-block bg-red-600 hover:bg-red-500 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl transition-colors">
-                     Wykorzystaj środki ➔
+                   <p className="text-[11px] text-slate-300 font-medium mb-6 leading-snug">
+                     Z każdego opłaconego zamówienia 2% wraca tutaj. Środki gotowe do użycia przy następnych zakupach.
+                   </p>
+                   <Link href="/kategorie" className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3.5 rounded-xl transition-colors">
+                     Wykorzystaj w sklepie ➔
                    </Link>
                  </div>
                </div>
+            </div>
 
-               {/* Grywalizacja B2B (Status Klienta) */}
-               <div className="bg-white rounded-[32px] p-8 border border-slate-200 shadow-sm relative overflow-hidden">
-                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
-                   <span className="text-amber-500 text-lg">🏆</span> Status Konta
-                 </h3>
-                 <div className="flex justify-between items-end mb-4">
-                    <span className="text-2xl font-black text-slate-900 uppercase tracking-tight">{MOCK_USER.tier}</span>
-                    <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md">Stały Rabat: 2%</span>
+            {/* STATUS KONTA I ZASADY (NOWY MODUŁ) */}
+            <div className="bg-white rounded-[32px] p-8 border border-slate-200 shadow-sm relative overflow-hidden">
+               <div className="flex justify-between items-start mb-6">
+                 <div>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
+                     <span className="text-amber-500 text-lg">🏆</span> Status Twojego Konta
+                   </h3>
+                   <div className="flex items-center gap-4">
+                     <span className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight">{MOCK_USER.tier}</span>
+                     <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-sm border border-amber-200">
+                       Rabat -3%
+                     </span>
+                   </div>
                  </div>
-                 
-                 <div className="mb-2 flex justify-between text-[10px] font-bold text-slate-500 uppercase">
-                    <span>Wydano: {MOCK_USER.currentSpent} zł</span>
-                    <span>Cel: Złoty Partner ({MOCK_USER.nextTierGoal} zł)</span>
-                 </div>
-                 <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner mb-4">
-                    <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style={{ width: `${tierProgress}%` }}></div>
-                 </div>
-                 <p className="text-xs text-slate-600 font-medium">Brakuje Ci jeszcze <strong>{(MOCK_USER.nextTierGoal - MOCK_USER.currentSpent).toFixed(2)} zł</strong> aby zyskać stały rabat <strong className="text-slate-900">5% na wszystkie części</strong> oraz darmowe zwroty kurierem.</p>
+                 <button 
+                   onClick={() => setShowRules(!showRules)} 
+                   className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-600 transition-colors bg-slate-50 px-4 py-2 rounded-lg border border-slate-200"
+                 >
+                   {showRules ? "Ukryj zasady" : "Zobacz zasady ➔"}
+                 </button>
                </div>
+               
+               <div className="mb-2 flex justify-between text-[10px] font-bold text-slate-500 uppercase">
+                  <span>Wydano łącznie: {MOCK_USER.currentSpent} zł</span>
+                  <span>Cel: Złoty Partner ({MOCK_USER.nextTierGoal} zł)</span>
+               </div>
+               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner mb-4">
+                  <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style={{ width: `${tierProgress}%` }}></div>
+               </div>
+               <p className="text-xs text-slate-600 font-medium">Brakuje Ci jeszcze <strong>{(MOCK_USER.nextTierGoal - MOCK_USER.currentSpent).toFixed(2)} zł</strong> aby zyskać stały rabat <strong className="text-slate-900">5% na wszystkie części</strong>.</p>
 
+               {/* ROZWIJANA INSTRUKCJA I TABELA RABATÓW */}
+               {showRules && (
+                 <div className="mt-8 pt-8 border-t border-slate-100 animate-in fade-in slide-in-from-top-4 duration-300">
+                   <h4 className="font-black text-sm uppercase text-slate-900 mb-6">Jak to działa w 3 prostych krokach?</h4>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+                     <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                       <span className="text-2xl mb-2 block">🛒</span>
+                       <h5 className="font-black text-[11px] uppercase tracking-widest text-slate-900 mb-1">1. Kupujesz i płacisz</h5>
+                       <p className="text-xs text-slate-600 font-medium">Robisz zakupy na gospodarstwo. Wartość zakupów automatycznie sumuje się na Twoim koncie.</p>
+                     </div>
+                     <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                       <span className="text-2xl mb-2 block">💰</span>
+                       <h5 className="font-black text-[11px] uppercase tracking-widest text-slate-900 mb-1">2. 2% wraca do Skarbonki</h5>
+                       <p className="text-xs text-slate-600 font-medium">Niezależnie od poziomu, zawsze 2% wartości każdego zamówienia wraca do Ciebie w formie środków na kolejne zakupy.</p>
+                     </div>
+                     <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                       <span className="text-2xl mb-2 block">⭐</span>
+                       <h5 className="font-black text-[11px] uppercase tracking-widest text-slate-900 mb-1">3. Zdobywasz Stały Rabat</h5>
+                       <p className="text-xs text-slate-600 font-medium">Przekraczasz progi z tabeli poniżej i zyskujesz wieczny rabat (nawet do -15%) przypisany na stałe do Twojego NIPu.</p>
+                     </div>
+                   </div>
+
+                   <h4 className="font-black text-sm uppercase text-slate-900 mb-4">Tabela Poziomów Lojalnościowych</h4>
+                   <div className="overflow-hidden rounded-2xl border border-slate-200">
+                     <table className="w-full text-left text-sm">
+                       <thead className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest">
+                         <tr>
+                           <th className="p-4">Status Konta</th>
+                           <th className="p-4">Wydana kwota (od)</th>
+                           <th className="p-4 text-right">Twój stały rabat</th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100 bg-white">
+                         {LOYALTY_TIERS.map((tier, idx) => {
+                           const isCurrent = MOCK_USER.tier === tier.name;
+                           return (
+                             <tr key={idx} className={`transition-colors ${isCurrent ? 'bg-amber-50/50' : 'hover:bg-slate-50'}`}>
+                               <td className="p-4 font-bold text-slate-900 flex items-center gap-2">
+                                 {isCurrent && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>}
+                                 {tier.name}
+                               </td>
+                               <td className="p-4 text-slate-600 font-medium">{tier.minSpent.toLocaleString('pl-PL')} zł</td>
+                               <td className="p-4 text-right font-black text-red-600">{tier.discount}</td>
+                             </tr>
+                           );
+                         })}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               
               {/* OSTATNIE ZAMÓWIENIA */}
-              <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+              <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex flex-col">
                  <div className="flex justify-between items-center mb-6">
                    <h3 className="text-lg font-black uppercase text-slate-900">Ostatnie zamówienia</h3>
                    <Link href="/konto/zamowienia" className="text-[10px] font-black text-red-600 uppercase tracking-widest hover:underline">Wszystkie ➔</Link>
                  </div>
                  
-                 <div className="space-y-4">
+                 <div className="space-y-4 flex-1">
                    {MOCK_USER.recentOrders.map((order, idx) => (
                      <div key={idx} className="flex justify-between items-center p-4 rounded-2xl border border-slate-100 hover:border-red-100 hover:bg-red-50/30 transition-colors group">
                        <div>
@@ -180,7 +281,7 @@ export default function AccountPage() {
                  </div>
               </div>
 
-              {/* MÓJ GARAŻ (Szybkie wyszukiwanie podzespołów) */}
+              {/* MÓJ GARAŻ */}
               <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
                  <div className="flex justify-between items-center mb-6">
                    <h3 className="text-lg font-black uppercase text-slate-900">Mój Garaż</h3>
@@ -199,14 +300,13 @@ export default function AccountPage() {
                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity font-black">➔</div>
                      </Link>
                    ))}
-                   <button className="border-2 border-dashed border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-900 font-black text-[10px] uppercase tracking-widest p-4 rounded-2xl transition-all flex items-center justify-center gap-2 mt-2">
+                   <Link href="/konto/garaz" className="border-2 border-dashed border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-900 font-black text-[10px] uppercase tracking-widest p-4 rounded-2xl transition-all flex items-center justify-center gap-2 mt-2">
                      <span className="text-lg">+</span> Dodaj kolejną maszynę
-                   </button>
+                   </Link>
                  </div>
               </div>
 
             </div>
-
           </div>
         </div>
       </main>
@@ -220,14 +320,6 @@ export default function AccountPage() {
             <p className="text-[10px] font-bold text-slate-400 uppercase leading-loose tracking-widest">
               Niezawodny Sklep Rolniczy.<br/> Części, maszyny, doradztwo.
             </p>
-          </div>
-          <div>
-             <h4 className="text-white font-black mb-6 uppercase text-[11px] tracking-widest">Obsługa Klienta</h4>
-             <ul className="space-y-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                <li><Link href="/konto" className="hover:text-red-500 transition-colors">Moje Konto</Link></li>
-                <li><Link href="/konto/zamowienia" className="hover:text-red-500 transition-colors">Śledzenie zamówienia</Link></li>
-                <li><Link href="/zwroty" className="hover:text-red-500 transition-colors">Zwroty i Reklamacje</Link></li>
-             </ul>
           </div>
           <div className="md:col-span-2 bg-slate-800/50 p-8 rounded-[32px] border border-slate-700 flex flex-col justify-center">
              <h4 className="text-slate-300 font-black mb-4 uppercase text-[10px] tracking-[0.2em]">Infolinia i Doradztwo Techniczne</h4>
