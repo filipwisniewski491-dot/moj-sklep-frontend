@@ -76,6 +76,21 @@ const MEGA_MENU_DATA = [
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
 ];
 
+// DODANA TABLICA QUICK_SILOS DO OBSŁUGI STOPKI NA STRONIE KATEGORII
+const QUICK_SILOS = [
+  { name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", img: "🔧" },
+  { name: "Części uniwersalne", slug: "czesci-uniwersalne", img: "🔩" },
+  { name: "Chemia i smary", slug: "chemia-i-smary", img: "🛢️" },
+  { name: "Części do ciągników", slug: "czesci-do-ciagnikow", img: "🚜" },
+  { name: "Hydraulika siłowa", slug: "hydraulika-silowa", img: "🗜️" },
+  { name: "Elektronika i precyzja", slug: "elektronika-i-precyzja", img: "📡" },
+  { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", img: "🐄" },
+  { name: "Części do maszyn", slug: "czesci-do-maszyn", img: "⚙️" },
+  { name: "Części ciągniki/maszyny", slug: "czesci-do-ciagnikow-i-maszyn", img: "🔗" },
+  { name: "Dom, ogród, las", slug: "dom-ogrod-las", img: "🌲" },
+  { name: "Materiały eksploatacyjne", slug: "materialy-eksploatacyjne", img: "📦" }
+];
+
 const ProductCard = ({ product, isListView, idx }: { product: any, isListView: boolean, idx: number }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
@@ -507,19 +522,17 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
         <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
           
-          {/* Mniejsze Logo na mobile dla oszczędności miejsca */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
               <img 
                 src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
                 alt="CentrumRolnictwa.pl" 
-                className="h-10 sm:h-14 md:h-20 w-auto transition-transform hover:scale-105 duration-300" 
+                className="h-8 sm:h-12 md:h-16 w-auto transition-transform hover:scale-105 duration-300" 
                 fetchPriority="high" 
               />
             </Link>
           </div>
 
-          {/* Wyszukiwarka - Zajmuje resztę szerokości od razu obok Logo na telefonie */}
           <div className="flex-1 w-full relative z-50">
              <SearchBar />
           </div>
@@ -554,7 +567,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         </div>
       </header>
 
-      {/* --- 3. MEGA MENU DESKTOP (JASNE, CZYSTE, E-COMMERCE) --- */}
+      {/* --- 3. MEGA MENU DESKTOP --- */}
       <div className="hidden lg:block bg-white relative z-40 border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 flex items-center">
           <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-10 relative">
@@ -754,7 +767,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             </div>
           )}
 
-          {/* ZMIANA: Pływający przycisk filtrów wyżej (bottom-20) aby nie wchodził na paski */}
           <div className="lg:hidden mt-8 flex justify-center sticky bottom-20 z-[45]">
              <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 w-full max-w-[90%] border border-slate-700 transition-transform active:scale-95 min-h-[48px]">
                FILTRUJ I ZNAJDŹ {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
