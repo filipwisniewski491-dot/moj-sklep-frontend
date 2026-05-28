@@ -28,7 +28,7 @@ const generateSlug = (text: string) => {
 const parseMarkdown = (text: string) => {
   if (!text) return '';
   let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl lg:text-2xl font-black mt-8 mb-4 text-slate-900">$1</h2>');
-  html = html.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
+  html = html.replace(/\*\frac{1}{2}/gim, '<strong>$1</strong>');
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" class="text-red-600 hover:underline font-bold">$1</a>');
   html = html.replace(/^\* (.*$)/gim, '<li class="ml-5 list-disc marker:text-red-600 mb-2">$1</li>');
   html = html.replace(/\n\n/gim, '<br /><br />');
@@ -90,7 +90,7 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
               <input aria-label="Ilość" type="number" value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-1/3 text-center bg-transparent text-[10px] lg:text-xs font-black text-slate-900 outline-none appearance-none p-0 m-0" />
               <button aria-label="Zwiększ ilość" onClick={(e) => { e.preventDefault(); setQty(qty + 1); }} className="w-1/3 h-full font-black text-slate-500 hover:text-emerald-600 flex items-center justify-center p-2">+</button>
             </div>
-            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="bg-slate-900 text-white px-3 lg:px-4 h-10 lg:h-11 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:scale-105 active:scale-95 transition-all shadow-md shrink-0">
+            <button onClick={handleAddToCart} className="bg-slate-900 text-white px-3 lg:px-4 h-10 lg:h-11 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:scale-105 active:scale-95 transition-all shadow-md shrink-0">
               <span className="text-sm">🛒</span><span className="ml-1.5 hidden min-[360px]:inline">Dodaj</span>
             </button>
           </div>
@@ -136,7 +136,7 @@ const SearchableSelect = ({ label, options, value, onChange, placeholder }: any)
         <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
       </button>
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute z-[99] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md">
             <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-2.5 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
@@ -158,6 +158,58 @@ const SearchableSelect = ({ label, options, value, onChange, placeholder }: any)
     </div>
   );
 };
+
+const FilterMenuContent = ({ searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath }: any) => (
+  <div className="space-y-6">
+    {/* Sekcja 1: Szukaj po OEM */}
+    <div className="mb-6 pb-6 border-b border-slate-100">
+      <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
+      <div className="relative">
+        <input aria-label="Wyszukaj produkt po numerze OEM lub nazwie" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
+        <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} className="absolute right-2 top-2 bottom-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[44px]">🔍</button>
+      </div>
+    </div>
+
+    {/* Sekcja 2: Dobierz do maszyny (Garage) */}
+    <div className="mb-6 pb-6 border-b border-slate-100">
+      <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
+      <div className="space-y-3">
+        <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={garageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
+        <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={garageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
+      </div>
+    </div>
+
+    {/* Sekcja 3: Filtry Techniczne */}
+    <div className="flex justify-between items-center mb-4">
+      <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900">Parametry</h3>
+      {activeFiltersCount > 0 && <button aria-label="Wyczyść wszystkie filtry" onClick={() => router.push(`/kategoria/${fullPath}`)} className="text-[10px] text-red-600 font-black uppercase hover:underline p-2">Wyczyść</button>}
+    </div>
+
+    <div className="mb-6 border-b border-slate-100 pb-6">
+      <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-500 mb-3">Zakres Cenowy (zł)</h4>
+      <div className="flex gap-2 items-center">
+        <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
+        <span className="text-slate-500 font-black">-</span>
+        <input aria-label="Cena maksymalna" type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
+      </div>
+      <button aria-label="Zastosuj filtr cenowy" onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[44px]">Zastosuj cenę</button>
+    </div>
+
+    <div className="space-y-8">
+      {techFilterKeys.map((filterKey: string) => renderFilterBlock(filterKey))}
+    </div>
+
+    {/* Sekcja 4: Call to action */}
+    <div className="mt-8 bg-slate-900 p-5 rounded-2xl relative overflow-hidden">
+       <div className="absolute -right-4 -bottom-4 text-6xl opacity-10">📞</div>
+       <h4 className="text-white font-black uppercase text-sm mb-2 relative z-10">Nie możesz znaleźć części?</h4>
+       <p className="text-slate-400 text-xs mb-4 relative z-10 leading-relaxed">Nasz doradca techniczny dobierze dla Ciebie zamiennik w 3 minuty. Zadzwoń do nas podając objawy lub numer OEM.</p>
+       <a href="tel:+48123456789" aria-label="Zadzwoń do doradcy" className="block w-full bg-red-600 hover:bg-red-500 text-white text-center py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-md relative z-10 min-h-[48px]">
+         📞 Zadzwoń teraz
+       </a>
+    </div>
+  </div>
+);
 
 export default function CategoryClient({ initialData, initialFilters, fullPath }: { initialData: any, initialFilters: any, fullPath: string }) {
   const searchParams = useSearchParams();
@@ -189,7 +241,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
   const isFirstRender = useRef(true);
 
-  // Blokowanie scrolla pod otwartą szufladą
   useEffect(() => {
     if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
@@ -325,7 +376,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         
         {isLongList && (
           <div className="relative mb-3">
-            <input aria-label={`Szukaj w filtrze ${filterKey}`} type="text" placeholder={`Szukaj w ${filterKey.toLowerCase()}...`} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2.5 text-[10px] font-bold text-slate-700 outline-none focus:border-red-600 transition-colors" value={filterSearchQuery[filterKey] || ''} onChange={(e) => setFilterSearchQuery(prev => ({ ...prev, [filterKey]: e.target.value }))} />
+            <input aria-label={`Szukaj w filtrze ${filterKey}`} type="text" placeholder={`Szukaj w ${filterKey.toLowerCase()}...`} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-[10px] font-bold text-slate-700 outline-none focus:border-red-600 transition-colors" value={filterSearchQuery[filterKey] || ''} onChange={(e) => setFilterSearchQuery(prev => ({ ...prev, [filterKey]: e.target.value }))} />
             <span className="absolute right-3 top-2.5 text-slate-400 text-xs">🔍</span>
           </div>
         )}
@@ -357,8 +408,32 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
     );
   };
 
+  const sharedFilterProps = { searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+      
+      {/* 1. TOP ROZWIĄZANIE NA ŚWIECIE: CAŁKOWICIE ODSEPAROWANA MOBILNA SZUFLADA WYPIĘTA DO WARSTWY GLOBALNEJ (Z-INDEX 99999) */}
+      {isMobileFiltersOpen && (
+        <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
+           {/* Górny pasek szuflady mobilnej */}
+           <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
+              <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
+              <button aria-label="Zamknij filtry" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[44px]">✕ Zamknij</button>
+           </div>
+           
+           {/* Przewijana zawartość filtrów na mobile */}
+           <div className="flex-1 overflow-y-auto p-5 pb-24 custom-scrollbar bg-white">
+              <FilterMenuContent {...sharedFilterProps} />
+           </div>
+           
+           {/* Sztywny dolny pasek zatwierdzający na mobile */}
+           <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+               <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[48px]">Pokaż {products.length} wyników ➔</button>
+           </div>
+        </div>
+      )}
+
       <header className="border-b py-4 px-6 bg-white sticky top-0 z-[60] shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center w-full">
           <Link href="/" aria-label="Strona główna CentrumRolnictwa.pl" className="font-black text-xl tracking-tighter hover:text-red-600 transition-colors">
@@ -370,13 +445,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           </button>
         </div>
       </header>
-
-      {/* Przycisk otwierający szufladę na Mobile */}
-      <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[45] w-full max-w-[90%] flex justify-center">
-        <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 w-full border border-slate-700 transition-transform active:scale-95 min-h-[48px]">
-          FILTRUJ I ZNAJDŹ {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
-        </button>
-      </div>
 
       <div className="bg-white border-b pt-8 pb-6 px-6 relative z-20">
         <div className="max-w-7xl mx-auto">
@@ -410,7 +478,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           {subcategories.length > 0 && (
             <div className="mb-4 border-t border-slate-100 pt-5">
               <div className="flex justify-between items-end mb-4">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wybierz podkategorię:</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Wybierz podkategorię:</span>
               </div>
               <div className="flex flex-wrap gap-2 lg:gap-3">
                 {(showAllSubcats ? subcategories : subcategories.slice(0, 7)).map(sub => (
@@ -450,70 +518,11 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         
-        {/* SZUFLADA NA MOBILE: fix z-index 9999 oraz h-100dvh z całkowitym przykryciem */}
-        <aside className={`${isMobileFiltersOpen ? 'fixed inset-0 z-[9999] bg-white w-full h-[100dvh] flex flex-col m-0 p-0 overflow-hidden' : 'hidden lg:block w-full lg:w-80 flex-shrink-0'}`}>
-          
-          {isMobileFiltersOpen && (
-             <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
-                <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
-                <button aria-label="Zamknij filtry" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[44px]">✕ Zamknij</button>
-             </div>
-          )}
-
-          <div className={`${isMobileFiltersOpen ? 'flex-1 overflow-y-auto p-5 pb-8 custom-scrollbar bg-white' : 'space-y-6'}`}>
-            <div className={`bg-white ${!isMobileFiltersOpen ? 'rounded-[32px] border border-slate-100 shadow-sm p-6' : 'p-0 border-none shadow-none'}`}>
-              
-              <div className="mb-6 pb-6 border-b border-slate-100">
-                <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
-                <form onSubmit={(e) => { e.preventDefault(); updateUrlParams('q', searchQ); setIsMobileFiltersOpen(false); }} className="relative">
-                  <input aria-label="Wyszukaj produkt po numerze OEM lub nazwie" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
-                  <button aria-label="Szukaj" type="submit" className="absolute right-2 top-2 bottom-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[44px]">🔍</button>
-                </form>
-              </div>
-
-              <div className="mb-6 pb-6 border-b border-slate-100">
-                <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
-                <div className="space-y-3">
-                  <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={garageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
-                  <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={garageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900">Parametry</h3>
-                {activeFiltersCount > 0 && <button aria-label="Wyczyść wszystkie filtry" onClick={() => router.push(`/kategoria/${fullPath}`)} className="text-[10px] text-red-600 font-black uppercase hover:underline p-2">Wyczyść</button>}
-              </div>
-
-              <div className="mb-6 border-b border-slate-100 pb-6">
-                <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-500 mb-3">Zakres Cenowy (zł)</h4>
-                <div className="flex gap-2 items-center">
-                  <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
-                  <span className="text-slate-500 font-black">-</span>
-                  <input aria-label="Cena maksymalna" type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
-                </div>
-                <button aria-label="Zastosuj filtr cenowy" onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[44px]">Zastosuj cenę</button>
-              </div>
-
-              <div className="space-y-8">
-                {techFilterKeys.map((filterKey) => renderFilterBlock(filterKey))}
-              </div>
-
-              <div className="mt-8 bg-slate-900 p-5 rounded-2xl relative overflow-hidden">
-                 <div className="absolute -right-4 -bottom-4 text-6xl opacity-10">📞</div>
-                 <h4 className="text-white font-black uppercase text-sm mb-2 relative z-10">Nie możesz znaleźć części?</h4>
-                 <p className="text-slate-400 text-xs mb-4 relative z-10 leading-relaxed">Nasz doradca techniczny dobierze dla Ciebie zamiennik w 3 minuty. Zadzwoń do nas podając objawy lub numer OEM.</p>
-                 <a href="tel:+48123456789" aria-label="Zadzwoń do doradcy" className="block w-full bg-red-600 hover:bg-red-500 text-white text-center py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-md relative z-10 min-h-[48px]">
-                   📞 Zadzwoń teraz
-                 </a>
-              </div>
-            </div>
+        {/* DESKTOP PANEL: Standardowo renderowany na boku strony */}
+        <aside className="hidden lg:block w-full lg:w-80 flex-shrink-0">
+          <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
+            <FilterMenuContent {...sharedFilterProps} />
           </div>
-          
-          {isMobileFiltersOpen && (
-             <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-                 <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[48px]">Pokaż {products.length} wyników ➔</button>
-             </div>
-          )}
         </aside>
 
         <div className="flex-1 flex flex-col min-h-[500px]">
