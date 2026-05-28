@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/store/useCart';
-// 👇 Importujemy nasz nowy, potężny silnik matematyczny
 import { calculateCartMath } from '@/lib/cashbackEngine';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
@@ -23,9 +22,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'blik' | 'card' | 'pobranie'>('blik');
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // DANE Z BAZY (Symulacja historii klienta)
-  // Załóżmy, że klient wydał u nas już 105 000 zł, co wrzuca go na próg "Partner Strategiczny (VIP)" -15%
-  const [userTotalSpent, setUserTotalSpent] = useState(105000); 
+  // Symulacja DANYCH B2B klienta
+  const [userTotalSpent] = useState(105000); 
   const [availableCashback, setAvailableCashback] = useState(250.50);
   const [useCashback, setUseCashback] = useState(false);
   
@@ -38,19 +36,6 @@ export default function CheckoutPage() {
       router.push('/');
     }
   }, [items, router, isProcessing]);
-
-  useEffect(() => {
-    const savedProfile = localStorage.getItem('user_profile_data');
-    if (savedProfile) {
-      try {
-        const parsed = JSON.parse(savedProfile);
-        setFormData(prev => ({
-          ...prev, email: parsed.email || '', phone: parsed.phone || '', nip: parsed.nip || '',
-          companyName: parsed.company || '', street: parsed.address || '', zip: parsed.zip || '', city: parsed.city || ''
-        }));
-      } catch (e) { console.error(e); }
-    }
-  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -66,13 +51,9 @@ export default function CheckoutPage() {
     }, 2500);
   };
 
-  // ====================================================================
-  // MAGIA MATEMATYKI B2B (W locie przeliczamy koszyk przez nasz silnik)
-  // ====================================================================
+  // MATEMATYKA B2B Z SILNIKA
   const totalBrutto = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-  
   const cartMath = calculateCartMath(totalBrutto, userTotalSpent, availableCashback, useCashback);
-  
   const deliveryCost = cartMath.finalAmountToPay > 500 ? 0 : (deliveryMethod === 'courier' ? 25 : 15);
   const totalToPayWithDelivery = cartMath.finalAmountToPay + deliveryCost;
 
@@ -81,7 +62,6 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       
-      {/* NAGŁÓWEK BEZPIECZEŃSTWA */}
       <header className="bg-white border-b py-4 px-6 sticky top-0 z-50 shadow-sm">
         <div className="max-w-6xl mx-auto flex justify-between items-center w-full">
           <Link href="/" className="font-black text-xl tracking-tighter text-slate-900">
@@ -96,7 +76,6 @@ export default function CheckoutPage() {
       <main className="max-w-6xl mx-auto px-4 py-8 lg:py-12">
         <form onSubmit={handleFinishOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* LEWA KOLUMNA: DANE I DOSTAWA */}
           <div className="lg:col-span-8 space-y-6">
             <section className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100">
               <div className="flex items-center gap-4 mb-6">
@@ -179,7 +158,6 @@ export default function CheckoutPage() {
             </section>
           </div>
 
-          {/* PRAWA KOLUMNA: POTĘŻNE B2B PODSUMOWANIE */}
           <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
             <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100">
               <h3 className="text-sm font-black uppercase tracking-widest mb-6 border-b pb-4">Twoje zamówienie</h3>
@@ -202,7 +180,6 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              {/* MODUŁ: SKARBONKA */}
               {availableCashback > 0 && (
                 <div className="mb-6 bg-emerald-50 border border-emerald-100 p-4 rounded-2xl transition-colors">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -220,15 +197,12 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* PODSUMOWANIE KOSZTÓW Z UWZGLĘDNIENIEM NOWEJ MATEMATYKI */}
               <div className="space-y-3 text-xs font-bold text-slate-500 border-t border-slate-100 pt-4">
-                
                 <div className="flex justify-between items-center">
                   <span>Wartość części (brutto):</span>
                   <span className="text-slate-800">{cartMath.originalTotal.toFixed(2)} zł</span>
                 </div>
                 
-                {/* WIECZNY RABAT B2B */}
                 {cartMath.lifetimeDiscountAmount > 0 && (
                   <div className="flex justify-between items-center text-red-600 font-black bg-red-50 p-2 rounded-lg -mx-2">
                     <span>Zniżka stała ({cartMath.tierName} -{cartMath.discountPercent}%):</span>
@@ -236,7 +210,6 @@ export default function CheckoutPage() {
                   </div>
                 )}
                 
-                {/* ZNIŻKA ZE SKARBONKI */}
                 {useCashback && cartMath.applicableCashback > 0 && (
                   <div className="flex justify-between items-center text-emerald-600 font-black bg-emerald-50 p-2 rounded-lg -mx-2">
                     <span>Użyto ze Skarbonki:</span>
@@ -249,14 +222,12 @@ export default function CheckoutPage() {
                   <span className="text-slate-800">{deliveryCost === 0 ? 'GRATIS' : `${deliveryCost.toFixed(2)} zł`}</span>
                 </div>
                 
-                {/* FINALNA CENA I ZYSK Z POWROTU KASY */}
                 <div className="flex flex-col pt-4 border-t border-dashed border-slate-200 gap-2">
                   <div className="flex justify-between items-baseline">
                     <span className="text-slate-900 font-black uppercase text-xs tracking-wider">Do zapłaty:</span>
                     <span className="text-3xl font-black text-slate-900 tracking-tighter">{totalToPayWithDelivery.toFixed(2)} <span className="text-xs font-bold text-slate-400">zł</span></span>
                   </div>
                   
-                  {/* INFORMACJA O ZWROCIE */}
                   <div className="bg-slate-900 text-white rounded-xl p-3 mt-2 flex items-center justify-between shadow-inner border border-slate-800">
                     <span className="text-[10px] uppercase tracking-widest font-bold">Zyskujesz do skarbonki:</span>
                     <span className="text-sm font-black text-emerald-400">+{cartMath.cashbackEarned.toFixed(2)} zł</span>
@@ -275,6 +246,11 @@ export default function CheckoutPage() {
                   <><span>POTWIERDZAM I PŁACĘ</span><span className="text-xl">➔</span></>
                 )}
               </button>
+
+              <p className="text-[10px] text-center text-slate-500 font-bold uppercase mt-6 leading-relaxed">
+                Klikając powyższy przycisk akceptujesz <br className="md:hidden"/>
+                <Link href="/regulamin" target="_blank" className="text-slate-900 hover:text-red-600 underline underline-offset-2 transition-colors">regulamin sklepu</Link> oraz <Link href="/polityka-prywatnosci" target="_blank" className="text-slate-900 hover:text-red-600 underline underline-offset-2 transition-colors">politykę prywatności</Link>.
+              </p>
             </div>
 
             <div className="bg-slate-100/50 rounded-2xl p-4 flex flex-col gap-3">

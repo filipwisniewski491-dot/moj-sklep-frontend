@@ -13,15 +13,12 @@ export default function OrdersPage() {
   const freeShippingThreshold = 500;
   const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
 
-  // Dynamiczny stan dla zamówień
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Symulacja pobierania danych zamówień (Dla nowego konta zwraca puste)
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        // Dla nowego użytkownika system nie znajdzie zamówień:
         setOrders([]); 
       } catch (error) {
         console.error("Błąd pobierania zamówień", error);
@@ -29,7 +26,6 @@ export default function OrdersPage() {
         setIsLoading(false);
       }
     };
-
     fetchOrders();
   }, []);
 
@@ -72,7 +68,6 @@ export default function OrdersPage() {
         </h1>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* MENU BOCZNE KONTA */}
           <aside className="w-full lg:w-1/4 shrink-0">
              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm sticky top-8">
                 <nav className="space-y-2">
@@ -95,10 +90,8 @@ export default function OrdersPage() {
              </div>
           </aside>
 
-          {/* GŁÓWNA ZAWARTOŚĆ - HISTORIA ZAMÓWIEŃ */}
           <div className="w-full lg:w-3/4">
             <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm min-h-[400px]">
-               
                {isLoading ? (
                  <div className="w-full h-full flex flex-col items-center justify-center py-20 text-slate-400">
                    <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -109,7 +102,7 @@ export default function OrdersPage() {
                    <div className="text-6xl mb-4 grayscale opacity-50">📦</div>
                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Brak zamówień</h2>
                    <p className="text-slate-500 font-medium text-sm mb-6 max-w-md">
-                     Wygląda na to, że nie złożyłeś jeszcze żadnego zamówienia w naszym sklepie. Historia Twoich zakupów pojawi się tutaj.
+                     Wygląda na to, że nie złożyłeś jeszcze żadnego zamówienia w naszym sklepie.
                    </p>
                    <Link href="/kategorie" className="bg-slate-900 hover:bg-red-600 text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md">
                      Przejdź do katalogu ➔
@@ -118,13 +111,10 @@ export default function OrdersPage() {
                ) : (
                  <div className="space-y-6">
                    {orders.map((order: any) => (
-                      <div key={order.id} className="border border-slate-200 rounded-2xl p-6 hover:border-red-200 transition-colors">
-                         {/* Lista zamówień na przyszłość */}
-                      </div>
+                      <div key={order.id} className="border border-slate-200 rounded-2xl p-6 hover:border-red-200 transition-colors"></div>
                    ))}
                  </div>
                )}
-
             </div>
           </div>
         </div>
