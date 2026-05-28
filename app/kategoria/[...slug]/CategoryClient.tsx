@@ -35,7 +35,6 @@ const parseMarkdown = (text: string) => {
   return html;
 };
 
-// Funkcja upiększająca nazwy marek (np. "john deere" -> "John Deere")
 const capitalizeWords = (str: string) => {
   if (!str) return '';
   return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
@@ -60,7 +59,6 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
 
   const pseudoRandom = (str: string) => Array.from(str).reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const hash = pseudoRandom(sku);
-  // ZMIANA: Skalibrowane oceny od 4.5 do 5.0
   const rating = (4.5 + (hash % 6) / 10).toFixed(1); 
   const reviewsCount = 3 + (hash % 45); 
   const isLowStock = (hash % 5) === 0; 
@@ -76,17 +74,17 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
       <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do ${product.name}`} className="absolute inset-0 z-0"></Link>
 
-      <div className={`absolute top-4 right-4 z-10 flex flex-col gap-1 items-end`}>
+      <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
         {isShippingToday ? (
-          <div className="flex items-center gap-1.5 px-2 py-1 lg:px-2.5 lg:py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest hidden sm:inline">
-              Za {hoursLeft}h {minutesLeft}m wyślemy dziś
+            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+              Wyślemy za {hoursLeft}h {minutesLeft}m
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 px-2 py-1 lg:px-2.5 lg:py-1 rounded-lg bg-orange-50 text-orange-700 border border-orange-100 shadow-sm">
-            <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest hidden sm:inline">Wysyłka rano</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-50 text-orange-700 border border-orange-100 shadow-sm">
+            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Wysyłka rano</span>
           </div>
         )}
       </div>
@@ -102,17 +100,20 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
             <span className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center">Brak zdjęcia</span>
           </div>
         )}
-        {/* ZMIANA: Dodano max-w-[45%] i truncate, aby nie wchodziło na inne badge na telefonach */}
-        <div className="absolute top-2 left-2 lg:top-3 lg:left-3 bg-white/90 backdrop-blur-md px-1.5 py-0.5 lg:px-2 lg:py-0.5 rounded-full text-[6px] lg:text-[8px] font-black uppercase tracking-widest border border-slate-100 text-slate-500 max-w-[45%] truncate">SKU: {sku}</div>
+        
+        {/* ZMIANA 1: SKU bezpiecznie na dole po lewej */}
+        <div className="absolute bottom-2 left-2 lg:bottom-3 lg:left-3 bg-white/95 backdrop-blur-md px-2 py-1 rounded-full text-[7px] lg:text-[8px] font-black uppercase tracking-widest border border-slate-200 text-slate-500 max-w-[85%] truncate shadow-sm">
+          SKU: {sku}
+        </div>
       </div>
       
       <div className={`flex flex-col pt-1 w-full pointer-events-none ${isListView ? 'justify-center pr-3 lg:pr-4' : 'px-3 pb-4 lg:px-6 lg:pb-5 flex-1'}`}>
         
         <div className="flex justify-between items-center mb-1.5">
-          <div className="flex items-center gap-1 text-[10px] text-amber-400 font-black">
-            ★ {rating} <span className="text-slate-400 font-medium text-[9px]">({reviewsCount})</span>
+          <div className="flex items-center gap-1 text-[10px] lg:text-[11px] text-amber-400 font-black">
+            ★ {rating} <span className="text-slate-400 font-medium text-[9px] lg:text-[10px]">({reviewsCount})</span>
           </div>
-          {isLowStock && <span className="text-[9px] font-black text-red-600 bg-red-50 px-2 rounded-md">Zostały {1 + (hash % 3)} szt.</span>}
+          {isLowStock && <span className="text-[9px] lg:text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md shadow-sm">Zostały {1 + (hash % 3)} szt.</span>}
         </div>
 
         <h2 className="font-black text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs lg:text-sm tracking-normal">{product.name}</h2>
@@ -138,6 +139,7 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
 };
 
 const ProductSkeleton = ({ isListView }: { isListView: boolean }) => ( <div className={`bg-white border border-slate-100 rounded-[40px] p-4 flex animate-pulse ${isListView ? 'flex-row gap-6 items-center w-full' : 'flex-col h-full'}`}><div className={`bg-slate-100 rounded-[32px] ${isListView ? 'w-24 h-24 flex-shrink-0' : 'aspect-square mb-4 w-full'}`} /><div className="px-2 pb-2 space-y-3 flex-1 flex flex-col w-full"><div className="h-4 bg-slate-200 rounded-md w-3/4" /><div className="h-3 bg-slate-100 rounded-md w-1/2" /><div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center w-full"><div className="space-y-1.5"><div className="h-3 bg-slate-100 rounded-md w-12" /><div className="h-6 bg-slate-200 rounded-md w-20" /></div><div className="w-12 h-12 bg-slate-200 rounded-2xl" /></div></div></div> );
+
 const SearchableSelect = ({ label, options, value, onChange, placeholder }: any) => { const [isOpen, setIsOpen] = useState(false); const [searchTerm, setSearchTerm] = useState(''); const wrapperRef = useRef<HTMLDivElement>(null); useEffect(() => { function handleClickOutside(event: MouseEvent) { if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setIsOpen(false); } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, []); const sortedOptions = Object.entries(options).sort((a, b) => (b[1] as number) - (a[1] as number)); const filteredOptions = sortedOptions.filter(([val]) => val.toLowerCase().includes(searchTerm.toLowerCase())); return ( <div className="w-full relative" ref={wrapperRef}> <h3 className="text-slate-500 font-black uppercase text-[10px] tracking-widest mb-2">{label}</h3> <button aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3 flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value || placeholder}</span> <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg> </button> {isOpen && ( <div className="absolute z-[99] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"> <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md"> <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-2.5 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} /> </div> <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white"> <button aria-label="Wyczyść wybór" className={`w-full text-left px-4 py-3 text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</button> {filteredOptions.length === 0 ? ( <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div> ) : ( filteredOptions.map(([val, count]) => ( <button aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-3 text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}> <span className="line-clamp-1 pr-2">{val}</span> <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 border border-slate-200">{count as number}</span> </button> )) )} </div> </div> )} </div> );};
 
 const FilterMenuContent = ({ searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath }: any) => (
@@ -155,10 +157,6 @@ const FilterMenuContent = ({ searchQ, setSearchQ, updateUrlParams, loading, gara
         <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={garageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
         <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={garageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
       </div>
-    </div>
-    <div className="flex justify-between items-center mb-4">
-      <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900">Parametry</h3>
-      {activeFiltersCount > 0 && <button aria-label="Wyczyść wszystkie filtry" onClick={() => router.push(`/kategoria/${fullPath}`)} className="text-[10px] text-red-600 font-black uppercase hover:underline p-2">Wyczyść</button>}
     </div>
     <div className="mb-6 border-b border-slate-100 pb-6">
       <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-500 mb-3">Zakres Cenowy (zł)</h4>
@@ -213,11 +211,9 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
   const isFirstRender = useRef(true);
 
-  // === DYNAMICZNY TEKST SEO W LOCIE ===
   const rawBrandLabel = searchParams.get('Pasuje do marki');
   const rawModelLabel = searchParams.get('Pasuje do modelu');
   
-  // ZMIANA: Dbamy o poprawną wielkość liter (John Deere, nie John deere)
   const brandLabel = rawBrandLabel ? capitalizeWords(rawBrandLabel) : null;
   const modelLabel = rawModelLabel ? capitalizeWords(rawModelLabel) : null;
   
@@ -232,7 +228,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       displayH1 += ` DO ${brandLabel.toUpperCase()}`;
       if (modelLabel) displayH1 += ` ${modelLabel.toUpperCase()}`;
     }
-    // ZMIANA: Eleganckie dodanie zadania SEO, jeśli nie istnieje jeszcze w tekście
     if (displayTopSeo && !displayTopSeo.toLowerCase().includes(brandLabel.toLowerCase())) {
         displayTopSeo = `${displayTopSeo} Zobacz wyselekcjonowane, w pełni kompatybilne zamienniki i oryginały pasujące bezpośrednio do maszyn ${brandLabel} ${modelLabel || ''}.`;
     } else if (!displayTopSeo) {
@@ -313,10 +308,12 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const garageModel = globalFilters['Pasuje do modelu'] || {};
 
   let techFilters = { ...globalFilters };
-  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'waga', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu'];
+  // ZMIANA 5: Eksterminacja 'Wagi' na każdym etapie
+  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu'];
 
   Object.keys(techFilters).forEach(key => {
-    if (excludeKeys.includes(key.toLowerCase()) || Object.keys(techFilters[key]).length < 2) {
+    const lowerKey = key.toLowerCase();
+    if (excludeKeys.includes(lowerKey) || lowerKey.includes('waga') || Object.keys(techFilters[key]).length < 2) {
        delete techFilters[key];
     }
   });
@@ -350,16 +347,11 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
     
     const isLongList = sortedEntries.length > 5;
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
-    const displayEntries = isExpanded ? matchedEntries : matchedEntries.slice(0, 5);
-    const hasActiveFilter = !!searchParams.get(filterKey);
-
+    
     return (
       <div key={filterKey} className="space-y-3">
         <div className="flex justify-between items-center">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
-          {hasActiveFilter && (
-            <button aria-label={`Wyczyść filtr ${filterKey}`} onClick={() => updateUrlParams(filterKey, null)} className="text-[10px] text-red-600 font-black uppercase hover:underline bg-red-50 px-3 py-1.5 rounded-md min-w-[44px]">Wyczyść ✕</button>
-          )}
         </div>
         
         {isLongList && (
@@ -370,20 +362,29 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         )}
         
         <div className={`space-y-2 ${isExpanded ? 'max-h-[300px] overflow-y-auto pr-2 custom-scrollbar' : ''}`}>
-          {displayEntries.length === 0 ? (
+          {matchedEntries.length === 0 ? (
             <div className="text-[9px] text-slate-500 uppercase font-black tracking-widest py-2">Brak wyników</div>
           ) : (
-            displayEntries.map(([val, count]) => {
+            (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, count]) => {
               const isChecked = searchParams.get(filterKey) === val;
               return (
-                <label key={val} className="flex items-center justify-between cursor-pointer group py-1" onClick={() => {const currentVal = searchParams.get(filterKey); updateUrlParams(filterKey, currentVal === val ? null : val);}}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-200 bg-slate-50 group-hover:border-red-400'}`}>
+                // ZMIANA 3: Przycisk "Usuń" wyeksponowany tuż przy włączonym filtrze
+                <label key={val} className={`flex items-center justify-between cursor-pointer group py-1.5 px-2 rounded-lg transition-colors ${isChecked ? 'bg-red-50/60' : 'hover:bg-slate-50'}`} onClick={(e) => { e.preventDefault(); const currentVal = searchParams.get(filterKey); updateUrlParams(filterKey, currentVal === val ? null : val); }}>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-200 bg-white group-hover:border-red-400'}`}>
                       {isChecked && <div className="w-2.5 h-2.5 bg-red-600 rounded-[2px]"></div>}
                     </div>
-                    <span className={`text-sm transition-colors line-clamp-1 ${isChecked ? 'text-red-600 font-black' : 'text-slate-600 font-medium group-hover:text-slate-900'}`}>{val}</span>
+                    <span className={`text-sm transition-colors truncate ${isChecked ? 'text-red-700 font-black' : 'text-slate-600 font-medium group-hover:text-slate-900'}`}>{val}</span>
                   </div>
-                  <span className="text-[9px] font-black text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full flex-shrink-0">{count}</span>
+                  <div className="flex items-center gap-2 pl-2 flex-shrink-0">
+                    {isChecked ? (
+                      <span className="text-[9px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1 bg-red-100/50 px-2 py-1 rounded-md hover:bg-red-200 transition-colors">
+                        ✕ Usuń
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-black text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{count}</span>
+                    )}
+                  </div>
                 </label>
               );
             })
@@ -413,7 +414,8 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
            </div>
            
            <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-               <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[48px]">Pokaż {products.length} wyników ➔</button>
+               {/* ZMIANA 4: Przycisk pokazuje całkowitą ilość po wybranym filtrze */}
+               <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[48px]">Pokaż {totalCount} wyników ➔</button>
            </div>
         </div>
       )}
