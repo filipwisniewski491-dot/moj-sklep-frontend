@@ -108,7 +108,6 @@ const MiniProductCard = ({ product }: { product: any }) => {
           <div className="flex flex-col">
             <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
           </div>
-          {/* Naprawiony przycisk - z-index i pointer events */}
           <button onClick={handleAddToCart} className="relative z-50 bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer">
             <span className="text-sm">🛒</span>
           </button>
@@ -181,30 +180,47 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // Pobieranie TYLKO PRAWDZIWYCH podobnych produktów z API
+  // Kaskadowe ładowanie PRAWDZIWYCH produktów powiązanych
   useEffect(() => {
-    if (product?.category) {
-      const categoryName = typeof product.category === 'object' ? product.category.name : product.category;
-      // Pobieramy trochę więcej wyników, żeby było z czego odfiltrować obecny produkt
-      fetch(`/api/search?q=${encodeURIComponent(categoryName)}&limit=6`)
-        .then(res => res.json())
-        .then(data => {
-           if (data && data.products && data.products.length > 0) {
-             const filtered = data.products.filter((p: any) => p.sku !== product.sku);
-             // Bierzemy maksymalnie 5 produktów (1 na zestaw, 4 na "inni oglądali")
-             setRelatedProducts(filtered.slice(0, 5));
-           } else {
-             setRelatedProducts([]); // Zero sztucznych demówek
-           }
-        })
-        .catch(err => {
-           console.error("Błąd pobierania cross-selli", err);
-           setRelatedProducts([]);
-        });
-    } else {
-      setRelatedProducts([]);
-    }
-  }, [product.category, product.sku]);
+    const fetchRelated = async () => {
+      try {
+        let searchTerm = '';
+        
+        // 1. Próbujemy nazwy kategorii
+        if (product?.category?.name) searchTerm = product.category.name;
+        else if (typeof product?.category === 'string') searchTerm = product.category;
+        
+        // 2. Jeśli brak, bierzemy tekst ze ścieżki
+        if (!searchTerm && product?.category_text) {
+          const parts = product.category_text.split('>');
+          searchTerm = parts[parts.length - 1].trim();
+        }
+        
+        // 3. Fallback do 1 słowa nazwy produktu
+        if (!searchTerm && product?.name) {
+          searchTerm = product.name.split(' ')[0];
+        }
+
+        // Faza 1: Szukamy dedykowanych
+        let res = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&limit=8`);
+        let data = await res.json();
+        let validProducts = (data?.products || []).filter((p: any) => p.sku !== product.sku);
+
+        // Faza 2: Jeśli API nie znajdzie (zbyt rzadka kategoria), bierzemy ogólne byle były prawdziwe
+        if (validProducts.length < 2) {
+          res = await fetch(`/api/search?limit=8`);
+          data = await res.json();
+          validProducts = (data?.products || []).filter((p: any) => p.sku !== product.sku);
+        }
+
+        setRelatedProducts(validProducts.slice(0, 5));
+      } catch (err) {
+        console.error("Błąd pobierania cross-selli:", err);
+      }
+    };
+
+    if (product) fetchRelated();
+  }, [product]);
 
   const displayImages = useMemo(() => {
     let cdnImages: string[] = [];
@@ -252,17 +268,29 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     }
   };
 
-  const fitsBrands = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Pasuje do'];
-  const fitsModels = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
-  const hasCompatibility = !!(fitsBrands || fitsModels);
+  // Usunięcie marek producentów (np. GRANIT, KRAMP) z "Pasuje do"
+  const getCleanCompatibility = () => {
+    const rawMatch = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Pasuje do'];
+    const rawModel = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
+    
+    // Lista producentów części, a nie maszyn
+    const ignoredBrands = ['GRANIT', 'KRAMP', 'GRENE', 'BAP', 'BEPCO', 'WARYŃSKI', 'ROLMUS'];
+    
+    let isMatchValid = rawMatch && !ignoredBrands.some(b => rawMatch.toUpperCase().includes(b));
+    let isModelValid = rawModel && !ignoredBrands.some(b => rawModel.toUpperCase().includes(b));
 
-  // Produkt nr 1 z powiązanych to "Bundle", reszta to "Inni oglądali też"
+    if (!isMatchValid && !isModelValid) return null;
+    return `${isMatchValid ? rawMatch : ''} ${isModelValid ? rawModel : ''}`.trim();
+  };
+
+  const cleanCompatibility = getCleanCompatibility();
+
   const bundleProduct = relatedProducts.length > 0 ? relatedProducts[0] : null;
   const bundleProductPrice = bundleProduct ? (typeof bundleProduct.price === 'number' ? bundleProduct.price : parseFloat(bundleProduct.price) || 0) : 0;
   const bundleTotalPrice = bundleProduct ? (numPrice + bundleProductPrice) : 0;
   const bundleDiscountPrice = bundleProduct ? (bundleTotalPrice * 0.95) : 0;
 
-  const othersViewedProducts = relatedProducts.slice(1, 5); // Pozostałe max 4 sztuki
+  const othersViewedProducts = relatedProducts.slice(1, 5);
 
   const handleAddBundle = () => {
     if (addItem && bundleProduct) {
@@ -425,7 +453,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               <div className="flex flex-wrap items-center gap-2">
                 <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span> W Magazynie</span>
                 
-                {/* 1-Click SKU Copy */}
                 <button 
                   onClick={handleCopySku}
                   className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest border transition-all flex items-center gap-1 cursor-pointer ${skuCopied ? 'bg-green-600 text-white border-green-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
@@ -441,7 +468,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-tight mb-6 tracking-tight">{product.name}</h1>
 
-            {/* CENA I PRZYCISK OD RAZU POD TYTUŁEM */}
             <div className="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                <div>
                  <div className="flex items-baseline gap-1 mb-1">
@@ -467,14 +493,13 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               <span className="flex items-center gap-1.5">🔄 14 dni na zwrot</span>
             </div>
 
-            {/* SEKCJA "PASUJE DO" */}
-            {hasCompatibility && (
+            {cleanCompatibility && (
               <div className="mb-6 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4">
                  <div className="text-2xl">✅</div>
                  <div>
                     <p className="text-[10px] font-black uppercase text-emerald-800 tracking-widest mb-1">Gwarancja dopasowania</p>
                     <p className="text-sm font-bold text-emerald-950 leading-snug">
-                      Element sprawdzony. Pasuje do: <span className="font-black">{fitsBrands} {fitsModels}</span>
+                      Element sprawdzony. Pasuje do: <span className="font-black">{cleanCompatibility}</span>
                     </p>
                  </div>
               </div>
@@ -567,7 +592,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         </div>
 
         {/* ========================================================================= */}
-        {/* CROSS-SELL: MODUŁ EKSPERTA (Jeśli dodano w Strapi ręcznie) */}
+        {/* CROSS-SELL: MODUŁ EKSPERTA */}
         {/* ========================================================================= */}
         {product.crossSell && product.crossSell.length > 0 && (
            <div className="mt-12">
@@ -576,7 +601,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         )}
 
         {/* ========================================================================= */}
-        {/* 🚀 NOWOŚĆ (Przeniesiona na dół): KUP W ZESTAWIE (BUNDLE UP-SELL) */}
+        {/* 🚀 KUP W ZESTAWIE (BUNDLE UP-SELL) NA SAMYM DOLE */}
         {/* ========================================================================= */}
         {bundleProduct && (
           <section className="mt-16 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
@@ -587,7 +612,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
              <h3 className="text-xl lg:text-2xl font-black text-slate-900 uppercase tracking-tight mb-8">Często kupowane razem</h3>
              
              <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-                {/* Produkt Główny */}
                 <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                     {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt="Main" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
@@ -601,7 +625,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
                 <div className="text-3xl font-black text-slate-300">＋</div>
 
-                {/* Produkt Dobrany */}
                 <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                      {(() => {
@@ -619,7 +642,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                 <div className="text-3xl font-black text-slate-300 hidden lg:block">＝</div>
                 <div className="w-full h-px bg-slate-100 lg:hidden"></div>
                 
-                {/* Podsumowanie i przycisk */}
                 <div className="flex flex-col items-center lg:items-end w-full lg:w-auto shrink-0 bg-red-50 p-6 rounded-2xl border border-red-100">
                    <p className="line-through text-slate-400 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
                    <p className="text-3xl lg:text-4xl font-black text-red-600 tracking-tighter leading-none mb-4">{bundleDiscountPrice.toFixed(2)} <span className="text-lg">zł</span></p>
@@ -632,7 +654,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         )}
 
         {/* ========================================================================= */}
-        {/* 🚀 INNI OGLĄDALI TEŻ (Przeniesione na sam dół) */}
+        {/* 🚀 INNI OGLĄDALI TEŻ NA SAMYM DOLE */}
         {/* ========================================================================= */}
         {othersViewedProducts.length > 0 && (
           <section className="mt-12 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
@@ -654,7 +676,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
       </main>
 
       {/* ========================================================================= */}
-      {/* 🚀 STICKY ADD TO CART (Pływający nad dolnym menu) */}
+      {/* 🚀 STICKY ADD TO CART */}
       {/* ========================================================================= */}
       <div className={`fixed bottom-[60px] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-full md:translate-y-[120%]'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -692,15 +714,15 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
       </div>
 
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-center px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe" aria-label="Nawigacja mobilna">
-        <a href="tel:+48257888900" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors">
+        <a href="tel:+48257888900" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative z-50">
           <span className="text-xl mb-1">📞</span>
           <span className="text-[9px] font-black uppercase tracking-widest">Zadzwoń</span>
         </a>
-        <Link href="/kategorie" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors">
+        <Link href="/kategorie" className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative z-50">
           <span className="text-xl mb-1">☰</span>
           <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
         </Link>
-        <Link href="/konto" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+        <Link href="/konto" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors relative z-50">
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
           <span className="text-[9px] font-black uppercase tracking-widest">Konto</span>
         </Link>
