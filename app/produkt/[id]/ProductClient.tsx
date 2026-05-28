@@ -3,15 +3,9 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import dynamic from 'next/dynamic';
 import SearchBar from '@/components/SearchBar';
 import CrossSellModule from '@/components/CrossSellModule';
-
-// Dynamiczny import koszyka
-const useCart = dynamic(
-  () => import('@/store/useCart').then((mod) => mod.useCart),
-  { ssr: false }
-) as () => any;
+import { useCart } from '@/store/useCart'; // PRAWIDŁOWY, STATYCZNY IMPORT KOSZYKA
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -80,7 +74,7 @@ const QUICK_SILOS = [
 ];
 
 const MiniProductCard = ({ product }: { product: any }) => {
-  const { addItem, setIsOpen } = useCart() as any;
+  const { addItem, setIsOpen } = useCart();
   const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
   const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const sku = product.sku || "BRAK SKU";
@@ -128,8 +122,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
   
-  const cart = useCart();
-  const { addItem, setIsOpen, items } = cart || {};
+  const { addItem, setIsOpen, items } = useCart();
 
   const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
   const freeShippingThreshold = 500;
@@ -181,41 +174,65 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // INTELIGENTNY KASKADOWY FALLBACK DLA PRODUKTÓW
+  // INTELIGENTNY PANCERNY KASKADOWY FALLBACK (Tylko prawdziwe produkty)
   useEffect(() => {
+    let isMounted = true;
+
     const fetchRealProducts = async () => {
       try {
-        // 1. Zaczynamy od wyszukiwania po najmocniejszym słowie kluczowym z nazwy (np. "Lampa")
-        const firstWord = product?.name?.split(' ')[0] || '';
-        let res = await fetch(`/api/search?q=${encodeURIComponent(firstWord)}&limit=10`);
-        let data = await res.json();
-        let valid = (data?.products || []).filter((p: any) => p.sku !== product.sku);
+        let valid = [];
 
-        // 2. Jeśli za mało wyników, szukamy po całej nazwie kategorii
+        // 1. Szukamy po kategorii przypisanej w obiekcie product.category
+        const catName = product?.category?.name || product?.category || '';
+        if (catName && typeof catName === 'string') {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(catName)}&limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+          }
+        }
+
+        // 2. Jeśli mało wyników, szukamy po ostatnim członie ścieżki kategorii (np. "Uchwyty")
         if (valid.length < 2 && product?.category_text) {
           const parts = product.category_text.split('>');
-          const catName = parts[parts.length - 1].trim();
-          res = await fetch(`/api/search?q=${encodeURIComponent(catName)}&limit=10`);
-          data = await res.json();
-          valid = (data?.products || []).filter((p: any) => p.sku !== product.sku);
+          const lastCat = parts[parts.length - 1].trim();
+          const res = await fetch(`/api/search?q=${encodeURIComponent(lastCat)}&limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+          }
         }
 
-        // 3. TOTALNY FALLBACK: Pobieramy OSTATNIE prawdziwe produkty ze sklepu (zawsze coś musi być!)
+        // 3. Jeśli dalej mało, szukamy po pierwszym słowie nazwy produktu (np. "Kołek" lub "Lampa")
+        if (valid.length < 2 && product?.name) {
+          const firstWord = product.name.split(' ')[0];
+          const res = await fetch(`/api/search?q=${encodeURIComponent(firstWord)}&limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+          }
+        }
+
+        // 4. Absolutny Fallback: Najnowsze/ogólne towary ze sklepu (zabezpieczenie API)
         if (valid.length < 2) {
-          res = await fetch(`/api/search?limit=15`);
-          data = await res.json();
-          valid = (data?.products || []).filter((p: any) => p.sku !== product.sku);
+          const res = await fetch(`/api/search?limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+          }
         }
 
-        if (valid.length > 0) {
+        if (isMounted && valid.length > 0) {
           setRelatedProducts(valid.slice(0, 5));
         }
       } catch (err) {
-        console.error("Błąd pobierania cross-selli:", err);
+        console.error("Błąd pobierania powiązanych:", err);
       }
     };
 
     if (product) fetchRealProducts();
+
+    return () => { isMounted = false; };
   }, [product]);
 
   const displayImages = useMemo(() => {
@@ -267,10 +284,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const getCleanCompatibility = () => {
     const rawMatch = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Pasuje do'];
     const rawModel = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
-    const ignoredBrands = ['GRANIT', 'KRAMP', 'GRENE', 'BAP', 'BEPCO', 'WARYŃSKI', 'ROLMUS', 'KERBL'];
+    const ignoredBrands = ['GRANIT', 'KRAMP', 'GRENE', 'BAP', 'BEPCO', 'WARYŃSKI', 'ROLMUS', 'KERBL', 'SAPHIR Oryginał', 'Saphir'];
     
-    let isMatchValid = rawMatch && !ignoredBrands.some(b => rawMatch.toUpperCase().includes(b));
-    let isModelValid = rawModel && !ignoredBrands.some(b => rawModel.toUpperCase().includes(b));
+    let isMatchValid = rawMatch && !ignoredBrands.some(b => rawMatch.toUpperCase().includes(b.toUpperCase()));
+    let isModelValid = rawModel && !ignoredBrands.some(b => rawModel.toUpperCase().includes(b.toUpperCase()));
 
     if (!isMatchValid && !isModelValid) return null;
     return `${isMatchValid ? rawMatch : ''} ${isModelValid ? rawModel : ''}`.trim();
@@ -721,7 +738,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         </Link>
         <button onClick={() => setIsOpen?.(true)} className="flex flex-col items-center text-slate-400 hover:text-red-600 transition-colors relative group cursor-pointer z-50">
           {cartCount > 0 && <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white animate-bounce">{cartCount}</div>}
-          <svg className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          <svg className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
           <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
         </button>
       </nav>
