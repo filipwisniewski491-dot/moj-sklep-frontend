@@ -18,6 +18,7 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.VERCEL_URL}` || 'https://centrumrolnictwa.pl';
 
+  // Możesz tutaj również zaciągnąć top_seo_text do description, ale bazowe jest bezpieczniejsze
   return {
     title: `Części do ${categoryName} | Sklep Rolniczy`,
     description: `Wysokiej jakości części w kategorii ${categoryName}. Szybka wysyłka, doradztwo techniczne i sprawdzeni producenci.`,
@@ -29,7 +30,6 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
 }
 
 async function getCategoryData(fullPath: string, searchParams: any) {
-  // Zoptymalizowane wykrywanie adresu URL dla Vercela
   const getBaseUrl = () => {
     if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
     if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
@@ -45,11 +45,9 @@ async function getCategoryData(fullPath: string, searchParams: any) {
       next: { revalidate: 60 } 
     });
     
-    // Jeśli połączenie się uda, ładujemy dane. Jeśli nie – wypisujemy kod błędu w H1!
     const data = res.ok ? await res.json() : { products: [], filters: {}, category: { h1_dynamic: `BŁĄD API: ${res.status}` } };
     return { searchData: data, filtersData: data.filters || {} };
   } catch (error: any) {
-    // Jeśli Vercel całkowicie odrzuci połączenie wewnętrzne, pokażemy to na ekranie
     return { searchData: { products: [], category: { h1_dynamic: `BŁĄD SERWERA VERCEL: ${error.message}` } }, filtersData: {} };
   }
 }
@@ -62,13 +60,37 @@ export default async function CategoryPage({ params, searchParams }: any) {
   
   const { searchData, filtersData } = await getCategoryData(fullPath, resolvedSearchParams);
 
+  // Wstrzykiwanie Google JSON-LD dla FAQ wygenerowanego przez AI (Potężne dla SEO!)
+  const faqs = searchData?.category?.faqs || [];
+  const jsonLd = faqs.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map((faq: any) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  } : null;
+
   const CategoryClient = (await import('./CategoryClient')).default;
 
   return (
-    <CategoryClient 
-      initialData={searchData} 
-      initialFilters={filtersData} 
-      fullPath={fullPath} 
-    />
+    <>
+      {/* Skrypt Schema.org ładowany bezpośrednio do headera dla robotów Google */}
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <CategoryClient 
+        initialData={searchData} 
+        initialFilters={filtersData} 
+        fullPath={fullPath} 
+      />
+    </>
   );
 }

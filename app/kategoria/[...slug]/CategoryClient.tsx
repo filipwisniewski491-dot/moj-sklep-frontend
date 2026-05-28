@@ -25,11 +25,21 @@ const generateSlug = (text: string) => {
     .replace(/^-|-$/g, '');
 };
 
+// Prosty parser Markdown dla Bottom SEO Text
+const parseMarkdown = (text: string) => {
+  if (!text) return '';
+  let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl lg:text-2xl font-black mt-8 mb-4 text-slate-900">$1</h2>');
+  html = html.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" class="text-red-600 hover:underline font-bold">$1</a>');
+  html = html.replace(/^\* (.*$)/gim, '<li class="ml-5 list-disc marker:text-red-600 mb-2">$1</li>');
+  html = html.replace(/\n\n/gim, '<br /><br />');
+  return html;
+};
+
 const ProductCard = ({ product, isListView, idx }: { product: any, isListView: boolean, idx: number }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
 
-  // Zoptymalizowane i pancerne wyświetlanie zdjęć
   const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
   const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const netPrice = price / 1.23; 
@@ -116,31 +126,30 @@ const SearchableSelect = ({ label, options, value, onChange, placeholder }: any)
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   
-  // Posortowane opcje malejąco
   const sortedOptions = Object.entries(options).sort((a, b) => (b[1] as number) - (a[1] as number));
   const filteredOptions = sortedOptions.filter(([val]) => val.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="flex-1 relative" ref={wrapperRef}>
-      <h3 className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-3">{label}</h3>
-      <div className="w-full bg-slate-800 border border-slate-700 text-white text-sm font-bold rounded-xl px-4 py-3.5 flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-inner" onClick={() => setIsOpen(!isOpen)}>
-        <span className={value ? "text-white line-clamp-1" : "text-slate-500"}>{value || placeholder}</span>
+    <div className="w-full relative" ref={wrapperRef}>
+      <h3 className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-2">{label}</h3>
+      <div className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3 flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}>
+        <span className={value ? "text-slate-900 line-clamp-1" : "text-slate-500"}>{value || placeholder}</span>
         <svg className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
       </div>
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="p-2 border-b border-slate-700 bg-slate-800/90 backdrop-blur-md">
-            <input type="text" className="w-full bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2.5 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-500 transition-colors" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} />
+        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md">
+            <input type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-2.5 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <div className="max-h-56 overflow-y-auto custom-scrollbar">
-            <div className={`px-4 py-3 text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</div>
+          <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white">
+            <div className={`px-4 py-3 text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</div>
             {filteredOptions.length === 0 ? (
-              <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div>
+              <div className="px-4 py-4 text-xs text-slate-400 italic text-center">Brak wyników</div>
             ) : (
               filteredOptions.map(([val, count]) => (
-                <div key={val} className={`px-4 py-3 text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-700/50 ${value === val ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}>
+                <div key={val} className={`px-4 py-3 text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}>
                   <span className="line-clamp-1 pr-2">{val}</span>
-                  <span className="text-[9px] bg-slate-900/80 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">{count as number}</span>
+                  <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 border border-slate-200">{count as number}</span>
                 </div>
               ))
             )}
@@ -176,9 +185,8 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [savedGarage, setSavedGarage] = useState<{ make: string; model: string } | null>(null);
   const [isListView, setIsListView] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  
-  // Zwijanie na podkategoriach
   const [showAllSubcats, setShowAllSubcats] = useState(false);
+  const [activeFaq, setActiveFaq] = useState<number | null>(null); // Do rozwijania FAQ
 
   const isFirstRender = useRef(true);
 
@@ -251,14 +259,12 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
     setIsMobileFiltersOpen(false);
   };
 
-  // --- LOGIKA INTELIGENTNYCH FILTRÓW (L1 / L2 / L3) ---
   const garageMake = globalFilters['Pasuje do marki'] || globalFilters['Marka maszyny'] || globalFilters['marka maszyny'] || {};
   const garageModel = globalFilters['Pasuje do modelu'] || {};
 
   let techFilters = { ...globalFilters };
   const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'waga', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu'];
 
-  // Odrzucamy śmieci, parametry systemowe i filtry mające < 2 opcji
   Object.keys(techFilters).forEach(key => {
     if (excludeKeys.includes(key.toLowerCase()) || Object.keys(techFilters[key]).length < 2) {
        delete techFilters[key];
@@ -282,7 +288,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   }
 
   let activeFiltersCount = 0;
-  searchParams.forEach((val, key) => { if (!['limit', 'q', 'sort', 'Pasuje do marki', 'Pasuje do modelu'].includes(key)) activeFiltersCount++; });
+  searchParams.forEach((val, key) => { if (!['limit', 'sort', 'Pasuje do marki', 'Pasuje do modelu'].includes(key)) activeFiltersCount++; });
 
   let displayH1 = categoryData?.h1_dynamic;
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
@@ -300,7 +306,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
     if (!filterValues) return null;
     const searchQuery = filterSearchQuery[filterKey]?.toLowerCase() || '';
     
-    // Sortuj opcje malejąco według ilości asortymentu
     const sortedEntries = Object.entries(filterValues).sort((a, b) => b[1] - a[1]);
     const matchedEntries = sortedEntries.filter(([val]) => val.toLowerCase().includes(searchQuery));
     
@@ -368,7 +373,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
       <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[45] w-full max-w-[90%] flex justify-center">
         <button onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 w-full border border-slate-700 transition-transform active:scale-95">
-          FILTRUJ I SORTUJ {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
+          FILTRUJ I ZNAJDŹ {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
         </button>
       </div>
 
@@ -393,11 +398,17 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             </div>
           )}
           
-          <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase italic text-slate-900 mb-4 max-w-4xl leading-tight">{displayH1}</h1>
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase italic text-slate-900 mb-2 max-w-4xl leading-tight">{displayH1}</h1>
+          
+          {/* TOP SEO TEXT WYGENEROWANY PRZEZ AI */}
+          {categoryData?.top_seo_text && (
+            <p className="text-sm text-slate-500 max-w-3xl mb-6 leading-relaxed font-medium">
+              {categoryData.top_seo_text}
+            </p>
+          )}
 
-          {/* INTELIGENTNE ZWIJANIE KATEGORII (Smart Wrap) */}
           {subcategories.length > 0 && (
-            <div className="mb-8 border-t border-slate-100 pt-5">
+            <div className="mb-4 border-t border-slate-100 pt-5">
               <div className="flex justify-between items-end mb-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Wybierz podkategorię:</span>
               </div>
@@ -416,22 +427,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             </div>
           )}
 
-          <div className="bg-slate-900 rounded-[32px] p-6 lg:p-8 flex flex-col lg:flex-row gap-6 items-start lg:items-center shadow-xl mb-4 relative overflow-visible mt-6">
-            <div className="absolute -right-10 -top-10 text-9xl opacity-5 pointer-events-none">🚜</div>
-            <div className="w-full lg:w-1/3 z-10">
-              <h3 className="text-white font-black uppercase text-[10px] tracking-widest mb-3">Znasz numer części?</h3>
-              <form onSubmit={(e) => { e.preventDefault(); updateUrlParams('q', searchQ); }} className="relative">
-                <input type="text" placeholder="Wpisz nr OEM lub nazwę..." className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3.5 text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500 shadow-inner" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
-                <button type="submit" className="absolute right-2 top-2 bg-red-600 hover:bg-red-500 text-white p-1.5 rounded-lg transition-colors shadow-md">🔍</button>
-              </form>
-            </div>
-            <div className="hidden lg:block w-px h-16 bg-slate-700 z-10"></div>
-            <div className="w-full lg:w-2/3 flex flex-col sm:flex-row gap-4 z-20">
-                <SearchableSelect label="Wybierz markę" placeholder={loading ? "Ładowanie marek..." : "Wszystkie marki"} options={garageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
-                <SearchableSelect label="Wybierz model" placeholder={loading ? "Ładowanie modeli..." : "Wszystkie modele"} options={garageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
-            </div>
-          </div>
-          
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-slate-100 mt-2 relative z-10 hidden lg:flex">
             <div className="flex items-center gap-4">
               <div className="h-1 w-12 bg-red-600"></div>
@@ -453,41 +448,72 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-12 relative z-10">
+      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         
-        <aside className={`${isMobileFiltersOpen ? 'fixed inset-0 z-[100] bg-white flex flex-col' : 'hidden lg:block w-full lg:w-72 flex-shrink-0'}`}>
+        {/* POŁĄCZONY PANEL NAWIGACYJNY (WYSZUKIWARKA + GARAGE + FILTRY + CTA) */}
+        <aside className={`${isMobileFiltersOpen ? 'fixed inset-0 z-[100] bg-white flex flex-col' : 'hidden lg:block w-full lg:w-80 flex-shrink-0'}`}>
           <div className={`${isMobileFiltersOpen ? 'flex-1 overflow-y-auto p-5 pb-32 custom-scrollbar' : 'space-y-6'}`}>
             
             {isMobileFiltersOpen && (
                <div className="sticky top-0 bg-slate-900 text-white p-5 flex justify-between items-center z-10 shadow-md mb-6 rounded-b-2xl">
-                  <span className="font-black uppercase tracking-widest text-sm">Filtry</span>
+                  <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
                   <button onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-3 py-1.5 rounded-lg text-xs font-black uppercase transition-colors">✕ Zamknij</button>
                </div>
             )}
 
             <div className={`bg-white rounded-[32px] border border-slate-100 shadow-sm ${!isMobileFiltersOpen ? 'p-6' : 'p-0 border-none shadow-none'}`}>
-              {!isMobileFiltersOpen && (
-                <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                  <h3 className="font-black uppercase text-[10px] tracking-widest text-slate-400">Filtry wyników</h3>
-                  {searchParams.toString() && <button onClick={() => router.push(`/kategoria/${fullPath}`)} className="text-[9px] text-red-600 font-black uppercase hover:underline">Wyczyść wszystkie</button>}
-                </div>
-              )}
+              
+              {/* Sekcja 1: Szukaj po OEM */}
+              <div className="mb-6 pb-6 border-b border-slate-100">
+                <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
+                <form onSubmit={(e) => { e.preventDefault(); updateUrlParams('q', searchQ); setIsMobileFiltersOpen(false); }} className="relative">
+                  <input type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-400" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
+                  <button type="submit" className="absolute right-1.5 top-1.5 bg-slate-900 hover:bg-red-600 text-white p-2 rounded-lg transition-colors shadow-md">🔍</button>
+                </form>
+              </div>
 
-              <div className="mb-8 border-b border-slate-100 pb-6">
-                <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900 mb-4">Cena (zł)</h4>
+              {/* Sekcja 2: Dobierz do maszyny (Garage) */}
+              <div className="mb-6 pb-6 border-b border-slate-100">
+                <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
+                <div className="space-y-3">
+                  <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={garageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
+                  <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={garageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
+                </div>
+              </div>
+
+              {/* Sekcja 3: Filtry Techniczne */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900">Parametry</h3>
+                {activeFiltersCount > 0 && <button onClick={() => router.push(`/kategoria/${fullPath}`)} className="text-[9px] text-red-600 font-black uppercase hover:underline">Wyczyść</button>}
+              </div>
+
+              <div className="mb-6 border-b border-slate-100 pb-6">
+                <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-500 mb-3">Zakres Cenowy (zł)</h4>
                 <div className="flex gap-2 items-center">
                   <input type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-red-600" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
                   <span className="text-slate-400 font-black">-</span>
                   <input type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-red-600" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
                 </div>
-                <button onClick={applyPriceFilter} className="w-full mt-3 bg-slate-900 text-white py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-colors">Filtruj cenę</button>
+                <button onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-700 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">Zastosuj cenę</button>
               </div>
 
               <div className="space-y-8">
                 {techFilterKeys.map((filterKey) => renderFilterBlock(filterKey))}
               </div>
+
+              {/* Sekcja 4: Call to action - Mega ważne dla konwersji */}
+              <div className="mt-8 bg-slate-900 p-5 rounded-2xl relative overflow-hidden">
+                 <div className="absolute -right-4 -bottom-4 text-6xl opacity-10">📞</div>
+                 <h4 className="text-white font-black uppercase text-sm mb-2 relative z-10">Nie możesz znaleźć części?</h4>
+                 <p className="text-slate-400 text-xs mb-4 relative z-10 leading-relaxed">Nasz doradca techniczny dobierze dla Ciebie zamiennik w 3 minuty. Zadzwoń do nas podając objawy lub numer OEM.</p>
+                 <a href="tel:+48123456789" className="block w-full bg-red-600 hover:bg-red-500 text-white text-center py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-md relative z-10">
+                   📞 Zadzwoń teraz
+                 </a>
+              </div>
+
             </div>
           </div>
+          
           {isMobileFiltersOpen && (
              <div className="fixed bottom-0 left-0 w-full p-4 bg-white border-t z-10 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
                  <button onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform">Pokaż {products.length} wyników ➔</button>
@@ -511,7 +537,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
                 </div>
               </div>
             ) : (
-              <div className={isListView ? "space-y-4 w-full" : "grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8"}>
+              <div className={isListView ? "space-y-4 w-full" : "grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6"}>
                 {products.map((product: any, idx: number) => (
                   <ProductCard key={`${product.id || product.sku}-${idx}`} product={product} isListView={isListView} idx={idx} />
                 ))}
@@ -520,7 +546,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           </div>
 
           {totalCount > 0 && !loading && (
-            <div className="mt-16 flex flex-col items-center gap-4 border-t border-slate-100 pt-8">
+            <div className="mt-12 flex flex-col items-center gap-4 border-t border-slate-100 pt-8">
               <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Wyświetlono {products.length} z {totalCount} części</p>
               <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
                 <div className="h-full bg-red-600 transition-all duration-500 rounded-full" style={{ width: `${Math.min(100, (products.length / totalCount) * 100)}%` }} />
@@ -530,6 +556,42 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
               )}
             </div>
           )}
+
+          {/* === BOTTOM SEO TEXT === */}
+          {categoryData?.bottom_seo_text && (
+            <div className="mt-24 pt-12 border-t border-slate-200">
+              <div 
+                className="prose prose-slate max-w-none text-sm lg:text-base text-slate-600 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: parseMarkdown(categoryData.bottom_seo_text) }}
+              />
+            </div>
+          )}
+
+          {/* === FAQ Z WYKORZYSTANIEM GOOGLE LONG-TAIL === */}
+          {categoryData?.faqs && categoryData.faqs.length > 0 && (
+            <div className="mt-12 mb-12">
+              <h2 className="text-2xl font-black text-slate-900 mb-6">Najczęściej zadawane pytania (FAQ)</h2>
+              <div className="space-y-4">
+                {categoryData.faqs.map((faq: any, idx: number) => (
+                  <div key={idx} className="bg-white border border-slate-200 rounded-2xl overflow-hidden transition-all shadow-sm hover:shadow-md">
+                    <button 
+                      onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                      className="w-full px-6 py-4 flex justify-between items-center text-left focus:outline-none"
+                    >
+                      <span className="font-bold text-slate-900 pr-4">{faq.question}</span>
+                      <span className={`text-red-600 font-black text-xl transition-transform ${activeFaq === idx ? 'rotate-45' : ''}`}>+</span>
+                    </button>
+                    {activeFaq === idx && (
+                      <div className="px-6 pb-5 pt-0 text-slate-600 text-sm leading-relaxed border-t border-slate-50 mt-2 pt-4">
+                        {faq.answer}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
     </div>

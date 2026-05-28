@@ -1,35 +1,25 @@
-export default function LoadingCategory() {
+// app/[...slug]/loading.tsx
+import React from 'react';
+
+export default function Loading() {
   return (
-    <div className="container mx-auto px-4 py-8 animate-pulse">
-      {/* Okruszki szkielet */}
-      <div className="h-4 bg-slate-200 rounded w-1/4 mb-6"></div>
-      
-      {/* Nagłówek H1 szkielet */}
-      <div className="h-10 bg-slate-200 rounded w-1/2 mb-8"></div>
-      
-      {/* Podkategorie szkielet */}
-      <div className="flex gap-4 overflow-x-auto mb-10 pb-2">
-         {[1, 2, 3, 4, 5].map((i) => (
-           <div key={i} className="h-12 w-40 bg-slate-200 rounded-full flex-shrink-0"></div>
-         ))}
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Lewy panel (Filtry) szkielet */}
-        <div className="w-full lg:w-1/4 hidden lg:block">
-            <div className="h-8 bg-slate-200 rounded w-1/2 mb-6"></div>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-               <div key={i} className="h-6 bg-slate-100 rounded w-full mb-3"></div>
-            ))}
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center pb-20">
+      <div className="bg-white rounded-[40px] p-16 text-center border border-slate-100 shadow-xl flex flex-col items-center justify-center animate-pulse w-full max-w-md mx-4">
+        {/* Obracająca się zębatka / Traktor */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-red-100 rounded-full animate-ping opacity-50"></div>
+          <span className="text-6xl relative z-10 block animate-bounce">🚜</span>
         </div>
-
-        {/* Prawy panel (Produkty) szkielet */}
-        <div className="w-full lg:w-3/4">
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                    <div key={i} className="bg-slate-50 rounded-2xl h-80 w-full"></div>
-                ))}
-            </div>
+        
+        <h2 className="text-xl font-black text-slate-900 uppercase tracking-widest mb-3">
+          Przeszukuję magazyn...
+        </h2>
+        <p className="text-slate-500 font-medium text-xs max-w-xs mx-auto mb-6 uppercase tracking-wider">
+          Pobieram najnowsze stany magazynowe i dopasowuję filtry do maszyn.
+        </p>
+        
+        <div className="w-48 h-1.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+          <div className="h-full bg-red-600 rounded-full w-full origin-left animate-[pulse_1s_ease-in-out_infinite]"></div>
         </div>
       </div>
     </div>

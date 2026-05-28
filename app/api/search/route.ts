@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 
-// WŁĄCZAMY CACHE NA 1 GODZINĘ - TO DAJE PRĘDKOŚĆ ŚWIATŁA
+// 1. ZMIANA: PRZEJŚCIE NA EDGE RUNTIME (Eliminuje opóźnienia startu serwera - "Cold Start" spada do 0ms)
+export const runtime = 'edge';
+
+// WŁĄCZAMY CACHE NA 1 GODZINĘ
 export const revalidate = 3600; 
 
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
@@ -9,6 +12,12 @@ const MEILI_URL = process.env.MEILI_URL || "http://178.105.201.145:7700";
 const MEILI_KEY = process.env.MEILI_MASTER_KEY;
 
 const getAttr = (obj: any, key: string) => obj?.[key] ?? obj?.attributes?.[key] ?? null;
+
+// 2. ZMIANA: Nagłówki do wstrzyknięcia twardego cache'u na warstwie CDN Vercela
+const corsHeaders = {
+  'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+  'Content-Type': 'application/json'
+};
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -36,7 +45,7 @@ export async function GET(request: Request) {
   try {
     const segQuery = segments.map((s, i) => `filters[slug][$in][${i}]=${s}`).join('&');
     
-    // ZRÓWNOLEGLENIE ZAPYTAŃ DO STRAPI (Oszczędność czasu)
+    // ZRÓWNOLEGLENIE ZAPYTAŃ DO STRAPI
     const [breadRes, catRes] = await Promise.all([
       fetch(`${STRAPI_URL}/api/categories?${segQuery}&pagination[pageSize]=50`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, next: { revalidate: 3600 } }),
       fetch(`${STRAPI_URL}/api/categories?filters[slug][$eq]=${currentSlug}&populate=*`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, next: { revalidate: 3600 } })
@@ -68,7 +77,6 @@ export async function GET(request: Request) {
             
             const realPath = getAttr(mainCat, 'category_path');
             if (realPath) {
-                // To zapytanie zależy od realPath, więc musi zostać tutaj
                 const subRes = await fetch(`${STRAPI_URL}/api/categories?filters[category_path][$startsWith]=${realPath}&pagination[pageSize]=1000`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, next: { revalidate: 3600 } });
                 if (subRes.ok) {
                     const subJson = await subRes.json();
@@ -90,7 +98,7 @@ export async function GET(request: Request) {
   } catch (e: any) { 
       return NextResponse.json({ 
         category: { h1_dynamic: `BŁĄD STRAPI: ${e.message}`, name: "ERROR" }, products: [], breadcrumbs: [], subcategories: [], filters: {}, totalCount: 0, faqs: [] 
-      }); 
+      }, { headers: corsHeaders }); 
   }
 
   if (breadcrumbs.length === 0) {
@@ -101,8 +109,9 @@ export async function GET(request: Request) {
   if (allTargetCategories.size === 0) allTargetCategories.add(dbCategoryData.name);
 
   try {
-      const categoryConditions = Array.from(allTargetCategories).map(c => `category = "${c.replace(/"/g, '\\"')}"`).join(" OR ");
-      const baseCategoryFilter = `(${categoryConditions})`;
+      // 3. ZMIANA: Optymalizacja zapytań w MeiliSearch (Operator IN jest znacznie szybszy niż łańcuch OR)
+      const categoriesArray = Array.from(allTargetCategories).map(c => `"${c.replace(/"/g, '\\"')}"`);
+      const baseCategoryFilter = `category IN [${categoriesArray.join(", ")}]`;
       
       let activeFilterArray = [baseCategoryFilter];
       Object.entries(activeFilters).forEach(([key, val]) => activeFilterArray.push(`"${key}" = "${val}"`));
@@ -120,12 +129,12 @@ export async function GET(request: Request) {
         fetch(`${MEILI_URL}/indexes/products/search`, {
           method: 'POST', headers: { 'Authorization': `Bearer ${MEILI_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ q: searchQ, filter: activeFilterArray, limit: currentLimit, sort: meiliSort }), 
-          next: { revalidate: 60 } // Krótki cache na produkty (ceny, stany magazynowe)
+          next: { revalidate: 60 } 
         }),
         fetch(`${MEILI_URL}/indexes/products/search`, {
           method: 'POST', headers: { 'Authorization': `Bearer ${MEILI_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ q: searchQ, filter: [baseCategoryFilter], limit: 0, facets: ["*"] }), 
-          next: { revalidate: 3600 } // Długi cache na strukturę filtrów
+          next: { revalidate: 3600 } 
         })
       ]);
 
@@ -154,6 +163,7 @@ export async function GET(request: Request) {
         };
       }) || [];
 
+      // Wrzucamy dane + nagłówki CDN, aby Vercel zapisał to na swoich węzłach globalnie
       return NextResponse.json({ 
         category: dbCategoryData, 
         breadcrumbs, 
@@ -163,11 +173,12 @@ export async function GET(request: Request) {
         products: mappedProducts,
         totalCount: meiliData.estimatedTotalHits || meiliData.totalHits || 0, 
         faqs: dbCategoryData.faqs
-      });
+      }, { headers: corsHeaders });
+
   } catch (error: any) {
       return NextResponse.json({ 
         category: { h1_dynamic: `BŁĄD MEILI: ${error.message}`, name: "ERROR" }, 
         products: [], breadcrumbs: [], subcategories: [], filters: {}, totalCount: 0, faqs: [] 
-      }); 
+      }, { headers: corsHeaders }); 
   }
 }
