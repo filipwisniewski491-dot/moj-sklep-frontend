@@ -65,7 +65,6 @@ const MEGA_MENU_DATA = [
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
 ];
 
-// DODANA TABLICA QUICK_SILOS DO OBSŁUGI STOPKI
 const QUICK_SILOS = [
   { name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", img: "🔧" },
   { name: "Części uniwersalne", slug: "czesci-uniwersalne", img: "🔩" },
@@ -78,6 +77,14 @@ const QUICK_SILOS = [
   { name: "Części ciągniki/maszyny", slug: "czesci-do-ciagnikow-i-maszyn", img: "🔗" },
   { name: "Dom, ogród, las", slug: "dom-ogrod-las", img: "🌲" },
   { name: "Materiały eksploatacyjne", slug: "materialy-eksploatacyjne", img: "📦" }
+];
+
+// Awaryjne produkty dla modułu Zestawów (Gdy API nie zwróci podobnych z kategorii)
+const fallbackRelated = [
+  { id: 'f1', name: 'Uniwersalny smar łożyskowy 400g', price: 18.50, sku: 'SM-400', images: [{url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop'}] },
+  { id: 'f2', name: 'Zestaw rękawic warsztatowych (5 par)', price: 25.00, sku: 'BHP-05', images: [{url: 'https://images.unsplash.com/photo-1584443152528-98e3b333eeac?q=80&w=200&auto=format&fit=crop'}] },
+  { id: 'f3', name: 'Zmywacz przemysłowy w sprayu 500ml', price: 22.90, sku: 'CH-500', images: [{url: 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?q=80&w=200&auto=format&fit=crop'}] },
+  { id: 'f4', name: 'Opaska zaciskowa wzmocniona 50-70mm', price: 4.50, sku: 'OP-50', images: [{url: 'https://images.unsplash.com/photo-1530982011887-3cc11cc85693?q=80&w=200&auto=format&fit=crop'}] },
 ];
 
 const MiniProductCard = ({ product }: { product: any }) => {
@@ -166,10 +173,12 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => clearInterval(interval);
   }, []);
 
+  // Wymuszony Sticky Bar jeśli przycisk ucieknie z ekranu (Naprawa UX Mobile)
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setShowSticky(!entry.isIntersecting && entry.boundingClientRect.bottom < 0);
+        // Zmienia stan na true TYLKO gdy główny przycisk NIE jest widoczny na ekranie
+        setShowSticky(!entry.isIntersecting);
       },
       { root: null, rootMargin: '0px', threshold: 0 }
     );
@@ -181,18 +190,26 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
+  // Niezawodne ładowanie produktów powiązanych (Zabezpieczenie przed pustym API)
   useEffect(() => {
     if (product?.category) {
       const categoryName = typeof product.category === 'object' ? product.category.name : product.category;
       fetch(`/api/search?q=${encodeURIComponent(categoryName)}&limit=5`)
         .then(res => res.json())
         .then(data => {
-           if (data && data.products) {
+           if (data && data.products && data.products.length > 0) {
              const filtered = data.products.filter((p: any) => p.sku !== product.sku);
-             setRelatedProducts(filtered);
+             setRelatedProducts(filtered.length > 0 ? filtered : fallbackRelated);
+           } else {
+             setRelatedProducts(fallbackRelated);
            }
         })
-        .catch(err => console.error("Błąd pobierania cross-selli", err));
+        .catch(err => {
+           console.error("Błąd pobierania cross-selli", err);
+           setRelatedProducts(fallbackRelated);
+        });
+    } else {
+      setRelatedProducts(fallbackRelated);
     }
   }, [product.category, product.sku]);
 
@@ -242,8 +259,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     }
   };
 
-  // --- LOGIKA DOPASOWANIA I ZESTAWÓW ---
-  const fitsBrands = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Marka'] || attributes['Pasuje do'];
+  // --- LOGIKA DOPASOWANIA I ZESTAWÓW (Oczyszczona z ogólnych producentów) ---
+  const fitsBrands = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Pasuje do'];
   const fitsModels = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
   const hasCompatibility = !!(fitsBrands || fitsModels);
 
@@ -353,9 +370,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 🚀 KARTA PRODUKTU (Główna Zawartość) */}
-      {/* ========================================================================= */}
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-red-700 transition-colors">Start</Link>
@@ -458,7 +472,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               <span className="flex items-center gap-1.5">🔄 14 dni na zwrot</span>
             </div>
 
-            {/* SEKCJA "PASUJE DO" */}
+            {/* SEKCJA "PASUJE DO" (Oczyszczona z producentów) */}
             {hasCompatibility && (
               <div className="mb-6 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4">
                  <div className="text-2xl">✅</div>
@@ -471,7 +485,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               </div>
             )}
 
-            {/* ZEGAR ZJECHAŁ W DÓŁ */}
             <div className="bg-slate-50 text-slate-800 p-5 rounded-2xl mb-4 border border-slate-200 flex items-start gap-4">
                <div className="text-2xl mt-0.5">📦</div>
                <div>
@@ -511,7 +524,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
              
              <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
                 {/* Produkt Główny */}
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                     {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt="Main" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
                   </div>
@@ -525,7 +538,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                 <div className="text-3xl font-black text-slate-300">＋</div>
 
                 {/* Produkt Dobrany */}
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                      {(() => {
                         const bImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
@@ -611,10 +624,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </div>
         </div>
 
-        {product.crossSell && product.crossSell.length > 0 && (
-           <CrossSellModule skus={product.crossSell} />
-        )}
-
+        {/* ========================================================================= */}
+        {/* 🚀 INNI OGLĄDALI TEŻ (Dynamiczne pobieranie po tej samej kategorii) */}
+        {/* ========================================================================= */}
         {relatedProducts.length > 0 && (
           <section className="mt-16 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 relative z-10 gap-4">
