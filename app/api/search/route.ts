@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 
-// WŁĄCZAMY CACHE NA 1 GODZINĘ (Błyskawiczne ładowanie kolejnych wejść)
+// 1. TWARDE WYMUSZENIE ŚRODOWISKA NODE.JS (Zdejmuje blokadę IP na Vercelu)
+export const runtime = 'nodejs';
+
+// 2. WŁĄCZAMY CACHE NA 1 GODZINĘ (Błyskawiczne ładowanie kolejnych wejść)
 export const revalidate = 3600; 
 
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
