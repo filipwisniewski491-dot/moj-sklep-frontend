@@ -88,8 +88,8 @@ const MiniProductCard = ({ product }: { product: any }) => {
   };
 
   return (
-    <div className="group bg-white border border-slate-100 rounded-[32px] hover:shadow-xl transition-all duration-300 flex flex-col h-full overflow-hidden">
-      <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2">
+    <div className="group bg-white border border-slate-100 rounded-[32px] hover:shadow-xl transition-all duration-300 flex flex-col h-full overflow-hidden relative">
+      <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2 relative z-0">
         <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4">
           {imageUrl ? (
             <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
@@ -101,11 +101,11 @@ const MiniProductCard = ({ product }: { product: any }) => {
           <h3 className="font-bold text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs tracking-tight">{product.name}</h3>
         </div>
       </Link>
-      <div className="px-5 pb-5 pt-3 border-t border-slate-50 flex items-end justify-between bg-white mt-auto z-10">
+      <div className="px-5 pb-5 pt-3 border-t border-slate-50 flex items-end justify-between bg-white mt-auto relative z-20 pointer-events-auto">
         <div className="flex flex-col">
           <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
         </div>
-        <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50">
+        <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer pointer-events-auto">
           <span className="text-sm">🛒</span>
         </button>
       </div>
@@ -175,39 +175,43 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // NAPRAWIONE POBIERANIE PRODUKTÓW (Oszukujemy API, mówiąc mu, że jesteśmy w kategorii "Bestsellery")
+  // NOWY: Zgodny z API Mechanizm Pobierania Produktów Powiązanych
   useEffect(() => {
     let isMounted = true;
 
     const fetchRealProducts = async () => {
       try {
         let valid = [];
-        
-        // 1. Spróbujemy po prostu przeszukać sklep po pierwszej nazwie (najpewniejsza metoda)
-        if (product?.name) {
-          const firstWord = product.name.split(' ')[0];
-          // Dodajemy fake'owy fullPath "wszystkie", żeby obejść błąd bazy w pliku route.ts
-          const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(firstWord)}&limit=10`);
-          if (res.ok) {
-            const data = await res.json();
-            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+        let realPath = '';
+
+        // KROK 1: Próba znalezienia produktów w DOKŁADNIE tej samej kategorii co nasz produkt
+        if (product?.category_text) {
+          // Zamieniamy tekst typu "Maszyny > Uprawa" na prawidłowy slug "maszyny/uprawa" (zgodnie z route.ts)
+          realPath = product.category_text.split('>').map((s: string) => generateSlug(s.trim())).join('/');
+          
+          if (realPath) {
+            const res = await fetch(`/api/search?fullPath=${realPath}&limit=10`);
+            if (res.ok) {
+              const data = await res.json();
+              valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+            }
           }
         }
 
-        // 2. Jeśli nie znalazł po słowie, bierzemy kategorię
-        if (valid.length < 2 && product?.category_text) {
-          const parts = product.category_text.split('>');
-          const lastCat = parts[parts.length - 1].trim();
-          const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(lastCat)}&limit=10`);
-          if (res.ok) {
-            const data = await res.json();
-            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-          }
-        }
-
-        // 3. Ostatnia deska ratunku - Bestsellery z całego sklepu
+        // KROK 2: Fallback! Jeśli w tej podkategorii nie było nic (tylko 1 produkt), pobieramy ogólny warsztat
         if (valid.length < 2) {
-          const res = await fetch(`/api/search?fullPath=kategoria&limit=15`);
+          const fallbackPath = 'warsztat-i-uniwersalne';
+          const res = await fetch(`/api/search?fullPath=${fallbackPath}&limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+          }
+        }
+
+        // KROK 3: Ostateczny Fallback! Bestsellery z ciągników
+        if (valid.length < 2) {
+          const ultimateFallback = 'czesci-do-ciagnikow';
+          const res = await fetch(`/api/search?fullPath=${ultimateFallback}&limit=10`);
           if (res.ok) {
             const data = await res.json();
             valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
@@ -218,7 +222,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           setRelatedProducts(valid.slice(0, 5));
         }
       } catch (err) {
-        console.error("Błąd pobierania cross-selli:", err);
+        console.error("Błąd pobierania powiązanych:", err);
       }
     };
 
@@ -533,9 +537,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* OPISY, SPECYFIKACJE I FAQ */}
-        {/* ========================================================================= */}
         <div className="mt-12 grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-8">
             {seoDescription && (
@@ -593,18 +594,12 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* CROSS-SELL: MODUŁ EKSPERTA */}
-        {/* ========================================================================= */}
         {product.crossSell && product.crossSell.length > 0 && (
            <div className="mt-12">
              <CrossSellModule skus={product.crossSell} />
            </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* 🚀 KUP W ZESTAWIE (BUNDLE UP-SELL) NA SAMYM DOLE */}
-        {/* ========================================================================= */}
         {bundleProduct && (
           <section className="mt-16 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
              <div className="absolute top-0 right-0 bg-red-600 text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest shadow-md">
@@ -655,9 +650,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </section>
         )}
 
-        {/* ========================================================================= */}
-        {/* 🚀 INNI OGLĄDALI TEŻ NA SAMYM DOLE */}
-        {/* ========================================================================= */}
         {othersViewedProducts.length > 0 && (
           <section className="mt-12 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 relative z-10 gap-4">
@@ -677,9 +669,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         )}
       </main>
 
-      {/* ========================================================================= */}
-      {/* 🚀 STICKY ADD TO CART */}
-      {/* ========================================================================= */}
       <div className={`fixed bottom-[60px] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-full md:translate-y-[120%]'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="hidden md:flex items-center gap-4">
