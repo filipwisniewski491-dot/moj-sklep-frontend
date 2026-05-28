@@ -451,7 +451,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                  
                  <div className="flex items-center gap-3 mt-2">
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Brutto (VAT 23%)</p>
-                    {cashbackEarned > 0 && (
+                    {/* Zmieniono warunek na >= 0, aby wyświetlało się zawsze, nawet przy produktach za 0 zł */}
+                    {cashbackEarned >= 0 && (
                       <>
                         <div className="w-px h-3 bg-slate-200"></div>
                         <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
