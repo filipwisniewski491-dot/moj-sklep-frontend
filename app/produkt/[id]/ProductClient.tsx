@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import SearchBar from '@/components/SearchBar';
+import CrossSellModule from '@/components/CrossSellModule';
 import { useCart } from '@/store/useCart';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
@@ -75,8 +76,7 @@ const QUICK_SILOS = [
 
 const MiniProductCard = ({ product }: { product: any }) => {
   const { addItem, setIsOpen } = useCart();
-  // Wsparcie dla danych z API MeiliSearch oraz API Cross-sell
-  const imageUrl = product.image || product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
+  const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
   const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const sku = product.sku || "BRAK SKU";
 
@@ -105,7 +105,7 @@ const MiniProductCard = ({ product }: { product: any }) => {
         <div className="flex flex-col">
           <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
         </div>
-        <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50">
+        <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer pointer-events-auto">
           <span className="text-sm">🛒</span>
         </button>
       </div>
@@ -175,73 +175,58 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // =========================================================================
-  // 🚀 HYBRYDOWY SYSTEM CROSS-SELL (Pobiera przypisane na sztywno, uzupełnia brakujące)
-  // =========================================================================
+  // NOWY: Zgodny z API Mechanizm Pobierania Produktów Powiązanych
   useEffect(() => {
     let isMounted = true;
 
-    const fetchRelated = async () => {
+    const fetchRealProducts = async () => {
       try {
-        let validProducts: any[] = [];
+        let valid = [];
+        let realPath = '';
 
-        // 1. Dedykowany Cross-Sell ze Strapi (To ładujemy priorytetowo jako pierwsze)
-        if (product?.crossSell && Array.isArray(product.crossSell) && product.crossSell.length > 0) {
-          const res = await fetch(`/api/cross-sell?skus=${product.crossSell.join(',')}`);
+        // KROK 1: Próba znalezienia produktów w DOKŁADNIE tej samej kategorii co nasz produkt
+        if (product?.category_text) {
+          // Zamieniamy tekst typu "Maszyny > Uprawa" na prawidłowy slug "maszyny/uprawa" (zgodnie z route.ts)
+          realPath = product.category_text.split('>').map((s: string) => generateSlug(s.trim())).join('/');
+          
+          if (realPath) {
+            const res = await fetch(`/api/search?fullPath=${realPath}&limit=10`);
+            if (res.ok) {
+              const data = await res.json();
+              valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
+            }
+          }
+        }
+
+        // KROK 2: Fallback! Jeśli w tej podkategorii nie było nic (tylko 1 produkt), pobieramy ogólny warsztat
+        if (valid.length < 2) {
+          const fallbackPath = 'warsztat-i-uniwersalne';
+          const res = await fetch(`/api/search?fullPath=${fallbackPath}&limit=10`);
           if (res.ok) {
             const data = await res.json();
-            // Wyniki z API CrossSell mają już prostą strukturę (name, price, image, slug)
-            validProducts = data.products || [];
+            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
           }
         }
 
-        // 2. Jeśli brakuje produktów (żeby uzupełnić resztę kafelków), zaciągamy z MeiliSearch
-        if (validProducts.length < 5) {
-          let searchValid: any[] = [];
-          
-          if (product?.name) {
-            const firstWord = product.name.split(' ')[0];
-            const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(firstWord)}&limit=10`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
+        // KROK 3: Ostateczny Fallback! Bestsellery z ciągników
+        if (valid.length < 2) {
+          const ultimateFallback = 'czesci-do-ciagnikow';
+          const res = await fetch(`/api/search?fullPath=${ultimateFallback}&limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
           }
-
-          if (searchValid.length < 2 && product?.category_text) {
-            const parts = product.category_text.split('>');
-            const lastCat = parts[parts.length - 1].trim();
-            const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(lastCat)}&limit=10`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
-          }
-
-          if (searchValid.length < 2) {
-            const res = await fetch(`/api/search?fullPath=kategoria&limit=15`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
-          }
-
-          // Odfiltrowujemy, żeby uniknąć duplikatów z ręcznego Cross-Sella
-          const existingSkus = validProducts.map((p: any) => p.sku);
-          const filteredSearch = searchValid.filter((p: any) => !existingSkus.includes(p.sku));
-
-          validProducts = [...validProducts, ...filteredSearch];
         }
 
-        if (isMounted && validProducts.length > 0) {
-          setRelatedProducts(validProducts.slice(0, 5));
+        if (isMounted && valid.length > 0) {
+          setRelatedProducts(valid.slice(0, 5));
         }
       } catch (err) {
-        console.error("Błąd pobierania cross-selli:", err);
+        console.error("Błąd pobierania powiązanych:", err);
       }
     };
 
-    if (product) fetchRelated();
+    if (product) fetchRealProducts();
 
     return () => { isMounted = false; };
   }, [product]);
@@ -315,12 +300,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   const handleAddBundle = () => {
     if (addItem && bundleProduct) {
-      // 1. Dodajemy główny
       addItem({ id: product.documentId || product.id || product.sku || 'main', name: product.name, price: numPrice, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
-      // 2. Dodajemy bundle (Wsparcie dla struktury /api/cross-sell)
-      const bundleImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
+      const bundleImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
       addItem({ id: bundleProduct.documentId || bundleProduct.id || bundleProduct.sku || 'bundle', name: bundleProduct.name, price: bundleProductPrice * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
-      
       if (setIsOpen) setIsOpen(true);
     }
   };
@@ -374,7 +356,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             <button onClick={() => setIsOpen?.(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
                  {cartCount > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartCount}</div>}
-                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
                 {cartCount > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
@@ -555,9 +537,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* OPISY, SPECYFIKACJE I FAQ */}
-        {/* ========================================================================= */}
         <div className="mt-12 grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-8">
             {seoDescription && (
@@ -615,9 +594,12 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* 🚀 KUP W ZESTAWIE (BUNDLE UP-SELL) NA SAMYM DOLE */}
-        {/* ========================================================================= */}
+        {product.crossSell && product.crossSell.length > 0 && (
+           <div className="mt-12">
+             <CrossSellModule skus={product.crossSell} />
+           </div>
+        )}
+
         {bundleProduct && (
           <section className="mt-16 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
              <div className="absolute top-0 right-0 bg-red-600 text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest shadow-md">
@@ -643,7 +625,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                 <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                      {(() => {
-                        const bImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
+                        const bImg = bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
                         return bImg ? <Image loader={bunnyLoader} src={bImg} alt="Bundle" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
                      })()}
                   </div>
@@ -668,9 +650,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </section>
         )}
 
-        {/* ========================================================================= */}
-        {/* 🚀 INNI OGLĄDALI TEŻ NA SAMYM DOLE */}
-        {/* ========================================================================= */}
         {othersViewedProducts.length > 0 && (
           <section className="mt-12 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 relative z-10 gap-4">
@@ -690,9 +669,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         )}
       </main>
 
-      {/* ========================================================================= */}
-      {/* 🚀 STICKY ADD TO CART */}
-      {/* ========================================================================= */}
       <div className={`fixed bottom-[60px] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-full md:translate-y-[120%]'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="hidden md:flex items-center gap-4">
