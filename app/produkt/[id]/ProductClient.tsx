@@ -65,6 +65,21 @@ const MEGA_MENU_DATA = [
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
 ];
 
+// DODANA TABLICA QUICK_SILOS DO OBSŁUGI STOPKI
+const QUICK_SILOS = [
+  { name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", img: "🔧" },
+  { name: "Części uniwersalne", slug: "czesci-uniwersalne", img: "🔩" },
+  { name: "Chemia i smary", slug: "chemia-i-smary", img: "🛢️" },
+  { name: "Części do ciągników", slug: "czesci-do-ciagnikow", img: "🚜" },
+  { name: "Hydraulika siłowa", slug: "hydraulika-silowa", img: "🗜️" },
+  { name: "Elektronika i precyzja", slug: "elektronika-i-precyzja", img: "📡" },
+  { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", img: "🐄" },
+  { name: "Części do maszyn", slug: "czesci-do-maszyn", img: "⚙️" },
+  { name: "Części ciągniki/maszyny", slug: "czesci-do-ciagnikow-i-maszyn", img: "🔗" },
+  { name: "Dom, ogród, las", slug: "dom-ogrod-las", img: "🌲" },
+  { name: "Materiały eksploatacyjne", slug: "materialy-eksploatacyjne", img: "📦" }
+];
+
 const MiniProductCard = ({ product }: { product: any }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
@@ -338,6 +353,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         </div>
       </div>
 
+      {/* ========================================================================= */}
+      {/* 🚀 KARTA PRODUKTU (Główna Zawartość) */}
+      {/* ========================================================================= */}
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-red-700 transition-colors">Start</Link>
