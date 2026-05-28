@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/store/useCart'; 
+import SearchBar from '@/components/SearchBar';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -39,6 +40,41 @@ const capitalizeWords = (str: string) => {
   if (!str) return '';
   return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 };
+
+// GLOBALNE MEGA MENU
+const MEGA_MENU_DATA = [
+  { 
+    name: "Części do ciągników", slug: "czesci-do-ciagnikow", icon: "🚜",
+    columns: [
+      { title: "Silnik i osprzęt", slug: "silnik-i-osprzet", links: ["Węże", "Prowadnice", "Uszczelki", "Śruby i mocowania", "Zawory", "Tłoki"] },
+      { title: "Układ napędowy", slug: "uklad-napedowy-i-sprzegla", links: ["Kołki", "Kosze", "Krzyżaki", "Mechanizmy różnicowe", "Tarcze sprzęgła"] },
+      { title: "Układ paliwowy", slug: "uklad-paliwowy-i-wydechowy", links: ["Pompy wtryskowe", "Wtryskiwacze", "Tłumiki", "Filtry paliwa"] },
+      { title: "Kabina i elektryka", slug: "kabina-i-oblachowanie", links: ["Lusterka", "Szyby", "Fotele", "Oświetlenie", "Rozruszniki"] }
+    ]
+  },
+  { 
+    name: "Części do maszyn", slug: "czesci-do-maszyn", icon: "⚙️",
+    columns: [
+      { title: "Uprawa ziemi", slug: "uprawa-ziemi", links: ["Lemiesze", "Dłuta", "Odkładnice", "Piętki"] },
+      { title: "Zbiór i żniwa", slug: "zbior-i-zniwa", links: ["Bagnety", "Nożyki", "Paski klinowe", "Palce podbieracza"] }
+    ]
+  },
+  { 
+    name: "Hydraulika siłowa", slug: "hydraulika-silowa", icon: "🗜️",
+    columns: [
+      { title: "Elementy układu", slug: "elementy-ukladu", links: ["Pompy hydrauliczne", "Rozdzielacze", "Siłowniki", "Szybkozłącza"] }
+    ]
+  }, 
+  { 
+    name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", icon: "🔧",
+    columns: [
+       { title: "Materiały i narzędzia", slug: "wyposazenie-warsztatu", links: ["Narzędzia ręczne", "Elektronarzędzia", "Odzież BHP"] },
+       { title: "Chemia i smary", slug: "chemia-i-smary", links: ["Oleje silnikowe", "Smary", "Zmywacze", "Płyny chłodnicze"] }
+    ]
+  },
+  { name: "Elektronika i precyzja", slug: "elektronika-i-precyzja", icon: "📡" },
+  { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
+];
 
 const ProductCard = ({ product, isListView, idx }: { product: any, isListView: boolean, idx: number }) => {
   const { addItem, setIsOpen } = useCart() as any;
@@ -100,8 +136,6 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
             <span className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center">Brak zdjęcia</span>
           </div>
         )}
-        
-        {/* ZMIANA 1: SKU bezpiecznie na dole po lewej */}
         <div className="absolute bottom-2 left-2 lg:bottom-3 lg:left-3 bg-white/95 backdrop-blur-md px-2 py-1 rounded-full text-[7px] lg:text-[8px] font-black uppercase tracking-widest border border-slate-200 text-slate-500 max-w-[85%] truncate shadow-sm">
           SKU: {sku}
         </div>
@@ -187,6 +221,11 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const { items, setIsOpen: setCartOpen } = useCart() as any;
   const cartTotalItems = items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
   
+  // Do obliczania brakującej darmowej dostawy na górnym pasku
+  const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
+  const freeShippingThreshold = 500;
+  const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
+
   const [categoryData, setCategoryData] = useState<any>(initialData?.category || null);
   const [products, setProducts] = useState<any[]>(initialData?.products || []);
   const [globalFilters, setGlobalFilters] = useState<Record<string, Record<string, number>>>(initialFilters || {});
@@ -210,6 +249,10 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [activeFaq, setActiveFaq] = useState<number | null>(null); 
 
   const isFirstRender = useRef(true);
+  
+  // Zegary dla nowego nagłówka
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [isMounted, setIsMounted] = useState(false);
 
   const rawBrandLabel = searchParams.get('Pasuje do marki');
   const rawModelLabel = searchParams.get('Pasuje do modelu');
@@ -234,6 +277,25 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         displayTopSeo = `Zobacz wyselekcjonowane, w pełni kompatybilne zamienniki i oryginały pasujące bezpośrednio do maszyn ${brandLabel} ${modelLabel || ''}.`;
     }
   }
+
+  useEffect(() => {
+    setIsMounted(true);
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const cutoff = new Date();
+      cutoff.setHours(15, 0, 0, 0); 
+      if (now > cutoff) cutoff.setDate(cutoff.getDate() + 1);
+      const difference = cutoff.getTime() - now.getTime();
+      setTimeLeft({
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((difference / 1000 / 60) % 60),
+        seconds: Math.floor((difference / 1000) % 60),
+      });
+    };
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
@@ -308,7 +370,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const garageModel = globalFilters['Pasuje do modelu'] || {};
 
   let techFilters = { ...globalFilters };
-  // ZMIANA 5: Eksterminacja 'Wagi' na każdym etapie
   const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu'];
 
   Object.keys(techFilters).forEach(key => {
@@ -368,7 +429,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, count]) => {
               const isChecked = searchParams.get(filterKey) === val;
               return (
-                // ZMIANA 3: Przycisk "Usuń" wyeksponowany tuż przy włączonym filtrze
                 <label key={val} className={`flex items-center justify-between cursor-pointer group py-1.5 px-2 rounded-lg transition-colors ${isChecked ? 'bg-red-50/60' : 'hover:bg-slate-50'}`} onClick={(e) => { e.preventDefault(); const currentVal = searchParams.get(filterKey); updateUrlParams(filterKey, currentVal === val ? null : val); }}>
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-200 bg-white group-hover:border-red-400'}`}>
@@ -400,8 +460,9 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const sharedFilterProps = { searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
       
+      {/* --- POWIADOMIENIE BŁĘDU --- */}
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
@@ -414,23 +475,138 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
            </div>
            
            <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-               {/* ZMIANA 4: Przycisk pokazuje całkowitą ilość po wybranym filtrze */}
                <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[48px]">Pokaż {totalCount} wyników ➔</button>
            </div>
         </div>
       )}
 
-      <header className="border-b py-4 px-6 bg-white sticky top-0 z-[60] shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center w-full">
-          <Link href="/" aria-label="Strona główna CentrumRolnictwa.pl" className="font-black text-xl tracking-tighter hover:text-red-600 transition-colors">
-            CentrumRolnictwa<span className="text-slate-500">.pl</span>
-          </Link>
-          <button aria-label="Otwórz koszyk" onClick={() => setCartOpen(true)} className="p-3 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors relative shadow-inner border border-slate-100">
-             <span className="text-xl">🛒</span>
-             {cartTotalItems > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md shadow-red-600/30">{cartTotalItems}</span>}
-          </button>
+      {/* ========================================================================= */}
+      {/* 🚀 NOWY, GLOBALNY HEADER (TOP BAR + WYSZUKIWARKA + MEGA MENU) */}
+      {/* ========================================================================= */}
+      
+      {/* --- 1. TOP BAR INFO --- */}
+      <div className="bg-slate-900 text-white py-2 px-4 font-bold relative z-[60] shadow-sm border-b border-red-600/50">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-center gap-3">
+          <div className="flex items-center space-x-6 text-[10px] sm:text-xs uppercase tracking-[0.2em]">
+            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-500 transition-colors group">
+              <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
+            </a>
+            <span className="hidden md:flex items-center gap-2 text-slate-300">
+              <span className="text-emerald-500">✓</span> Ekspercki Dobór Części
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2 bg-red-600/20 px-4 py-1 rounded-full border border-red-600/30">
+            <span className="text-[10px] uppercase tracking-widest text-red-100 hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
+            <span suppressHydrationWarning className="text-red-500 font-black tabular-nums text-sm tracking-widest">
+              ⏳ {isMounted ? `${String(timeLeft.hours).padStart(2, '0')}:${String(timeLeft.minutes).padStart(2, '0')}:${String(timeLeft.seconds).padStart(2, '0')}` : '00:00:00'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* --- 2. GŁÓWNY HEADER Z WYSZUKIWARKĄ --- */}
+      <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-4 md:py-6">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8">
+          
+          <div className="flex-shrink-0 w-full md:w-auto flex justify-center md:justify-start">
+            <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
+              <img src="/logo-centrumrolnictwapl-2-2.webp" alt="CentrumRolnictwa.pl" className="h-10 md:h-12 w-auto transition-transform hover:scale-105 duration-300" fetchPriority="high" />
+            </Link>
+          </div>
+
+          <div className="flex-1 w-full max-w-3xl relative z-50">
+             <SearchBar />
+          </div>
+
+          <nav className="hidden md:flex items-center space-x-6 text-slate-800">
+            <div className="hidden xl:block text-right mr-4">
+               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">
+                 Do darmowej: <span className="text-red-600 font-black">{(freeShippingThreshold - cartValue).toFixed(2)} zł</span>
+               </p>
+               <div className="w-40 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
+                 <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
+               </div>
+            </div>
+
+            <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group">
+              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
+                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+              </div>
+              <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
+            </Link>
+            
+            <Link href="/koszyk" aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
+              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
+                 <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white group-hover:animate-bounce">2</div>
+                 <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              </div>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
+                {cartValue.toFixed(2)} zł
+              </span>
+            </Link>
+          </nav>
         </div>
       </header>
+
+      {/* --- 3. MEGA MENU DESKTOP --- */}
+      <div className="hidden lg:block bg-slate-900 text-white relative z-40 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 flex items-center">
+          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-red-600 uppercase text-[11px] tracking-widest hover:bg-red-700 transition-colors shrink-0 z-10 relative">
+            <span>☰</span> Pełny Katalog 2026
+          </Link>
+          
+          <ul className="flex flex-1 items-center justify-center gap-6 xl:gap-8 px-4">
+            {MEGA_MENU_DATA.map((cat) => (
+              <li key={cat.slug} className="group text-center py-4">
+                <Link href={`/kategoria/${cat.slug}`} className="block font-bold text-slate-300 hover:text-white transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap group-hover:underline decoration-red-600 underline-offset-4">
+                  <span className="mr-1.5 text-base align-middle">{cat.icon}</span> {cat.name}
+                </Link>
+
+                {cat.columns && cat.columns.length > 0 && (
+                  <div className="absolute left-0 top-full w-full bg-white border border-slate-200 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-b-2xl p-8 z-50 text-left text-slate-900">
+                    <div className="grid grid-cols-4 gap-8">
+                      {cat.columns.map(col => (
+                        <div key={col.slug}>
+                          <Link href={`/kategoria/${cat.slug}/${col.slug}`} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
+                            {col.title}
+                          </Link>
+                          <ul className="space-y-2.5">
+                            {col.links.map(link => {
+                              const linkSlug = generateSlug(link);
+                              return (
+                                <li key={linkSlug}>
+                                  <Link href={`/kategoria/${cat.slug}/${col.slug}/${linkSlug}`} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
+                                    {link}
+                                  </Link>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        </div>
+                      ))}
+                      <div className="col-span-4 lg:col-span-1 lg:col-start-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                         <div>
+                            <span className="bg-red-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-md mb-4 inline-block shadow-sm">Polecane dla mechanika</span>
+                            <h4 className="font-black uppercase text-lg text-slate-900 leading-tight mb-2">Chemia i Oleje</h4>
+                            <p className="text-xs text-slate-500 font-medium">Zabezpiecz maszynę na sezon. Zamów komplet smarów i płynów z szybką wysyłką.</p>
+                         </div>
+                         <Link href={`/kategoria/${cat.slug}`} className="mt-4 text-[10px] font-black text-slate-900 uppercase tracking-widest hover:text-red-600 flex items-center gap-1 transition-colors">
+                           Zobacz cały dział <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
+                         </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 🚀 WIDOK GŁÓWNY KATEGORII */}
+      {/* ========================================================================= */}
 
       <div className="bg-white border-b pt-8 pb-6 px-6 relative z-20">
         <div className="max-w-7xl mx-auto">
@@ -518,7 +694,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
               </div>
             ) : products.length === 0 ? (
               <div className="bg-white rounded-[32px] lg:rounded-[40px] p-6 lg:p-12 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
-                {/* Ozdobny pasek u góry */}
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 to-orange-500"></div>
                 
                 <span className="text-5xl lg:text-6xl mb-6 block drop-shadow-sm">⚙️</span>
@@ -530,45 +705,26 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
                 <p className="text-slate-600 font-medium text-sm lg:text-base max-w-2xl mx-auto mb-8 leading-relaxed">
                   {searchQ 
                     ? <>Nie znaleźliśmy w tej kategorii nic pod frazą <strong className="text-slate-900">"{searchQ}"</strong>. Producenci często aktualizują numery OEM lub część występuje pod inną nazwą.</>
-                    : <>Prawdopodobnie użyłeś zbyt wielu filtrów naraz. W rolnictwie detale mają znaczenie, ale czasem warto spojrzeć szerzej na całą kategorię. Nie wszystkie nasze produkty, mają pełne pokrycie w filtrach. Zadzwoń!</>
+                    : <>Prawdopodobnie użyłeś zbyt wielu filtrów naraz. W rolnictwie detale mają znaczenie, ale czasem warto spojrzeć szerzej na całą kategorię.</>
                   }
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mb-10">
-                  {/* Akcja 1: Zadzwoń (Najsilniejszy magnes na konwersję) */}
                   <a href="tel:+48123456789" className="bg-red-600 text-white px-6 py-4 rounded-xl font-black text-[11px] lg:text-xs uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2 shadow-md min-h-[48px]">
                     <span className="text-base">📞</span> Zadzwoń – dobierzemy część
                   </a>
-                  
-                  {/* Akcja 2: Wyczyść i wróć do bazy */}
-                  <button onClick={() => {
-                    setSearchQ(''); setMinPrice(''); setMaxPrice('');
-                    router.push(`/kategoria/${fullPath}`);
-                  }} className="bg-slate-100 text-slate-800 px-6 py-4 rounded-xl font-black text-[11px] lg:text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 min-h-[48px]">
+                  <button onClick={() => { setSearchQ(''); setMinPrice(''); setMaxPrice(''); router.push(`/kategoria/${fullPath}`); }} className="bg-slate-100 text-slate-800 px-6 py-4 rounded-xl font-black text-[11px] lg:text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 min-h-[48px]">
                     <span className="text-base">🔄</span> Zresetuj wszystkie filtry
                   </button>
                 </div>
 
-                {/* Akcja 3: Szybka wyszukiwarka ratunkowa */}
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 lg:p-6 w-full max-w-xl text-left">
                   <h3 className="font-black text-slate-900 text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                     <span className="text-red-600">●</span> Szukaj ponownie w całym sklepie
                   </h3>
                   <div className="flex gap-2 mt-4">
-                    <input 
-                      type="text" 
-                      placeholder="Wpisz numer OEM lub nazwę..." 
-                      className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-800 outline-none focus:border-red-600 bg-white" 
-                      value={searchQ} 
-                      onChange={(e) => setSearchQ(e.target.value)} 
-                      onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} 
-                    />
-                    <button 
-                      onClick={() => updateUrlParams('q', searchQ)} 
-                      className="bg-slate-900 text-white px-5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-colors"
-                    >
-                      Szukaj
-                    </button>
+                    <input type="text" placeholder="Wpisz numer OEM lub nazwę..." className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-800 outline-none focus:border-red-600 bg-white" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} />
+                    <button onClick={() => updateUrlParams('q', searchQ)} className="bg-slate-900 text-white px-5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-colors">Szukaj</button>
                   </div>
                 </div>
               </div>
@@ -593,7 +749,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             </div>
           )}
 
-          <div className="lg:hidden mt-8 flex justify-center sticky bottom-6 z-[45]">
+          <div className="lg:hidden mt-8 flex justify-center sticky bottom-20 z-[45]">
              <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 w-full max-w-[90%] border border-slate-700 transition-transform active:scale-95 min-h-[48px]">
                FILTRUJ I ZNAJDŹ {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
              </button>
@@ -636,6 +792,27 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
         </div>
       </main>
+
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-center px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe" aria-label="Nawigacja mobilna">
+        <Link href="/" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+          <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Start</span>
+        </Link>
+        <Link href="/kategorie" className="flex flex-col items-center text-red-600">
+          <span className="text-xl mb-1">☰</span>
+          <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
+        </Link>
+        <Link href="/konto" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Konto</span>
+        </Link>
+        <button onClick={() => setCartOpen(true)} className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors relative">
+          {cartTotalItems > 0 && <div className="absolute -top-1 -right-2 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white">{cartTotalItems}</div>}
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          <span className="text-[9px] font-black uppercase tracking-widest">Koszyk</span>
+        </button>
+      </nav>
     </div>
   );
 }
