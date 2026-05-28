@@ -12,7 +12,6 @@ const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   return `${cleanSrc}?width=${width}&format=webp`;
 };
 
-// PRZYWRÓCONA FUNKCJA GENERUJĄCA LINKI
 const generateSlug = (text: string) => {
   if (!text) return '';
   return text.toLowerCase()
@@ -23,7 +22,6 @@ const generateSlug = (text: string) => {
     .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
 };
 
-// NOWA, OPTYMALNA STRUKTURA KATEGORII (Bez śmieci typu "Pozostałe")
 const MEGA_MENU_DATA = [
   { 
     name: "Części do ciągników", slug: "czesci-do-ciagnikow", icon: "🚜",
@@ -58,7 +56,6 @@ const MEGA_MENU_DATA = [
   { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", icon: "🐄" }
 ];
 
-// PROSTE KAFELKI SILOSÓW DO LINKOWANIA WEWNĘTRZNEGO NA STRONIE GŁÓWNEJ
 const QUICK_SILOS = [
   { name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", img: "🔧" },
   { name: "Części uniwersalne", slug: "czesci-uniwersalne", img: "🔩" },
@@ -86,11 +83,10 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
   useEffect(() => {
     setIsMounted(true);
     
-    // Zegar wysyłki (Pilność / Urgency)
     const calculateTimeLeft = () => {
       const now = new Date();
       const cutoff = new Date();
-      cutoff.setHours(15, 0, 0, 0); // Kurier odjeżdża o 15:00
+      cutoff.setHours(15, 0, 0, 0); 
       if (now > cutoff) cutoff.setDate(cutoff.getDate() + 1);
       const difference = cutoff.getTime() - now.getTime();
       setTimeLeft({
@@ -102,7 +98,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
     calculateTimeLeft();
     const timer = setInterval(calculateTimeLeft, 1000);
 
-    // Silnik Dowodu Społecznego (Live Sales)
     const sales = [
       "Jan (woj. lubelskie) kupił: Filtry do Ursus C-360",
       "Gospodarstwo (Wielkopolska) kupiło: Zestaw oświetlenia LED",
@@ -113,7 +108,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
     
     let saleId = 0;
     const saleTimer = setInterval(() => {
-      if(Math.random() > 0.3) { // 70% szans na wyświetlenie co cykl
+      if(Math.random() > 0.3) { 
         setLiveSale({ text: sales[Math.floor(Math.random() * sales.length)], id: ++saleId });
         setTimeout(() => setLiveSale(null), 6000);
       }
@@ -128,7 +123,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
 
   const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
 
-  // Ustrukturyzowane Dane dla Google (SearchAction Box w wynikach)
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -145,7 +139,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* --- POWIADOMIENIE LIVE SALES (Dowód Zaufania) --- */}
+      {/* --- POWIADOMIENIE LIVE SALES --- */}
       <div className={`fixed bottom-24 md:bottom-8 left-4 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-[100] border-l-4 border-red-600 transition-all duration-500 ease-out transform ${liveSale ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -184,19 +178,16 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
       <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-4 md:py-6">
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8">
           
-          {/* Logo */}
           <div className="flex-shrink-0 w-full md:w-auto flex justify-center md:justify-start">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
               <img src="/logo-centrumrolnictwapl-2-2.webp" alt="CentrumRolnictwa.pl" className="h-10 md:h-12 w-auto transition-transform hover:scale-105 duration-300" fetchPriority="high" />
             </Link>
           </div>
 
-          {/* Szybka Wyszukiwarka - Serce Sklepu dla Rolnika */}
           <div className="flex-1 w-full max-w-3xl relative z-50">
              <SearchBar />
           </div>
 
-          {/* Koszyk i Konto (Desktop) */}
           <nav className="hidden md:flex items-center space-x-6 text-slate-800">
             <div className="hidden xl:block text-right mr-4">
                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">
@@ -225,18 +216,16 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         </div>
       </header>
 
-      {/* --- MEGA MENU DESKTOP --- */}
+      {/* --- MEGA MENU DESKTOP (Złoty Standard - Lepsze odstępy) --- */}
       <div className="hidden lg:block bg-slate-900 text-white relative z-40 shadow-md">
-        <div className="max-w-7xl mx-auto px-4">
-          <ul className="flex items-center justify-between space-x-1">
-            <li className="relative">
-               <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-red-600 uppercase text-[11px] tracking-widest hover:bg-red-700 transition-colors">
-                 <span>☰</span> Pełny Katalog 2026
-               </Link>
-            </li>
-            
+        <div className="max-w-7xl mx-auto px-4 flex items-center">
+          <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-red-600 uppercase text-[11px] tracking-widest hover:bg-red-700 transition-colors shrink-0 z-10 relative">
+            <span>☰</span> Pełny Katalog 2026
+          </Link>
+          
+          <ul className="flex flex-1 items-center justify-center gap-6 xl:gap-8 px-4">
             {MEGA_MENU_DATA.map((cat) => (
-              <li key={cat.slug} className="group flex-1 text-center py-4">
+              <li key={cat.slug} className="group text-center py-4">
                 <Link href={`/kategoria/${cat.slug}`} className="block font-bold text-slate-300 hover:text-white transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap group-hover:underline decoration-red-600 underline-offset-4">
                   <span className="mr-1.5 text-base align-middle">{cat.icon}</span> {cat.name}
                 </Link>
@@ -284,7 +273,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* --- HERO & SZYBKIE SILOSY (NOWOŚĆ SEO) --- */}
+        {/* --- HERO & WIRTUALNY GARAŻ --- */}
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
           
           <article className="lg:col-span-3 bg-slate-900 rounded-[32px] md:rounded-[48px] p-8 md:p-14 flex flex-col justify-center items-start text-white relative overflow-hidden shadow-xl border border-slate-800">
@@ -305,19 +294,21 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
             </Link>
           </article>
 
-          <aside className="lg:col-span-1 hidden lg:block">
-            <VehicleGarage />
+          <aside className="lg:col-span-1 hidden lg:block h-full">
+            <div className="h-full">
+              <VehicleGarage />
+            </div>
           </aside>
         </section>
 
-        {/* --- SILOSY SEO (Szybki Skok i Mocowanie wewnętrzne) --- */}
-        <section className="mb-16">
+        {/* --- SILOSY SEO (Dwurzędowa Elegancka Siatka) --- */}
+        <section className="mb-20">
            <h2 className="sr-only">Kategorie Główne Sklepu Rolniczego</h2>
-           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-3">
-             {QUICK_SILOS.map(silo => (
-                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} className="bg-white border border-slate-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center gap-2 hover:border-red-500 hover:shadow-lg transition-all group">
-                  <span className="text-2xl lg:text-3xl group-hover:scale-110 transition-transform">{silo.img}</span>
-                  <span className="text-[9px] font-black uppercase text-slate-600 tracking-wider group-hover:text-red-600 leading-tight">{silo.name}</span>
+           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-4">
+             {QUICK_SILOS.map((silo, index) => (
+                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} className={`bg-white border border-slate-100 p-4 lg:p-6 rounded-[24px] flex flex-col items-center justify-center text-center gap-3 hover:border-red-500 hover:shadow-lg transition-all group ${index === QUICK_SILOS.length - 1 ? 'lg:col-start-3' : ''}`}>
+                  <span className="text-3xl lg:text-4xl group-hover:scale-110 transition-transform">{silo.img}</span>
+                  <span className="text-[10px] font-black uppercase text-slate-700 tracking-wider group-hover:text-red-600 leading-tight">{silo.name}</span>
                 </Link>
              ))}
            </div>
@@ -353,7 +344,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                   <article key={product.id} className="group flex flex-col bg-white border border-slate-100 rounded-[32px] p-5 hover:shadow-xl hover:border-red-200 transition-all duration-300 relative h-full">
                     <Link href={`/produkt/${product.slug || product.id}`} className="absolute inset-0 z-10" aria-label={`Przejdź do ${product.name}`}></Link>
                     
-                    <div className="aspect-square bg-slate-50 rounded-2xl mb-4 flex items-center justify-center overflow-hidden relative border border-slate-100 p-6">
+                    <div className="aspect-[4/3] bg-slate-50 rounded-2xl mb-4 flex items-center justify-center overflow-hidden relative border border-slate-100 p-6">
                       {imageUrl ? (
                         <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 100vw, 25vw" className="object-contain group-hover:scale-110 transition-transform duration-700 mix-blend-multiply p-4" />
                       ) : (
