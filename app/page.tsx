@@ -7,13 +7,19 @@ export const revalidate = 86400;
 async function getStoreData() {
   const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
   const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN;
-  const headers = STRAPI_TOKEN ? { 'Authorization': `Bearer ${STRAPI_TOKEN}` } : {};
+  
+  // BEZPIECZNA DEKLARACJA NAGŁÓWKÓW DLA TYPESCRIPT
+  const reqHeaders: Record<string, string> = {};
+  if (STRAPI_TOKEN) {
+    reqHeaders['Authorization'] = `Bearer ${STRAPI_TOKEN}`;
+  }
 
   // 1. Pobieranie Bestsellerów
   let bestsellers = [];
   try {
     const res = await fetch(`${STRAPI_URL}/api/products?pagination[pageSize]=4&populate=*`, {
-      headers, next: { revalidate: 86400 }
+      headers: reqHeaders, 
+      next: { revalidate: 86400 }
     });
     const json = await res.json();
     if (json.data) {
@@ -33,7 +39,8 @@ async function getStoreData() {
   let articles = [];
   try {
     const res = await fetch(`${STRAPI_URL}/api/articles?pagination[pageSize]=3&populate=*`, {
-      headers, next: { revalidate: 86400 }
+      headers: reqHeaders, 
+      next: { revalidate: 86400 }
     });
     const json = await res.json();
     if (json.data) articles = json.data;
