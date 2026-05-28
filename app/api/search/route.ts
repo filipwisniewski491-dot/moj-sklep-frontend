@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// 1. ZMIANA: PRZEJŚCIE NA EDGE RUNTIME (Eliminuje opóźnienia startu serwera - "Cold Start" spada do 0ms)
-export const runtime = 'edge';
-
-// WŁĄCZAMY CACHE NA 1 GODZINĘ
+// WŁĄCZAMY CACHE NA 1 GODZINĘ (Błyskawiczne ładowanie kolejnych wejść)
 export const revalidate = 3600; 
 
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
@@ -13,7 +10,7 @@ const MEILI_KEY = process.env.MEILI_MASTER_KEY;
 
 const getAttr = (obj: any, key: string) => obj?.[key] ?? obj?.attributes?.[key] ?? null;
 
-// 2. ZMIANA: Nagłówki do wstrzyknięcia twardego cache'u na warstwie CDN Vercela
+// NAGŁÓWKI CACHE CDN - Wymuszają zapis na serwerach Vercela na całym świecie
 const corsHeaders = {
   'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
   'Content-Type': 'application/json'
@@ -109,7 +106,7 @@ export async function GET(request: Request) {
   if (allTargetCategories.size === 0) allTargetCategories.add(dbCategoryData.name);
 
   try {
-      // 3. ZMIANA: Optymalizacja zapytań w MeiliSearch (Operator IN jest znacznie szybszy niż łańcuch OR)
+      // OPTYMALIZACJA: Błyskawiczny operator IN dla MeiliSearch
       const categoriesArray = Array.from(allTargetCategories).map(c => `"${c.replace(/"/g, '\\"')}"`);
       const baseCategoryFilter = `category IN [${categoriesArray.join(", ")}]`;
       
@@ -163,7 +160,7 @@ export async function GET(request: Request) {
         };
       }) || [];
 
-      // Wrzucamy dane + nagłówki CDN, aby Vercel zapisał to na swoich węzłach globalnie
+      // ZWRACAMY WYNIK Z NAGŁÓWKAMI CDN
       return NextResponse.json({ 
         category: dbCategoryData, 
         breadcrumbs, 
