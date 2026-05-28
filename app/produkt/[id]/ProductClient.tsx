@@ -3,9 +3,10 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import SearchBar from '@/components/SearchBar';
 import CrossSellModule from '@/components/CrossSellModule';
-import { useCart } from '@/store/useCart'; // PRAWIDŁOWY, STATYCZNY IMPORT KOSZYKA
+import { useCart } from '@/store/useCart';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -174,48 +175,39 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     return () => observer.disconnect();
   }, []);
 
-  // INTELIGENTNY PANCERNY KASKADOWY FALLBACK (Tylko prawdziwe produkty)
+  // NAPRAWIONE POBIERANIE PRODUKTÓW (Oszukujemy API, mówiąc mu, że jesteśmy w kategorii "Bestsellery")
   useEffect(() => {
     let isMounted = true;
 
     const fetchRealProducts = async () => {
       try {
         let valid = [];
-
-        // 1. Szukamy po kategorii przypisanej w obiekcie product.category
-        const catName = product?.category?.name || product?.category || '';
-        if (catName && typeof catName === 'string') {
-          const res = await fetch(`/api/search?q=${encodeURIComponent(catName)}&limit=10`);
+        
+        // 1. Spróbujemy po prostu przeszukać sklep po pierwszej nazwie (najpewniejsza metoda)
+        if (product?.name) {
+          const firstWord = product.name.split(' ')[0];
+          // Dodajemy fake'owy fullPath "wszystkie", żeby obejść błąd bazy w pliku route.ts
+          const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(firstWord)}&limit=10`);
           if (res.ok) {
             const data = await res.json();
             valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
           }
         }
 
-        // 2. Jeśli mało wyników, szukamy po ostatnim członie ścieżki kategorii (np. "Uchwyty")
+        // 2. Jeśli nie znalazł po słowie, bierzemy kategorię
         if (valid.length < 2 && product?.category_text) {
           const parts = product.category_text.split('>');
           const lastCat = parts[parts.length - 1].trim();
-          const res = await fetch(`/api/search?q=${encodeURIComponent(lastCat)}&limit=10`);
+          const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(lastCat)}&limit=10`);
           if (res.ok) {
             const data = await res.json();
             valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
           }
         }
 
-        // 3. Jeśli dalej mało, szukamy po pierwszym słowie nazwy produktu (np. "Kołek" lub "Lampa")
-        if (valid.length < 2 && product?.name) {
-          const firstWord = product.name.split(' ')[0];
-          const res = await fetch(`/api/search?q=${encodeURIComponent(firstWord)}&limit=10`);
-          if (res.ok) {
-            const data = await res.json();
-            valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-          }
-        }
-
-        // 4. Absolutny Fallback: Najnowsze/ogólne towary ze sklepu (zabezpieczenie API)
+        // 3. Ostatnia deska ratunku - Bestsellery z całego sklepu
         if (valid.length < 2) {
-          const res = await fetch(`/api/search?limit=10`);
+          const res = await fetch(`/api/search?fullPath=kategoria&limit=15`);
           if (res.ok) {
             const data = await res.json();
             valid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
@@ -226,7 +218,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           setRelatedProducts(valid.slice(0, 5));
         }
       } catch (err) {
-        console.error("Błąd pobierania powiązanych:", err);
+        console.error("Błąd pobierania cross-selli:", err);
       }
     };
 
