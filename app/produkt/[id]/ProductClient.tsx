@@ -266,7 +266,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0 relative">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-44 md:pb-0 relative">
       
       <Header />
 
@@ -564,7 +564,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         )}
       </main>
 
-      <div className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+76px)] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-[150%] md:translate-y-[120%]'}`}>
+      {/* 🚀 NOWOŚĆ: ZADOKOWANY PŁYWAJĄCY PASEK KOSZYKA (BRAK SZPARY NA MOBILE) */}
+      <div className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px)] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-5px_20px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-2.5 md:py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-[150%] md:translate-y-[120%]'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="hidden md:flex items-center gap-4">
             {mainImageUrl && (

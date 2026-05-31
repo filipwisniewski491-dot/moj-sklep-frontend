@@ -40,8 +40,20 @@ export default function Header() {
 
   return (
     <>
-      <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
-        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
+      {/* 🚀 NOWOŚĆ: PASEK INFORMACYJNY WIDOCZNY RÓWNIEŻ NA MOBILE */}
+      <div className="bg-slate-900 sm:bg-slate-50 text-white sm:text-slate-600 py-2 px-2 sm:px-4 font-bold relative z-[60] border-b border-slate-800 sm:border-slate-200">
+        
+        {/* WIDOK MOBILE: Skondensowany przekaz (Urgency + Darmowa Dostawa) */}
+        <div className="sm:hidden flex justify-center items-center text-[9px] uppercase tracking-widest text-center">
+           <span className="text-amber-400 mr-1.5 text-[11px]">⏳</span>
+           <span>{isShippingToday ? 'Zamów TERAZ = Wysyłka DZIŚ' : 'Wysyłka JUTRO RANO'}</span>
+           <span className="mx-2 text-slate-600">|</span>
+           <span className="text-emerald-400 mr-1 text-[11px]">🚚</span> 
+           <span>Darmowa od 500 zł</span>
+        </div>
+
+        {/* WIDOK DESKTOP: Rozbudowany pasek informacyjny */}
+        <div className="hidden sm:flex max-w-7xl mx-auto flex-row justify-between items-center text-center gap-3">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
             <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
               <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
@@ -66,7 +78,7 @@ export default function Header() {
           
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300">
-              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png" alt="Sygnet" className="h-9 sm:h-11 md:h-14 w-auto object-contain mb-0.5" fetchPriority="high" />
+              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="Sygnet" className="h-9 sm:h-11 md:h-14 w-auto object-contain mb-0.5" fetchPriority="high" />
               <span className="font-black text-[11px] sm:text-xs md:text-sm tracking-tighter text-slate-900 leading-none uppercase">
                 CentrumRolnictwa<span className="text-red-600">.pl</span>
               </span>
@@ -94,7 +106,7 @@ export default function Header() {
             <button onClick={() => setCartOpen(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
                  {cartTotalItems > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartTotalItems}</div>}
-                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
                 {cartTotalItems > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
