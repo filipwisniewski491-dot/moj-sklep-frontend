@@ -1,31 +1,46 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useCart } from '@/store/useCart'; 
 import SearchBar from '@/components/SearchBar';
-import { useCart } from '@/store/useCart';
 import MegaMenu from '@/components/MegaMenu';
 import MobileBottomNav from '@/components/MobileBottomNav';
-import { getUserTier, CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
-  const optimizedWidth = Math.min(width, 750);
-  return `${cleanSrc}?width=${optimizedWidth}&format=webp&quality=65&sharpen=false`;
+  return `${cleanSrc}?width=${width}&format=webp`;
 };
 
 const generateSlug = (text: string) => {
   if (!text) return '';
   return text.toLowerCase()
-    .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
-    .replace(/ł/g, 'l').replace(/ń/g, 'n').replace(/ó/g, 'o')
-    .replace(/ś/g, 's').replace(/ź/g, 'z').replace(/ż/g, 'z')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
+    .replace(/[ą]/g, 'a').replace(/[ć]/g, 'c').replace(/[ę]/g, 'e')
+    .replace(/[ł]/g, 'l').replace(/[ń]/g, 'n').replace(/[ó]/g, 'o')
+    .replace(/[ś]/g, 's').replace(/[źż]/g, 'z')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
     .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+};
+
+const parseMarkdown = (text: string) => {
+  if (!text) return '';
+  let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl lg:text-2xl font-black mt-8 mb-4 text-slate-900">$1</h2>');
+  html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" class="text-red-600 hover:underline font-bold">$1</a>');
+  html = html.replace(/^\* (.*$)/gim, '<li class="ml-5 list-disc marker:text-red-600 mb-2">$1</li>');
+  html = html.replace(/\n\n/gim, '<br /><br />');
+  return html;
+};
+
+const capitalizeWords = (str: string) => {
+  if (!str) return '';
+  return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 };
 
 const QUICK_SILOS = [
@@ -41,250 +56,416 @@ const QUICK_SILOS = [
   { name: "Materiały eksploatacyjne", slug: "materialy-eksploatacyjne", img: "📦" }
 ];
 
-const MiniProductCard = ({ product }: { product: any }) => {
-  const { addItem, setIsOpen } = useCart();
-  const imageUrl = product.image || product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
+const ProductCard = ({ product, isListView, idx }: { product: any, isListView: boolean, idx: number }) => {
+  const { addItem, setIsOpen } = useCart() as any;
+  const [qty, setQty] = useState(1);
+
+  const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
   const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
+  const netPrice = price / 1.23; 
   const sku = product.sku || "BRAK SKU";
+  
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const cutoffHour = 15; 
+  const isShippingToday = currentHour < cutoffHour;
+  const hoursLeft = cutoffHour - 1 - currentHour;
+  const minutesLeft = 60 - currentMinutes;
+
+  const pseudoRandom = (str: string) => Array.from(str).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = pseudoRandom(sku);
+  const rating = (4.5 + (hash % 6) / 10).toFixed(1); 
+  const reviewsCount = 3 + (hash % 45); 
+  const isLowStock = (hash % 5) === 0; 
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); 
     e.stopPropagation();
-    addItem({ id: product.documentId || product.id || sku, name: product.name, price: price, image: imageUrl || '', quantity: 1, crossSell: [], category: '' });
-    if (setIsOpen) setIsOpen(true);
+    addItem({ id: product.id || sku, name: product.name, price: price, image: imageUrl || '', quantity: qty, crossSell: [], category: '' });
+    setIsOpen(true);
   };
 
   return (
-    <div className="group bg-white border border-slate-100 rounded-[32px] hover:shadow-xl transition-all duration-300 flex flex-col h-full overflow-hidden relative">
-      <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2 relative z-0">
-        <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4">
-          {imageUrl ? (
-            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
-          ) : (
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Brak zdjęcia</span>
-          )}
+    <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
+      <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do ${product.name}`} className="absolute inset-0 z-0"></Link>
+
+      <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
+        {isShippingToday ? (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+              Wyślemy za {hoursLeft}h {minutesLeft}m
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-50 text-orange-700 border border-orange-100 shadow-sm">
+            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Wysyłka rano</span>
+          </div>
+        )}
+      </div>
+
+      <div className={`bg-slate-50 rounded-[24px] lg:rounded-[32px] overflow-hidden relative flex items-center justify-center border border-slate-50 shadow-inner shrink-0 pointer-events-none ${isListView ? 'w-28 h-28 lg:w-36 lg:h-36 p-4' : 'aspect-square mb-3 lg:mb-4 p-4 lg:p-8 w-full'}`}>
+        {imageUrl ? (
+          <div className="relative w-full h-full">
+            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name || 'Zdjęcie produktu'} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" priority={idx < 4} className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center opacity-20 group-hover:opacity-40 transition-opacity">
+            <svg className="w-8 h-8 lg:w-16 lg:h-16 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94...z M12,15.6...z"/></svg>
+            <span className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center">Brak zdjęcia</span>
+          </div>
+        )}
+        <div className="absolute bottom-2 left-2 lg:bottom-3 lg:left-3 bg-white/95 backdrop-blur-md px-2 py-1 rounded-full text-[7px] lg:text-[8px] font-black uppercase tracking-widest border border-slate-200 text-slate-500 max-w-[85%] truncate shadow-sm">
+          SKU: {sku}
         </div>
-        <div className="px-3 flex-1 flex flex-col">
-          <h3 className="font-bold text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs tracking-tight">{product.name}</h3>
+      </div>
+      
+      <div className={`flex flex-col pt-1 w-full pointer-events-none ${isListView ? 'justify-center pr-3 lg:pr-4' : 'px-3 pb-4 lg:px-6 lg:pb-5 flex-1'}`}>
+        
+        <div className="flex justify-between items-center mb-1.5">
+          <div className="flex items-center gap-1 text-[10px] lg:text-[11px] text-amber-400 font-black">
+            ★ {rating} <span className="text-slate-400 font-medium text-[9px] lg:text-[10px]">({reviewsCount})</span>
+          </div>
+          {isLowStock && <span className="text-[9px] lg:text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md shadow-sm">Zostały {1 + (hash % 3)} szt.</span>}
         </div>
-      </Link>
-      <div className="px-5 pb-5 pt-3 border-t border-slate-50 flex items-end justify-between bg-white mt-auto relative z-20 pointer-events-auto">
-        <div className="flex flex-col">
-          <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
+
+        <h2 className="font-black text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs lg:text-sm tracking-normal">{product.name}</h2>
+        <div className={`flex ${isListView ? 'flex-row items-center justify-between gap-6' : 'flex-col gap-3'} pt-3 lg:pt-4 border-t border-slate-50 w-full pointer-events-auto z-10 ${isListView ? 'mt-0' : 'mt-auto'}`}>
+          <div className="flex flex-col">
+            <span className="text-[8px] lg:text-[9px] font-black text-slate-500 mb-0.5 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(netPrice)} zł netto</span>
+            <span className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)} <span className="text-[9px] lg:text-xs font-bold text-slate-500">zł</span></span>
+          </div>
+          <div className={`flex items-center gap-1.5 ${isListView ? 'w-[200px]' : 'w-full'}`}>
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl h-10 lg:h-11 px-1 flex-1">
+              <button aria-label="Zmniejsz ilość" onClick={(e) => { e.preventDefault(); setQty(Math.max(1, qty - 1)); }} className="w-1/3 h-full font-black text-slate-500 hover:text-red-600 flex items-center justify-center p-2 cursor-pointer">-</button>
+              <input aria-label="Ilość" type="number" value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-1/3 text-center bg-transparent text-[10px] lg:text-xs font-black text-slate-900 outline-none appearance-none p-0 m-0" />
+              <button aria-label="Zwiększ ilość" onClick={(e) => { e.preventDefault(); setQty(qty + 1); }} className="w-1/3 h-full font-black text-slate-500 hover:text-emerald-600 flex items-center justify-center p-2 cursor-pointer">+</button>
+            </div>
+            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="bg-slate-900 text-white px-3 lg:px-4 h-10 lg:h-11 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:scale-105 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50">
+              <span className="text-sm">🛒</span><span className="ml-1.5 hidden min-[360px]:inline">Dodaj</span>
+            </button>
+          </div>
         </div>
-        <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50">
-          <span className="text-sm">🛒</span>
-        </button>
       </div>
     </div>
   );
 };
 
-export default function ProductClient({ product, fullUrl }: { product: any, fullUrl: string }) {
-  const [selectedImgIdx, setSelectedImgIdx] = useState(0); 
-  const [showSticky, setShowSticky] = useState(false);
-  const [timeLeftStr, setTimeLeftStr] = useState('');
-  const [isShippingToday, setIsShippingToday] = useState(true);
-  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
-  const [skuCopied, setSkuCopied] = useState(false);
+const ProductSkeleton = ({ isListView }: { isListView: boolean }) => ( <div className={`bg-white border border-slate-100 rounded-[40px] p-4 flex animate-pulse ${isListView ? 'flex-row gap-6 items-center w-full' : 'flex-col h-full'}`}><div className={`bg-slate-100 rounded-[32px] ${isListView ? 'w-24 h-24 flex-shrink-0' : 'aspect-square mb-4 w-full'}`} /><div className="px-2 pb-2 space-y-3 flex-1 flex flex-col w-full"><div className="h-4 bg-slate-200 rounded-md w-3/4" /><div className="h-3 bg-slate-100 rounded-md w-1/2" /><div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center w-full"><div className="space-y-1.5"><div className="h-3 bg-slate-100 rounded-md w-12" /><div className="h-6 bg-slate-200 rounded-md w-20" /></div><div className="w-12 h-12 bg-slate-200 rounded-2xl" /></div></div></div> );
 
-  const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
+const SearchableSelect = ({ label, options, value, onChange, placeholder }: any) => { const [isOpen, setIsOpen] = useState(false); const [searchTerm, setSearchTerm] = useState(''); const wrapperRef = useRef<HTMLDivElement>(null); useEffect(() => { function handleClickOutside(event: MouseEvent) { if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setIsOpen(false); } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, []); const sortedOptions = Object.entries(options).sort((a, b) => (b[1] as number) - (a[1] as number)); const filteredOptions = sortedOptions.filter(([val]) => val.toLowerCase().includes(searchTerm.toLowerCase())); return ( <div className="w-full relative" ref={wrapperRef}> <h3 className="text-slate-500 font-black uppercase text-[10px] tracking-widest mb-2">{label}</h3> <button aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3 flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value || placeholder}</span> <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg> </button> {isOpen && ( <div className="absolute z-[99] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"> <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md"> <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-2.5 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} /> </div> <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white"> <button aria-label="Wyczyść wybór" className={`w-full text-left px-4 py-3 text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</button> {filteredOptions.length === 0 ? ( <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div> ) : ( filteredOptions.map(([val, count]) => ( <button aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-3 text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}> <span className="line-clamp-1 pr-2">{val}</span> <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 border border-slate-200">{count as number}</span> </button> )) )} </div> </div> )} </div> );};
+
+const FilterMenuContent = ({ searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath }: any) => (
+  <div className="space-y-6">
+    <div className="mb-6 pb-6 border-b border-slate-100">
+      <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
+      <div className="relative">
+        <input aria-label="Wyszukaj produkt po numerze OEM lub nazwie" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
+        <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} className="absolute right-2 top-2 bottom-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[44px]">🔍</button>
+      </div>
+    </div>
+    <div className="mb-6 pb-6 border-b border-slate-100">
+      <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
+      <div className="space-y-3">
+        <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={garageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
+        <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={garageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
+      </div>
+    </div>
+    <div className="mb-6 border-b border-slate-100 pb-6">
+      <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-500 mb-3">Zakres Cenowy (zł)</h4>
+      <div className="flex gap-2 items-center">
+        <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
+        <span className="text-slate-500 font-black">-</span>
+        <input aria-label="Cena maksymalna" type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
+      </div>
+      <button aria-label="Zastosuj filtr cenowy" onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[44px]">Zastosuj cenę</button>
+    </div>
+    <div className="space-y-8">
+      {techFilterKeys.map((filterKey: string) => renderFilterBlock(filterKey))}
+    </div>
+    <div className="mt-8 bg-slate-900 p-5 rounded-2xl relative overflow-hidden">
+       <div className="absolute -right-4 -bottom-4 text-6xl opacity-10">📞</div>
+       <h4 className="text-white font-black uppercase text-sm mb-2 relative z-10">Nie możesz znaleźć części?</h4>
+       <p className="text-slate-400 text-xs mb-4 relative z-10 leading-relaxed">Nasz doradca techniczny dobierze dla Ciebie zamiennik w 3 minuty. Zadzwoń do nas podając objawy lub numer OEM.</p>
+       <a href="tel:+48123456789" aria-label="Zadzwoń do doradcy" className="block w-full bg-red-600 hover:bg-red-500 text-white text-center py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-md relative z-10 min-h-[48px]">
+         📞 Zadzwoń teraz
+       </a>
+    </div>
+  </div>
+);
+
+export default function CategoryClient({ initialData, initialFilters, fullPath }: { initialData: any, initialFilters: any, fullPath: string }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { items, setIsOpen: setCartOpen } = useCart() as any;
+  const cartTotalItems = items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
   
-  const { addItem, setIsOpen, items } = useCart();
   const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
   const freeShippingThreshold = 500;
   const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
+
+  const [categoryData, setCategoryData] = useState<any>(initialData?.category || null);
+  const [products, setProducts] = useState<any[]>(initialData?.products || []);
+  const [globalFilters, setGlobalFilters] = useState<Record<string, Record<string, number>>>(initialFilters || {});
+  
+  const [narrowedFilters, setNarrowedFilters] = useState<Record<string, Record<string, number>>>(initialData?.narrowedFilters || {});
+  
+  const [breadcrumbs, setBreadcrumbs] = useState<any[]>(initialData?.breadcrumbs || []);
+  const [subcategories, setSubcategories] = useState<string[]>(initialData?.subcategories || []);
+  const [depth, setDepth] = useState<number>(initialData?.depth || 1);
+  const [totalCount, setTotalCount] = useState(initialData?.totalCount || 0);
+
+  const [loading, setLoading] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(24);
+  const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
+  const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
+  const [searchQ, setSearchQ] = useState(searchParams.get('q') || '');
+  const [filterSearchQuery, setFilterSearchQuery] = useState<Record<string, string>>({});
+
+  const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({});
+  const [savedGarage, setSavedGarage] = useState<{ make: string; model: string } | null>(null);
+  const [isListView, setIsListView] = useState(false);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [showAllSubcats, setShowAllSubcats] = useState(false);
+  const [activeFaq, setActiveFaq] = useState<number | null>(null); 
+
+  const isFirstRender = useRef(true);
+  
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isMounted, setIsMounted] = useState(false);
 
-  const userTotalSpent = 105000; 
-  const { currentTier } = getUserTier(userTotalSpent);
+  const rawBrandLabel = searchParams.get('Pasuje do marki');
+  const rawModelLabel = searchParams.get('Pasuje do modelu');
+  
+  const brandLabel = rawBrandLabel ? capitalizeWords(rawBrandLabel) : null;
+  const modelLabel = rawModelLabel ? capitalizeWords(rawModelLabel) : null;
+  
+  let displayH1 = categoryData?.h1_dynamic;
+  if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
+  if (!displayH1) displayH1 = "Kategoria";
+  
+  let displayTopSeo = categoryData?.top_seo_text || "";
+
+  if (brandLabel) {
+    if (!displayH1.toLowerCase().includes(brandLabel.toLowerCase())) {
+      displayH1 += ` DO ${brandLabel.toUpperCase()}`;
+      if (modelLabel) displayH1 += ` ${modelLabel.toUpperCase()}`;
+    }
+    if (displayTopSeo && !displayTopSeo.toLowerCase().includes(brandLabel.toLowerCase())) {
+        displayTopSeo = `${displayTopSeo} Zobacz wyselekcjonowane, w pełni kompatybilne zamienniki i oryginały pasujące bezpośrednio do maszyn ${brandLabel} ${modelLabel || ''}.`;
+    } else if (!displayTopSeo) {
+        displayTopSeo = `Zobacz wyselekcjonowane, w pełni kompatybilne zamienniki i oryginały pasujące bezpośrednio do maszyn ${brandLabel} ${modelLabel || ''}.`;
+    }
+  }
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date();
-      const target = new Date();
-      target.setHours(14, 0, 0, 0);
-      if (now.getHours() >= 14) target.setDate(target.getDate() + 1);
-
-      const diff = target.getTime() - now.getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-      setTimeLeftStr(`${hours}g ${minutes}m`);
-      setIsShippingToday(now.getHours() < 14);
+      const cutoff = new Date();
+      cutoff.setHours(15, 0, 0, 0); 
+      if (now > cutoff) cutoff.setDate(cutoff.getDate() + 1);
+      const difference = cutoff.getTime() - now.getTime();
+      setTimeLeft({
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((difference / 1000 / 60) % 60),
+        seconds: Math.floor((difference / 1000) % 60),
+      });
     };
     calculateTimeLeft();
-    const interval = setInterval(calculateTimeLeft, 60000);
-    return () => clearInterval(interval);
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setShowSticky(!entry.isIntersecting);
-      },
-      { root: null, rootMargin: '0px', threshold: 0 }
-    );
+    if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isMobileFiltersOpen]);
 
-    if (mainBuyButtonRef.current) {
-      observer.observe(mainBuyButtonRef.current);
+  useEffect(() => {
+    const garage = localStorage.getItem('centrum_rolnictwa_garage');
+    if (garage) {
+      const parsed = JSON.parse(garage);
+      setSavedGarage(parsed);
+      if (!searchParams.get('Pasuje do marki') && !searchParams.get('Pasuje do modelu')) {
+        const currentParams = new URLSearchParams(searchParams.toString());
+        currentParams.set('Pasuje do marki', parsed.make);
+        currentParams.set('Pasuje do modelu', parsed.model);
+        router.push(`/kategoria/${fullPath}?${currentParams.toString()}`, { scroll: false });
+      }
     }
-
-    return () => observer.disconnect();
-  }, []);
+  }, [fullPath]);
 
   useEffect(() => {
-    let isMounted = true;
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
 
-    const fetchRelated = async () => {
+    async function fetchAllData() {
+      setLoading(true);
       try {
-        let validProducts: any[] = [];
+        const queryStr = new URLSearchParams(searchParams.toString());
+        queryStr.set('fullPath', fullPath);
+        queryStr.set('limit', displayLimit.toString());
 
-        if (product?.crossSell && Array.isArray(product.crossSell) && product.crossSell.length > 0) {
-          const res = await fetch(`/api/cross-sell?skus=${product.crossSell.join(',')}`);
-          if (res.ok) {
-            const data = await res.json();
-            validProducts = data.products || [];
-          }
-        }
+        const res = await fetch(`/api/search?${queryStr.toString()}`);
+        const json = await res.json();
 
-        if (validProducts.length < 5) {
-          let searchValid: any[] = [];
-          
-          if (product?.name) {
-            const firstWord = product.name.split(' ')[0];
-            const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(firstWord)}&limit=10`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
-          }
-
-          if (searchValid.length < 2 && product?.category_text) {
-            const parts = product.category_text.split('>');
-            const lastCat = parts[parts.length - 1].trim();
-            const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(lastCat)}&limit=10`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
-          }
-
-          if (searchValid.length < 2) {
-            const res = await fetch(`/api/search?fullPath=kategoria&limit=15`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
-          }
-
-          const existingSkus = validProducts.map((p: any) => p.sku);
-          const filteredSearch = searchValid.filter((p: any) => !existingSkus.includes(p.sku));
-
-          validProducts = [...validProducts, ...filteredSearch];
-        }
-
-        if (isMounted && validProducts.length > 0) {
-          setRelatedProducts(validProducts.slice(0, 5));
-        }
-      } catch (err) {
-        console.error("Błąd pobierania cross-selli:", err);
-      }
-    };
-
-    if (product) fetchRelated();
-
-    return () => { isMounted = false; };
-  }, [product]);
-
-  const displayImages = useMemo(() => {
-    let cdnImages: string[] = [];
-    if (product.external_images) {
-      if (Array.isArray(product.external_images)) cdnImages = product.external_images;
-      else if (typeof product.external_images === 'string') {
-        try { cdnImages = JSON.parse(product.external_images); } catch (e) {}
-      }
+        setCategoryData(json.category || null);
+        setProducts(json.products || []);
+        setGlobalFilters(json.filters || {});
+        setNarrowedFilters(json.narrowedFilters || {});
+        setBreadcrumbs(json.breadcrumbs || []);
+        setSubcategories(json.subcategories || []);
+        setTotalCount(json.totalCount || 0);
+        setDepth(json.depth || 1);
+      } catch (error) { console.error("Błąd pobierania:", error); } finally { setLoading(false); }
     }
-    const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
-    return cdnImages.length > 0 ? cdnImages : fallbackImages;
-  }, [product.external_images, product.images]);
+    fetchAllData();
+  }, [fullPath, searchParams, displayLimit]);
 
-  const mainImageUrl = displayImages[selectedImgIdx] || null;
-  const seoDescription = product.seo_description || product.description || '';
-  const symptoms = product.symptoms;
-  const expertAdvice = product.expert_advice;
-
-  const faq = useMemo(() => typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [], [product.faq]);
-  const attributes = useMemo(() => typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {}, [product.attributes]);
-
-  const breadcrumbPath = useMemo((): string[] => {
-    if (product.category_text) {
-      return product.category_text.split('>').map((s: string) => s.trim()).filter(Boolean);
-    }
-    return ["Kategoria"];
-  }, [product.category_text]);
-
-  const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
-  const priceAfterDiscount = numPrice * (1 - currentTier.discountPercent);
-  const cashbackEarned = priceAfterDiscount * CONSTANT_CASHBACK_PERCENT;
-
-  const [mainPrice, centsPrice] = priceAfterDiscount.toFixed(2).split('.');
-  const hasCents = centsPrice !== '00';
-
-  const handleAddToCartMain = () => {
-    if (addItem) {
-      addItem({ id: product.documentId || product.id || product.sku || 'main', name: product.name, price: priceAfterDiscount, image: mainImageUrl || '', quantity: 1, crossSell: product.crossSell || [], category: product.category || '' });
-      if (setIsOpen) setIsOpen(true);
-    }
+  const clearGarage = () => {
+    localStorage.removeItem('centrum_rolnictwa_garage');
+    setSavedGarage(null);
+    const currentParams = new URLSearchParams(searchParams.toString());
+    currentParams.delete('Pasuje do marki');
+    currentParams.delete('Pasuje do modelu');
+    router.push(`/kategoria/${fullPath}?${currentParams.toString()}`, { scroll: false });
   };
 
-  const handleCopySku = () => {
-    if(product.sku) {
-      navigator.clipboard.writeText(product.sku);
-      setSkuCopied(true);
-      setTimeout(() => setSkuCopied(false), 2000);
-    }
+  const updateUrlParams = (key: string, value: string | null) => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    if (value === null || value === '') currentParams.delete(key);
+    else currentParams.set(key, value);
+    router.push(`/kategoria/${fullPath}?${currentParams.toString()}`, { scroll: false });
   };
 
-  const getCleanCompatibility = () => {
-    const rawMatch = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Pasuje do'];
-    const rawModel = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
-    const ignoredBrands = ['GRANIT', 'KRAMP', 'GRENE', 'BAP', 'BEPCO', 'WARYŃSKI', 'ROLMUS', 'KERBL', 'SAPHIR Oryginał', 'Saphir'];
+  const applyPriceFilter = () => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    if (minPrice) currentParams.set('minPrice', minPrice); else currentParams.delete('minPrice');
+    if (maxPrice) currentParams.set('maxPrice', maxPrice); else currentParams.delete('maxPrice');
+    router.push(`/kategoria/${fullPath}?${currentParams.toString()}`, { scroll: false });
+    setIsMobileFiltersOpen(false);
+  };
+
+  const garageMake = globalFilters['Pasuje do marki'] || globalFilters['Marka maszyny'] || globalFilters['marka maszyny'] || {};
+  const garageModel = globalFilters['Pasuje do modelu'] || {};
+
+  let techFilters = { ...globalFilters };
+  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu'];
+
+  Object.keys(techFilters).forEach(key => {
+    const lowerKey = key.toLowerCase();
+    if (excludeKeys.includes(lowerKey) || lowerKey.includes('waga') || Object.keys(techFilters[key]).length < 2) {
+       delete techFilters[key];
+    }
+  });
+
+  const filterCoverage = Object.keys(techFilters).map(key => {
+    const count = Object.values(techFilters[key]).reduce((sum, c) => sum + c, 0);
+    return { key, count };
+  }).sort((a, b) => b.count - a.count);
+
+  let techFilterKeys: string[] = [];
+  const hasTypProduktu = filterCoverage.find(f => f.key.toLowerCase() === 'typ produktu' || f.key.toLowerCase() === 'typ');
+  if (hasTypProduktu) techFilterKeys.push(hasTypProduktu.key);
+
+  const limit = depth === 1 ? 5 : (depth === 2 ? 6 : 8);
+
+  for (const f of filterCoverage) {
+     if (techFilterKeys.length >= (hasTypProduktu ? limit + 1 : limit)) break;
+     if (!techFilterKeys.includes(f.key)) techFilterKeys.push(f.key);
+  }
+
+  let activeFiltersCount = 0;
+  searchParams.forEach((val, key) => { if (!['limit', 'sort', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
+
+  const renderFilterBlock = (filterKey: string) => {
+    const filterValues = techFilters[filterKey];
+    if (!filterValues) return null;
+    const searchQuery = filterSearchQuery[filterKey]?.toLowerCase() || '';
     
-    let isMatchValid = rawMatch && !ignoredBrands.some(b => rawMatch.toUpperCase().includes(b.toUpperCase()));
-    let isModelValid = rawModel && !ignoredBrands.some(b => rawModel.toUpperCase().includes(b.toUpperCase()));
+    const sortedEntries = Object.entries(filterValues).sort((a, b) => b[1] - a[1]);
+    const matchedEntries = sortedEntries.filter(([val]) => val.toLowerCase().includes(searchQuery));
+    
+    const isLongList = sortedEntries.length > 5;
+    const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
+    
+    return (
+      <div key={filterKey} className="space-y-3">
+        <div className="flex justify-between items-center">
+          <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
+        </div>
+        
+        {isLongList && (
+          <div className="relative mb-3">
+            <input aria-label={`Szukaj w filtrze ${filterKey}`} type="text" placeholder={`Szukaj w ${filterKey.toLowerCase()}...`} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2.5 text-[10px] font-bold text-slate-700 outline-none focus:border-red-600 transition-colors" value={filterSearchQuery[filterKey] || ''} onChange={(e) => setFilterSearchQuery(prev => ({ ...prev, [filterKey]: e.target.value }))} />
+            <span className="absolute right-3 top-2.5 text-slate-400 text-xs">🔍</span>
+          </div>
+        )}
+        
+        <div className={`space-y-2 ${isExpanded ? 'max-h-[300px] overflow-y-auto pr-2 custom-scrollbar' : ''}`}>
+          {matchedEntries.length === 0 ? (
+            <div className="text-[9px] text-slate-500 uppercase font-black tracking-widest py-2">Brak wyników</div>
+          ) : (
+            (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, count]) => {
+              
+              const isChecked = searchParams.get(filterKey) === val;
+              const activeCount = narrowedFilters[filterKey]?.[val] || 0;
+              const isDisabled = activeCount === 0 && !isChecked;
 
-    if (!isMatchValid && !isModelValid) return null;
-    return `${isMatchValid ? rawMatch : ''} ${isModelValid ? rawModel : ''}`.trim();
+              return (
+                <label key={val} className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors group ${isDisabled ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); if (isDisabled) return; const currentVal = searchParams.get(filterKey); updateUrlParams(filterKey, currentVal === val ? null : val); }}>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-200 bg-white group-hover:border-red-400'}`}>
+                      {isChecked && <div className="w-2.5 h-2.5 bg-red-600 rounded-[2px]"></div>}
+                    </div>
+                    <span className={`text-sm transition-colors truncate ${isChecked ? 'text-red-700 font-black' : 'text-slate-600 font-medium group-hover:text-slate-900'}`}>{val}</span>
+                  </div>
+                  <div className="flex items-center gap-2 pl-2 flex-shrink-0">
+                    {isChecked ? (
+                      <span className="text-[9px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1 bg-red-100/50 px-2 py-1 rounded-md hover:bg-red-200 transition-colors">
+                        ✕ Usuń
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-black text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{isDisabled ? 0 : activeCount}</span>
+                    )}
+                  </div>
+                </label>
+              );
+            })
+          )}
+        </div>
+
+        {isLongList && !isExpanded && (<button aria-label="Pokaż więcej opcji filtru" onClick={() => setExpandedFilters(prev => ({ ...prev, [filterKey]: true }))} className="text-[10px] p-2 font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center gap-1 w-full pt-2 border-t border-slate-50">+ Pokaż więcej ({sortedEntries.length - 5})</button>)}
+        {isLongList && isExpanded && (<button aria-label="Zwiń opcje filtru" onClick={() => { setExpandedFilters(prev => ({ ...prev, [filterKey]: false })); setFilterSearchQuery(prev => ({ ...prev, [filterKey]: '' })); }} className="text-[10px] p-2 font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center gap-1 w-full pt-2 border-t border-slate-50">- Zwiń listę</button>)}
+      </div>
+    );
   };
 
-  const cleanCompatibility = getCleanCompatibility();
-
-  const bundleProduct = relatedProducts.length > 0 ? relatedProducts[0] : null;
-  const bundleProductPrice = bundleProduct ? (typeof bundleProduct.price === 'number' ? bundleProduct.price : parseFloat(bundleProduct.price) || 0) : 0;
-  const bundleProductPriceAfterDiscount = bundleProductPrice * (1 - currentTier.discountPercent);
-  const bundleTotalPrice = bundleProduct ? (priceAfterDiscount + bundleProductPriceAfterDiscount) : 0;
-  const bundleDiscountPrice = bundleProduct ? (bundleTotalPrice * 0.95) : 0;
-
-  const othersViewedProducts = relatedProducts.slice(1, 5);
-
-  const handleAddBundle = () => {
-    if (addItem && bundleProduct) {
-      addItem({ id: product.documentId || product.id || product.sku || 'main', name: product.name, price: priceAfterDiscount, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
-      const bundleImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
-      addItem({ id: bundleProduct.documentId || bundleProduct.id || bundleProduct.sku || 'bundle', name: bundleProduct.name, price: bundleProductPriceAfterDiscount * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
-      if (setIsOpen) setIsOpen(true);
-    }
-  };
+  const sharedFilterProps = { searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath };
 
   return (
-    {/* POPRAWKA: Zwiększyłem pb do 36, by główna treść nie chowała się pod nawigacją i lepką belką */}
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0 relative">
+    {/* POPRAWKA Z MARGINESEM DOLNYM (pb-36) ŻEBY STOPKA NIE CHOWAŁA SIĘ POD MENU */}
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       
+      {isMobileFiltersOpen && (
+        <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
+           <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
+              <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
+              <button aria-label="Zamknij filtry" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[44px]">✕ Zamknij</button>
+           </div>
+           
+           <div className="flex-1 overflow-y-auto p-5 pb-24 custom-scrollbar bg-white">
+              <FilterMenuContent {...sharedFilterProps} />
+           </div>
+           
+           <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+               <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[48px]">Pokaż {totalCount} wyników ➔</button>
+           </div>
+        </div>
+      )}
+
       <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
@@ -296,11 +477,9 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             </span>
           </div>
           <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
-            <span className="text-[10px] uppercase tracking-widest hidden md:inline">
-              {isShippingToday ? 'Wysyłamy dzisiaj. Zamów w:' : 'Wysyłka jutro. Zamów w:'}
-            </span>
+            <span className="text-[10px] uppercase tracking-widest hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
             <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest">
-              ⏳ {isMounted ? timeLeftStr : '00g 00m'}
+              ⏳ {isMounted ? `${String(timeLeft.hours).padStart(2, '0')}:${String(timeLeft.minutes).padStart(2, '0')}:${String(timeLeft.seconds).padStart(2, '0')}` : '00:00:00'}
             </span>
           </div>
         </div>
@@ -325,26 +504,19 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                  <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
                </div>
             </div>
-            
-            <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group relative">
-              {currentTier.level > 1 && (
-                <div className="absolute -top-3 whitespace-nowrap bg-gradient-to-r from-slate-900 to-slate-800 text-amber-400 text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md shadow-md border border-amber-500/30 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity z-10 flex items-center gap-1">
-                  <span>👑</span> VIP -{currentTier.discountPercent * 100}%
-                </div>
-              )}
-              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200 mt-1">
+            <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group">
+              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
                  <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               </div>
               <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
             </Link>
-
-            <button onClick={() => setIsOpen?.(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
-              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200 mt-1">
+            <button onClick={() => setCartOpen(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
+              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
                  {cartTotalItems > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartTotalItems}</div>}
                  <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
-                Koszyk
+                {cartTotalItems > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
               </span>
             </button>
           </nav>
@@ -353,341 +525,199 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
       <MegaMenu />
 
-      <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
-        <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
-          <Link href="/" className="hover:text-red-700 transition-colors">Start</Link>
-          {breadcrumbPath.map((cat: string, idx: number) => {
-            const pathSlugs = breadcrumbPath.slice(0, idx + 1).map(c => generateSlug(c));
-            const href = `/kategoria/${pathSlugs.join('/')}`;
-            return (
-              <React.Fragment key={idx}>
-                <span className="text-slate-400">/</span>
-                <Link href={href} className="hover:text-red-700 transition-colors">{cat}</Link>
-              </React.Fragment>
-            );
-          })}
-          <span className="hidden md:inline text-slate-400">/</span>
-          <span className="hidden md:inline text-slate-900 truncate max-w-xs">{product.name}</span>
-        </nav>
+      <div className="bg-white border-b pt-8 pb-6 px-6 relative z-20">
+        <div className="max-w-7xl mx-auto">
+          {breadcrumbs.length > 0 && (
+            <nav className="flex text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2 items-center flex-wrap" aria-label="Breadcrumb">
+              <Link href="/" className="hover:text-red-600 transition-colors p-1">Start</Link>
+              {breadcrumbs.map((crumb, idx) => (
+                <React.Fragment key={idx}>
+                  <span className="text-slate-300">/</span>
+                  <Link href={`/kategoria/${crumb.path}`} className="hover:text-red-600 transition-colors p-1">{crumb.name}</Link>
+                </React.Fragment>
+              ))}
+            </nav>
+          )}
 
-        <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          <div className="flex flex-col gap-4">
-            <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
-               {mainImageUrl ? (
-                <div className="relative w-full aspect-square max-h-[500px]">
-                  <Image
-                    src={mainImageUrl}
-                    alt={product.name}
-                    fill
-                    priority
-                    quality={65}
-                    loader={bunnyLoader}
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
-                    fetchPriority="high"
-                  />
-                </div>
-               ) : ( 
-                <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div> 
-               )}
+          {savedGarage && (
+            <div className="mb-4 bg-slate-900 text-white w-fit px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-800 shadow-md">
+              <span className="text-emerald-500 animate-pulse">●</span> Filtry aktywne dla: {savedGarage.make} {savedGarage.model}
+              <button aria-label="Wyczyść garaż" onClick={clearGarage} className="text-red-500 hover:text-red-400 font-bold ml-2 p-1 min-w-[30px]">✕</button>
             </div>
-            
-            {displayImages.length > 1 && (
-              <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                {displayImages.map((imgUrl: string, idx: number) => (
-                  <button 
-                    key={idx} 
-                    onClick={() => setSelectedImgIdx(idx)} 
-                    aria-label={`Zobacz zdjęcie ${idx + 1}`}
-                    className={`relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${selectedImgIdx === idx ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50 hover:bg-slate-100'}`}
-                  >
-                    <Image loader={bunnyLoader} src={imgUrl} alt={`Miniatura produktu ${idx + 1}`} fill sizes="96px" className="object-contain mix-blend-multiply p-2" />
+          )}
+          
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase italic text-slate-900 mb-2 max-w-4xl leading-tight">{displayH1}</h1>
+          
+          {displayTopSeo && (
+            <p className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium">
+              {displayTopSeo}
+            </p>
+          )}
+
+          {subcategories.length > 0 && (
+            <div className="mb-4 border-t border-slate-100 pt-5">
+              <div className="flex justify-between items-end mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wybierz podkategorię:</span>
+              </div>
+              <div className="flex flex-wrap gap-2 lg:gap-3">
+                {(showAllSubcats ? subcategories : subcategories.slice(0, 7)).map(sub => (
+                    <Link aria-label={`Przejdź do podkategorii ${sub}`} key={sub} href={`/kategoria/${fullPath}/${generateSlug(sub)}`} className="px-4 py-3 lg:px-5 lg:py-2.5 bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white rounded-xl text-[10px] lg:text-[11px] font-black uppercase tracking-widest transition-all shadow-sm">
+                      {sub}
+                    </Link>
+                ))}
+                {subcategories.length > 7 && (
+                  <button aria-label="Pokaż wszystkie podkategorie" onClick={() => setShowAllSubcats(!showAllSubcats)} className="px-4 py-3 lg:px-5 lg:py-2.5 bg-slate-50 border-2 border-slate-200 text-slate-700 hover:border-red-600 hover:text-red-600 rounded-xl text-[10px] lg:text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 min-h-[44px]">
+                    {showAllSubcats ? <><span>↑</span> Zwiń listę</> : <><span>+ {subcategories.length - 7}</span> więcej ▾</>}
                   </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-slate-100 mt-2 relative z-10 hidden lg:flex">
+            <div className="flex items-center gap-4">
+              <div className="h-1 w-12 bg-red-600"></div>
+              <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Katalog: {totalCount} części</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200 shadow-inner">
+                <button aria-label="Widok siatki" onClick={() => setIsListView(false)} className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all min-w-[44px] ${!isListView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Siatka 🔳</button>
+                <button aria-label="Widok listy" onClick={() => setIsListView(true)} className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all min-w-[44px] ${isListView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Lista ☰</button>
+              </div>
+              <select aria-label="Sortuj produkty" className="bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-black uppercase tracking-widest rounded-xl px-4 py-3 outline-none focus:border-red-600 cursor-pointer shadow-sm min-h-[44px]" value={searchParams.get('sort') || ''} onChange={(e) => updateUrlParams('sort', e.target.value)}>
+                <option value="">Sortowanie Domyślne</option>
+                <option value="price_asc">Cena: rosnąco</option>
+                <option value="price_desc">Cena: malejąco</option>
+                <option value="name_asc">Nazwa: A-Z</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
+        
+        <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
+           <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform">
+             <span className="text-sm leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
+             {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
+           </button>
+        </div>
+
+        <aside className="hidden lg:block w-full lg:w-80 flex-shrink-0">
+          <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
+            <FilterMenuContent {...sharedFilterProps} />
+          </div>
+        </aside>
+
+        <div className="flex-1 flex flex-col min-h-[500px]">
+          
+          {activeFiltersCount > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6 items-center">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mr-2">Aktywne filtry:</span>
+              {Array.from(searchParams.entries()).map(([key, val]) => {
+                if (['limit', 'sort', 'fullPath', 'q', 'minPrice', 'maxPrice'].includes(key)) return null;
+                return (
+                  <button key={`${key}-${val}`} onClick={() => updateUrlParams(key, null)} className="bg-red-50 text-red-700 border border-red-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-red-100 transition-colors shadow-sm">
+                    {val} <span className="text-red-500 font-bold text-xs ml-1">✕</span>
+                  </button>
+                );
+              })}
+              {(searchParams.get('minPrice') || searchParams.get('maxPrice')) && (
+                 <button onClick={() => { setMinPrice(''); setMaxPrice(''); applyPriceFilter(); }} className="bg-red-50 text-red-700 border border-red-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-red-100 transition-colors shadow-sm">
+                   Cena: {searchParams.get('minPrice') || '0'} - {searchParams.get('maxPrice') || '∞'} zł <span className="text-red-500 font-bold text-xs ml-1">✕</span>
+                 </button>
+              )}
+              <button onClick={() => { setSearchQ(''); setMinPrice(''); setMaxPrice(''); router.push(`/kategoria/${fullPath}`); }} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 underline ml-2 transition-colors">
+                Wyczyść wszystko
+              </button>
+            </div>
+          )}
+
+          <div className="relative flex-1">
+            {loading ? (
+              <div className={isListView ? "space-y-4" : "grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6"}>
+                {Array.from({ length: 6 }).map((_, idx) => <ProductSkeleton key={idx} isListView={isListView} />)}
+              </div>
+            ) : products.length === 0 ? (
+              <div className="bg-white rounded-[32px] lg:rounded-[40px] p-6 lg:p-12 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 to-orange-500"></div>
+                <span className="text-5xl lg:text-6xl mb-6 block drop-shadow-sm">⚙️</span>
+                <h2 className="text-2xl lg:text-3xl font-black text-slate-900 uppercase tracking-tight mb-3">
+                  Pusty magazyn? To tylko pozory.
+                </h2>
+                <p className="text-slate-600 font-medium text-sm lg:text-base max-w-2xl mx-auto mb-8 leading-relaxed">
+                  {searchQ 
+                    ? <>Nie znaleźliśmy w tej kategorii nic pod frazą <strong className="text-slate-900">"{searchQ}"</strong>. Producenci często aktualizują numery OEM lub część występuje pod inną nazwą.</>
+                    : <>Prawdopodobnie użyłeś zbyt wielu filtrów naraz. W rolnictwie detale mają znaczenie, ale czasem warto spojrzeć szerzej na całą kategorię.</>
+                  }
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mb-10">
+                  <a href="tel:+48123456789" className="bg-red-600 text-white px-6 py-4 rounded-xl font-black text-[11px] lg:text-xs uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2 shadow-md min-h-[48px]">
+                    <span className="text-base">📞</span> Zadzwoń – dobierzemy część
+                  </a>
+                  <button onClick={() => { setSearchQ(''); setMinPrice(''); setMaxPrice(''); router.push(`/kategoria/${fullPath}`); }} className="bg-slate-100 text-slate-800 px-6 py-4 rounded-xl font-black text-[11px] lg:text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 min-h-[48px]">
+                    <span className="text-base">🔄</span> Zresetuj wszystkie filtry
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={isListView ? "space-y-4 w-full" : "grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6"}>
+                {products.map((product: any, idx: number) => (
+                  <ProductCard key={`${product.id || product.sku}-${idx}`} product={product} isListView={isListView} idx={idx} />
                 ))}
               </div>
             )}
           </div>
 
-          <div className="flex flex-col h-full justify-start">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-slate-100 pb-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span> W Magazynie</span>
-                
-                <button 
-                  onClick={handleCopySku}
-                  className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest border transition-all flex items-center gap-1 cursor-pointer ${skuCopied ? 'bg-green-600 text-white border-green-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
-                >
-                  SKU: {product.sku} {skuCopied ? '✓ Skopiowano' : '📋'}
-                </button>
+          {totalCount > 0 && !loading && (
+            <div className="mt-12 flex flex-col items-center gap-4 border-t border-slate-100 pt-8">
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Wyświetlono {products.length} z {totalCount} części</p>
+              <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                <div className="h-full bg-red-600 transition-all duration-500 rounded-full" style={{ width: `${Math.min(100, (products.length / totalCount) * 100)}%` }} />
               </div>
-              <div className="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
-                <div className="flex text-amber-400 text-xs">★★★★★</div>
-                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">4.8/5.0</span>
-              </div>
+              {products.length < totalCount && (
+                <button aria-label="Załaduj więcej produktów" onClick={() => setDisplayLimit(prev => prev + 24)} className="mt-2 bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-red-600 transition-all transform hover:scale-[1.02] shadow-md min-h-[48px]">Załaduj kolejne produkty ➔</button>
+              )}
             </div>
+          )}
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-tight mb-6 tracking-tight">{product.name}</h1>
+          {categoryData?.bottom_seo_text && (
+            <div className="mt-24 pt-12 border-t border-slate-200">
+              <div 
+                className="prose prose-slate max-w-none text-sm lg:text-base text-slate-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: parseMarkdown(categoryData.bottom_seo_text) }}
+              />
+            </div>
+          )}
 
-            <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-               
-               <div className="flex flex-col">
-                 {currentTier.level > 1 && (
-                   <div className="flex items-center gap-2 mb-1">
-                     <span className="bg-slate-900 text-amber-400 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">
-                       VIP -{currentTier.discountPercent * 100}%
-                     </span>
-                     <span className="text-xs text-slate-400 line-through font-bold">{numPrice.toFixed(2)} zł</span>
-                   </div>
-                 )}
-                 
-                 <div className="flex items-baseline gap-1">
-                   <span className="text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter">{mainPrice}</span>
-                   {hasCents && <span className="text-3xl font-bold text-slate-500">.{centsPrice}</span>}
-                   <span className="text-2xl font-bold text-slate-500 ml-1">zł</span>
-                 </div>
-                 
-                 <div className="flex items-center gap-3 mt-2">
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Brutto (VAT 23%)</p>
-                    {cashbackEarned >= 0 && (
-                      <>
-                        <div className="w-px h-3 bg-slate-200"></div>
-                        <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-                          <span>💰</span> +{cashbackEarned.toFixed(2)} zł
-                        </p>
-                      </>
+          {categoryData?.faqs && categoryData.faqs.length > 0 && (
+            <div className="mt-12 mb-12">
+              <h2 className="text-2xl font-black text-slate-900 mb-6">Najczęściej zadawane pytania (FAQ)</h2>
+              <div className="space-y-4">
+                {categoryData.faqs.map((faq: any, idx: number) => (
+                  <div key={idx} className="bg-white border border-slate-200 rounded-2xl overflow-hidden transition-all shadow-sm hover:shadow-md">
+                    <button 
+                      aria-label={activeFaq === idx ? "Zwiń odpowiedź" : "Rozwiń odpowiedź"}
+                      aria-expanded={activeFaq === idx}
+                      onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                      className="w-full px-6 py-5 flex justify-between items-center text-left focus:outline-none min-h-[48px]"
+                    >
+                      <span className="font-bold text-slate-900 pr-4">{faq.question}</span>
+                      <span className={`text-red-600 font-black text-xl transition-transform ${activeFaq === idx ? 'rotate-45' : ''}`}>+</span>
+                    </button>
+                    {activeFaq === idx && (
+                      <div className="px-6 pb-5 pt-0 text-slate-700 text-sm leading-relaxed border-t border-slate-50 mt-2 pt-4">
+                        {faq.answer}
+                      </div>
                     )}
-                 </div>
-               </div>
-               
-               <div className="flex-1 md:max-w-[280px] flex flex-col gap-2">
-                 <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="relative z-50 w-full bg-red-600 text-white py-5 rounded-2xl font-black text-base lg:text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-600/30 flex items-center justify-center gap-3 cursor-pointer">
-                   <span>DODAJ DO KOSZYKA ➔</span>
-                 </button>
-                 
-                 <button onClick={() => console.log('Przejdź do szybkiego BLIKa')} className="relative z-50 w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
-                   Kup błyskawicznie z <span className="bg-white text-black px-1.5 py-0.5 rounded text-[10px] italic">BLIK</span>
-                 </button>
-               </div>
-               
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-8 border-b border-slate-100 pb-8">
-              <span className="flex items-center gap-1.5">🔒 Bezpieczne płatności</span>
-              <span className="text-slate-300">•</span>
-              <span className="flex items-center gap-1.5">💳 BLIK / PayU</span>
-              <span className="text-slate-300">•</span>
-              <span className="flex items-center gap-1.5">🔄 14 dni na zwrot</span>
-            </div>
-
-            {cleanCompatibility && (
-              <div className="mb-6 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4">
-                 <div className="text-2xl">✅</div>
-                 <div>
-                    <p className="text-[10px] font-black uppercase text-emerald-800 tracking-widest mb-1">Gwarancja dopasowania</p>
-                    <p className="text-sm font-bold text-emerald-950 leading-snug">
-                      Element sprawdzony. Pasuje do: <span className="font-black">{cleanCompatibility}</span>
-                    </p>
-                 </div>
-              </div>
-            )}
-
-            <div className="bg-slate-50 text-slate-800 p-5 rounded-2xl mb-4 border border-slate-200 flex items-start gap-4">
-               <div className="text-2xl mt-0.5">📦</div>
-               <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest mb-1 text-slate-500 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
-                    Ekspresowa Wysyłka
-                  </p>
-                  <p className="text-sm font-bold leading-tight">
-                    {isShippingToday 
-                      ? `Zamów w ciągu ${timeLeftStr}, a wyślemy paczkę JESZCZE DZISIAJ!` 
-                      : `Wysyłka JUTRO RANO. Czas na zamówienie: ${timeLeftStr}`}
-                  </p>
-               </div>
-            </div>
-
-            <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden group">
-              <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-                <Image src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop" alt="Doradca Maciek" fill sizes="56px" className="object-cover object-top" />
-              </div>
-              <div className="flex-1">
-                <p className="font-black uppercase text-[9px] text-red-700 tracking-widest mb-0.5">Twój opiekun techniczny</p>
-                <p className="font-bold text-slate-800 text-xs leading-tight mb-2">Chcesz upewnić się, czy część na pewno pasuje?</p>
-                <a href="tel:+48500600700" className="inline-flex items-center gap-1.5 font-black text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-colors">
-                  📞 +48 500 600 700
-                </a>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
         </div>
-
-        <div className="mt-12 grid grid-cols-1 xl:grid-cols-3 gap-8">
-          <div className="xl:col-span-2 space-y-8">
-            {seoDescription && (
-              <div className="bg-white rounded-[32px] p-8 lg:p-12 shadow-sm border border-slate-100">
-                <h2 className="text-lg font-black mb-8 uppercase tracking-widest border-l-4 border-red-600 pl-4">Opis i specyfikacja</h2>
-                <div className="prose prose-slate prose-base max-w-none text-slate-700 font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: seoDescription }} />
-              </div>
-            )}
-
-            {Object.keys(attributes).length > 0 && (
-              <div className="bg-white rounded-[32px] p-8 lg:p-12 shadow-sm border border-slate-100">
-                <h2 className="text-lg font-black mb-6 uppercase tracking-widest border-l-4 border-slate-900 pl-4">Parametry Techniczne</h2>
-                <div className="border border-slate-100 rounded-xl overflow-hidden shadow-inner">
-                  <table className="w-full text-left text-sm border-collapse">
-                    <tbody>
-                      {Object.entries(attributes).map(([key, value], idx) => (
-                        <tr key={key} className={`border-b border-slate-100 last:border-none transition-colors ${idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'}`}>
-                          <td className="p-4 text-slate-600 text-[10px] font-black uppercase tracking-widest w-1/3 border-r border-slate-100/60">{key}</td>
-                          <td className="p-4 font-bold text-slate-900 text-sm">{String(value)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-8">
-            {symptoms && (
-              <div className="bg-[#FFF4ED] rounded-[32px] p-8 border border-orange-100">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-700 mb-4 flex items-center gap-2"><span>🔎</span> Diagnostyka / Porady</h3>
-                <p className="text-orange-900 font-medium leading-relaxed text-sm">{symptoms}</p>
-              </div>
-            )}
-            {expertAdvice && (
-              <div className="bg-slate-900 rounded-[32px] p-8 shadow-xl">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-4 flex items-center gap-2"><span>💡</span> Okiem Eksperta</h3>
-                <p className="text-slate-300 font-medium leading-relaxed text-sm">{expertAdvice}</p>
-              </div>
-            )}
-            {faq && faq.length > 0 && (
-              <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-900 mb-6 border-l-4 border-red-600 pl-4">Pytania i odpowiedzi</h3>
-                <div className="space-y-4">
-                  {faq.map((item: any, index: number) => (
-                    <div key={index} className="bg-slate-50 p-5 rounded-xl">
-                      <h4 className="font-bold text-slate-900 mb-2 text-xs uppercase tracking-tight">{item.question || item.q}</h4>
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed">{item.answer || item.a}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {bundleProduct && (
-          <section className="mt-16 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 bg-red-600 text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest shadow-md">
-               Kup w zestawie i oszczędź 5%
-             </div>
-             
-             <h3 className="text-xl lg:text-2xl font-black text-slate-900 uppercase tracking-tight mb-8">Często kupowane razem</h3>
-             
-             <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-                <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
-                  <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                    {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt="Main" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
-                  </div>
-                  <div>
-                    <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
-                    <p className="text-xs font-bold text-slate-800 line-clamp-2">{product.name}</p>
-                    <p className="text-sm font-black text-slate-900 mt-1">{priceAfterDiscount.toFixed(2)} zł</p>
-                  </div>
-                </div>
-
-                <div className="text-3xl font-black text-slate-300">＋</div>
-
-                <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
-                  <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                     {(() => {
-                        const bImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
-                        return bImg ? <Image loader={bunnyLoader} src={bImg} alt="Bundle" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
-                     })()}
-                  </div>
-                  <div>
-                    <span className="bg-slate-100 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Rekomendowane</span>
-                    <p className="text-xs font-bold text-slate-800 line-clamp-2">{bundleProduct.name}</p>
-                    <p className="text-sm font-black text-slate-900 mt-1">{bundleProductPriceAfterDiscount.toFixed(2)} zł</p>
-                  </div>
-                </div>
-                
-                <div className="text-3xl font-black text-slate-300 hidden lg:block">＝</div>
-                <div className="w-full h-px bg-slate-100 lg:hidden"></div>
-                
-                <div className="flex flex-col items-center lg:items-end w-full lg:w-auto shrink-0 bg-red-50 p-6 rounded-2xl border border-red-100">
-                   <p className="line-through text-slate-400 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
-                   <p className="text-3xl lg:text-4xl font-black text-red-600 tracking-tighter leading-none mb-4">{bundleDiscountPrice.toFixed(2)} <span className="text-lg">zł</span></p>
-                   <button onClick={handleAddBundle} className="relative z-50 w-full lg:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-md hover:scale-[1.02] active:scale-95 cursor-pointer">
-                     DODAJ ZESTAW ➔
-                   </button>
-                </div>
-             </div>
-          </section>
-        )}
-
-        {othersViewedProducts.length > 0 && (
-          <section className="mt-12 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 relative z-10 gap-4">
-                <div>
-                  <h3 className="text-[11px] font-black uppercase tracking-widest text-red-600 mb-2 flex items-center gap-2">
-                    Klienci wybierali również
-                  </h3>
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tight">Inni oglądali też</h2>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 relative z-10">
-                 {othersViewedProducts.map(p => (
-                   <MiniProductCard key={p.id || p.sku} product={p} />
-                 ))}
-              </div>
-          </section>
-        )}
       </main>
-
-      {/* POPRAWKA: Zwiększony odstęp bottom z 68px na 76px, aby "Add to Cart" swobodnie unosiło się nad menu dolnym */}
-      <div className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+76px)] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-[150%] md:translate-y-[120%]'}`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="hidden md:flex items-center gap-4">
-            {mainImageUrl && (
-              <div className="relative w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden shrink-0">
-                <Image loader={bunnyLoader} src={mainImageUrl} alt={product.name} fill sizes="48px" className="object-contain p-1 mix-blend-multiply" />
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-black text-slate-900 line-clamp-1 max-w-sm tracking-tight">{product.name}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">SKU: {product.sku}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto justify-between md:justify-end">
-            <div className="hidden lg:flex items-center gap-2 border-r pr-6 border-slate-100 text-[11px] text-slate-600 font-bold">
-               📞 Zadzwoń: <span className="font-black text-slate-900">+48 500 600 700</span>
-            </div>
-            
-            <div className="text-left md:text-right shrink-0">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Cena z VAT:</p>
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">{mainPrice}</span>
-                {hasCents && <span className="text-sm font-bold text-slate-500 leading-none">.{centsPrice}</span>}
-                <span className="text-xs font-bold text-slate-500 ml-0.5 leading-none">zł</span>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => console.log('Szybki BLIK')} className="hidden md:flex relative z-50 bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest px-4 py-4 rounded-xl transition-all shadow-md items-center justify-center gap-1.5 cursor-pointer">
-                 <span className="bg-white text-black px-1.5 py-0.5 rounded text-[9px] italic leading-none">BLIK</span>
-              </button>
-              
-              <button onClick={handleAddToCartMain} className="relative z-50 bg-red-600 hover:bg-red-700 text-white font-black text-[11px] md:text-xs uppercase tracking-widest px-6 md:px-8 py-3.5 md:py-4 rounded-xl transition-all shadow-lg shadow-red-600/30 shrink-0 hover:scale-[1.02] active:scale-95 cursor-pointer">
-                DODAJ <span className="hidden sm:inline">DO KOSZYKA</span> ➔
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <MobileBottomNav />
 
