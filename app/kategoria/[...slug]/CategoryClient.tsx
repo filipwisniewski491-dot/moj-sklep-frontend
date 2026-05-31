@@ -446,8 +446,8 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const sharedFilterProps = { searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath };
 
   return (
-    {/* POPRAWKA Z MARGINESEM DOLNYM (pb-36) ŻEBY STOPKA NIE CHOWAŁA SIĘ POD MENU */}
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
+      {/* POPRAWKA Z MARGINESEM DOLNYM (pb-36) ŻEBY STOPKA NIE CHOWAŁA SIĘ POD MENU */}
       
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">

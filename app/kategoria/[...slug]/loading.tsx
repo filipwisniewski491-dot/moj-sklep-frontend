@@ -3,8 +3,8 @@ import React from 'react';
 
 export default function Loading() {
   return (
-    {/* POPRAWKA Z MARGINESEM DOLNYM (pb-36) DLA EKRANU ŁADOWANIA */}
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center pb-36 md:pb-0">
+      {/* POPRAWKA Z MARGINESEM DOLNYM (pb-36) DLA EKRANU ŁADOWANIA */}
       <div className="bg-white rounded-[40px] p-16 text-center border border-slate-100 shadow-xl flex flex-col items-center justify-center animate-pulse w-full max-w-md mx-4">
         <div className="relative mb-6">
           <div className="absolute inset-0 bg-red-100 rounded-full animate-ping opacity-50"></div>
