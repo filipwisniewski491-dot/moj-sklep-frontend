@@ -266,7 +266,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-44 md:pb-0 relative">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-100 md:pb-0 relative">
       
       <Header />
 
