@@ -598,7 +598,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                  <span className="bg-white text-black px-1.5 py-0.5 rounded text-[9px] italic leading-none">BLIK</span>
               </button>
               
-              <button onClick={handleAddToCartMain} className="relative z-500 bg-red-600 hover:bg-red-700 text-white font-black text-[11px] md:text-xs uppercase tracking-widest px-6 md:px-8 py-3.5 md:py-4 rounded-xl transition-all shadow-lg shadow-red-600/30 shrink-0 hover:scale-[1.02] active:scale-95 cursor-pointer">
+              <button onClick={handleAddToCartMain} className="relative z-50 bg-red-600 hover:bg-red-700 text-white font-black text-[11px] md:text-xs uppercase tracking-widest px-6 md:px-8 py-3.5 md:py-4 rounded-xl transition-all shadow-lg shadow-red-600/30 shrink-0 hover:scale-[1.02] active:scale-95 cursor-pointer">
                 DODAJ <span className="hidden sm:inline">DO KOSZYKA</span> ➔
               </button>
             </div>
