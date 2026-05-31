@@ -25,58 +25,61 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
   // 2. Pobieramy wartości Złotych Filtrów, aby zaktualizować Tagi SEO
   const brand = resolvedSearchParams?.['Pasuje do marki'];
   const model = resolvedSearchParams?.['Pasuje do modelu'];
+  const page = resolvedSearchParams?.['page'];
 
-  // 3. Budujemy dynamiczną nazwę pod H1 i Title
-  let dynamicCategoryName = baseCategoryName;
-  if (brand) {
-    dynamicCategoryName += ` do ${brand.toUpperCase()}`;
-    if (model) {
-      dynamicCategoryName += ` ${model.toUpperCase()}`;
-    }
+  // Budujemy dynamiczny Tag <title>
+  let metaTitle = `${baseCategoryName} do ciągników i maszyn`;
+  
+  if (brand && model) {
+    metaTitle = `${baseCategoryName} do ${brand} ${model} - Części zamienne | CentrumRolnictwa.pl`;
+  } else if (brand) {
+    metaTitle = `${baseCategoryName} do ${brand} - Sklep rolniczy | CentrumRolnictwa.pl`;
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.VERCEL_URL}` || 'https://centrumrolnictwa.pl';
+  // Dodajemy paginację do tytułu, by uniknąć duplikatów w Google Search Console
+  if (page && page !== '1') {
+    metaTitle += ` - Strona ${page}`;
+  }
 
-  // 4. Budujemy precyzyjny Canonical URL
-  const canonicalUrlObj = new URLSearchParams();
-  if (brand) canonicalUrlObj.set('Pasuje do marki', brand);
-  if (model) canonicalUrlObj.set('Pasuje do modelu', model);
-  
-  const canonicalQueryString = canonicalUrlObj.toString() ? `?${canonicalUrlObj.toString()}` : '';
-  const canonicalUrl = `${baseUrl}/kategoria/${fullPath}${canonicalQueryString}`;
+  // Budujemy dynamiczny Description
+  let metaDescription = `Szukasz ${baseCategoryName.toLowerCase()}? Sprawdź naszą ofertę najwyższej jakości części.`;
+  if (brand) {
+    metaDescription = `Kup ${baseCategoryName.toLowerCase()} dedykowane do maszyn marki ${brand}${model ? ` model ${model}` : ''}. Gwarancja dopasowania, szybka wysyłka, doradztwo ekspertów.`;
+  }
 
-  // 5. Zwracamy zoptymalizowane Tagi
   return {
-    title: `Części do ${dynamicCategoryName} | Sklep Rolniczy`,
-    description: brand 
-      ? `Wysokiej jakości części w kategorii ${baseCategoryName} przeznaczone do maszyn ${brand} ${model || ''}. Szybka wysyłka i doradztwo techniczne.`
-      : `Wysokiej jakości części w kategorii ${baseCategoryName}. Szybka wysyłka, doradztwo techniczne i sprawdzeni producenci.`,
-    // Złota reguła: Jeśli są "śmieciowe filtry" -> noindex. Jeśli są tylko filtry SEO lub brak filtrów -> index!
-    robots: hasNonSeoFilters ? { index: false, follow: true } : { index: true, follow: true },
+    title: metaTitle,
+    description: metaDescription,
+    // 3. LOGIKA CANONICAL - Tarcza przeciwko kanibalizacji słów kluczowych
     alternates: {
-      canonical: canonicalUrl,
+      canonical: hasNonSeoFilters 
+        ? `https://centrumrolnictwa.pl/kategoria/${fullPath}` // Jeśli włączono np. cenę, Google ma patrzeć tylko na czystą kategorię
+        : `https://centrumrolnictwa.pl/kategoria/${fullPath}${allParamKeys.length > 0 ? '?' + new URLSearchParams(resolvedSearchParams as Record<string, string>).toString() : ''}`
+    },
+    // 4. DYREKTYWA ROBOTS
+    robots: {
+      index: !hasNonSeoFilters, // Blokuj indeksowanie, jeśli włączono "śmieciowe" filtry
+      follow: true // Pozwól robotom skanować linki (śledzić produkty)
     }
   };
 }
 
-// === POBIERANIE DANYCH Z API ===
+// Funkcja fetchująca dane kategorii na serwerze 
 async function getCategoryData(fullPath: string, searchParams: any) {
-  const getBaseUrl = () => {
-    if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-    return 'http://localhost:3000';
-  };
-
-  const baseUrl = getBaseUrl();
-  const queryStr = new URLSearchParams(searchParams as Record<string, string>).toString();
+  const url = new URL(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/search`);
+  url.searchParams.append('fullPath', fullPath);
+  url.searchParams.append('limit', '24');
+  
+  if (searchParams) {
+    Object.entries(searchParams).forEach(([key, val]) => {
+      url.searchParams.append(key, String(val));
+    });
+  }
 
   try {
-    const res = await fetch(`${baseUrl}/api/search?fullPath=${fullPath}&${queryStr}`, { 
-      next: { revalidate: 60 } 
-    });
-    
-    const data = res.ok ? await res.json() : { products: [], filters: {}, category: { h1_dynamic: `BŁĄD API: ${res.status}` } };
+    const res = await fetch(url.toString(), { next: { revalidate: 60 } });
+    if (!res.ok) throw new Error('Failed to fetch data');
+    const data = await res.json();
     return { searchData: data, filtersData: data.filters || {} };
   } catch (error: any) {
     return { searchData: { products: [], category: { h1_dynamic: `BŁĄD SERWERA VERCEL: ${error.message}` } }, filtersData: {} };
@@ -121,7 +124,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
       <CategoryClient 
         initialData={searchData} 
         initialFilters={filtersData} 
-        fullPath={fullPath} 
+        fullPath={fullPath}
       />
     </>
   );

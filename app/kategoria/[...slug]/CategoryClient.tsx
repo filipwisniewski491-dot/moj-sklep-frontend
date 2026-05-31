@@ -209,7 +209,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [products, setProducts] = useState<any[]>(initialData?.products || []);
   const [globalFilters, setGlobalFilters] = useState<Record<string, Record<string, number>>>(initialFilters || {});
   
-  // NOWOŚĆ: Filtry zawężone (do szarzenia opcji z wartością 0)
   const [narrowedFilters, setNarrowedFilters] = useState<Record<string, Record<string, number>>>(initialData?.narrowedFilters || {});
   
   const [breadcrumbs, setBreadcrumbs] = useState<any[]>(initialData?.breadcrumbs || []);
@@ -411,7 +410,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           ) : (
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, count]) => {
               
-              // LOGIKA FILTROWANIA FASETOWEGO
               const isChecked = searchParams.get(filterKey) === val;
               const activeCount = narrowedFilters[filterKey]?.[val] || 0;
               const isDisabled = activeCount === 0 && !isChecked;
@@ -448,7 +446,8 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const sharedFilterProps = { searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
+    {/* POPRAWKA Z MARGINESEM DOLNYM (pb-36) ŻEBY STOPKA NIE CHOWAŁA SIĘ POD MENU */}
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
@@ -598,7 +597,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         
-        {/* NOWOŚĆ: Przycisk Filtruj na Mobile przeniesiony pod nagłówek (Sticky) */}
         <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
            <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform">
              <span className="text-sm leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
@@ -614,7 +612,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
         <div className="flex-1 flex flex-col min-h-[500px]">
           
-          {/* NOWOŚĆ: Aktywne filtry ("Pigułki") nad listą produktów */}
           {activeFiltersCount > 0 && (
             <div className="flex flex-wrap gap-2 mb-6 items-center">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mr-2">Aktywne filtry:</span>
