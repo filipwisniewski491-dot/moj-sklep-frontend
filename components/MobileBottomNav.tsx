@@ -17,7 +17,7 @@ export default function MobileBottomNav() {
   }, [items]);
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-end px-3 pb-safe pt-1 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]" aria-label="Nawigacja mobilna">
+    <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-[70] flex justify-between items-end px-3 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] shadow-[0_-10px_40px_rgba(0,0,0,0.08)]" aria-label="Nawigacja mobilna">
       
       {/* 1. Lewa strona - Kontakt */}
       <a href="tel:+48257888900" className="flex flex-col items-center w-[20%] pb-2 text-slate-400 hover:text-red-600 transition-colors">

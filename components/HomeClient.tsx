@@ -164,7 +164,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         </div>
       </header>
 
-      {/* Tytanicznie odchudzone MEGA MENU z komponentu! */}
       <MegaMenu />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
@@ -210,7 +209,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
             {products.length === 0 ? (
               <p className="col-span-4 text-center font-bold text-slate-400 py-10 uppercase">Brak produktów do wyświetlenia.</p>
             ) : (
@@ -228,41 +227,44 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                 const buyCount = Math.floor(Math.random() * 20) + 5; 
 
                 return (
-                  <article key={product.id} className="group flex flex-col bg-white border border-slate-100 rounded-[32px] p-5 hover:shadow-xl hover:border-red-200 transition-all duration-300 relative h-full">
+                  <article key={product.id} className="group flex flex-col bg-white border border-slate-100 rounded-[24px] md:rounded-[32px] p-3 md:p-5 hover:shadow-xl hover:border-red-200 transition-all duration-300 relative h-full">
                     <Link href={`/produkt/${product.slug || product.id}`} className="absolute inset-0 z-10" aria-label={`Przejdź do ${product.name}`}></Link>
                     
-                    <div className="aspect-[4/3] bg-slate-50 rounded-2xl mb-4 flex items-center justify-center overflow-hidden relative border border-slate-100 p-6">
+                    <div className="aspect-square bg-slate-50 rounded-[16px] md:rounded-2xl mb-3 md:mb-4 flex items-center justify-center overflow-hidden relative border border-slate-100 p-3 md:p-6">
                       {imageUrl ? (
-                        <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 100vw, 25vw" className="object-contain group-hover:scale-110 transition-transform duration-700 mix-blend-multiply p-4" />
+                        <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain group-hover:scale-110 transition-transform duration-700 mix-blend-multiply p-2 md:p-4" />
                       ) : (
-                        <div className="text-slate-300 font-black text-[10px] uppercase tracking-widest">Brak zdjęcia</div>
+                        <div className="text-slate-300 font-black text-[9px] md:text-[10px] uppercase tracking-widest text-center">Brak zdjęcia</div>
                       )}
                       
-                      <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-20">
-                        {index === 0 && <span className="bg-red-600 text-white text-[8px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-sm">Nr 1 w Sklepie</span>}
+                      <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-20">
+                        {index === 0 && <span className="bg-red-600 text-white text-[7px] md:text-[8px] font-black px-2 py-0.5 md:py-1 rounded-full uppercase tracking-widest shadow-sm">Nr 1</span>}
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1 mb-2">
-                      <div className="flex text-amber-400 text-xs">★★★★★</div>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">({buyCount} kupiło)</span>
+                    <div className="flex items-center gap-1 mb-1.5 md:mb-2">
+                      <div className="flex text-amber-400 text-[9px] md:text-xs">★★★★★</div>
+                      <span className="text-[7px] md:text-[9px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline-block">({buyCount} kupiło)</span>
                     </div>
 
-                    <div className="flex-1">
-                      <h3 className="font-black text-sm text-slate-800 leading-snug group-hover:text-red-600 transition-colors line-clamp-2 tracking-tight relative z-20">
-                        <Link href={`/produkt/${product.slug || product.id}`}>{product.name}</Link>
+                    <div className="flex-1 flex flex-col">
+                      <h3 className="font-bold text-xs md:text-sm text-slate-800 leading-snug group-hover:text-red-600 transition-colors line-clamp-2 tracking-tight relative z-20">
+                        {product.name}
                       </h3>
-                      <p className="text-[9px] text-slate-400 mt-2 font-black uppercase tracking-widest bg-slate-50 w-fit px-2 py-0.5 rounded-md border border-slate-100">SKU: {product.sku || 'Brak'}</p>
+                      <p className="text-[8px] md:text-[9px] text-slate-400 mt-1 md:mt-2 font-black uppercase tracking-widest bg-slate-50 w-fit px-1.5 md:px-2 py-0.5 rounded-md border border-slate-100">SKU: {product.sku || 'Brak'}</p>
                     </div>
                     
-                    <div className="mt-5 flex flex-col relative z-20 pt-4 border-t border-slate-50">
-                      <div className="flex justify-between items-end mb-4">
-                        <span className="text-2xl font-black text-slate-900 tracking-tighter">
-                          {getDisplayPrice(product.price)} <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isNetto ? 'zł netto' : 'zł brutto'}</span>
+                    <div className="mt-3 md:mt-5 flex items-end justify-between relative z-20 pt-3 md:pt-4 border-t border-slate-50">
+                      <div className="flex flex-col">
+                        <span className="text-base md:text-2xl font-black text-slate-900 tracking-tighter">
+                          {getDisplayPrice(product.price)} 
+                          <span className="text-[7px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden md:inline ml-1">{isNetto ? 'zł netto' : 'zł brutto'}</span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest md:hidden ml-0.5">zł</span>
                         </span>
                       </div>
-                      <button aria-label="Dodaj do koszyka" onClick={() => setCartOpen(true)} className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center gap-2 relative z-20 cursor-pointer">
-                        <span>🛒</span> Dodaj do koszyka
+                      <button aria-label="Dodaj do koszyka" onClick={() => setCartOpen(true)} className="bg-slate-900 text-white w-9 h-9 md:w-auto md:px-4 md:py-3.5 rounded-lg md:rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center gap-2 relative z-20 cursor-pointer shrink-0">
+                        <span className="text-[14px] md:text-base leading-none">🛒</span>
+                        <span className="hidden md:inline">Dodaj</span>
                       </button>
                     </div>
                   </article>
@@ -287,7 +289,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         </section>
       </main>
 
-      {/* Nawigacja Mobilna z Komponentu! */}
       <MobileBottomNav />
 
       <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">

@@ -96,7 +96,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
   const [isMounted, setIsMounted] = useState(false);
 
-  // SYMULACJA ZALOGOWANEGO KLIENTA B2B
   const userTotalSpent = 105000; 
   const { currentTier } = getUserTier(userTotalSpent);
 
@@ -104,7 +103,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
     setIsMounted(true);
   }, []);
 
-  // Odświeżony, minimalistyczny licznik wysyłki
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date();
@@ -286,7 +284,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0 relative">
       
-      {/* GÓRNY PASEK Z CZYSTYM LICZNIKIEM */}
       <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
@@ -329,7 +326,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             </div>
             
             <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group relative">
-              {/* ULTRA MINIMALISTYCZNY STATUS VIP */}
               {currentTier.level > 1 && (
                 <div className="absolute -top-3 whitespace-nowrap bg-gradient-to-r from-slate-900 to-slate-800 text-amber-400 text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md shadow-md border border-amber-500/30 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity z-10 flex items-center gap-1">
                   <span>👑</span> VIP -{currentTier.discountPercent * 100}%
@@ -432,9 +428,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                
-               {/* LEWA STRONA: ULTRA-MINIMALISTYCZNY BLOK CENOWY */}
                <div className="flex flex-col">
-                 
                  {currentTier.level > 1 && (
                    <div className="flex items-center gap-2 mb-1">
                      <span className="bg-slate-900 text-amber-400 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">
@@ -461,13 +455,16 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                       </>
                     )}
                  </div>
-
                </div>
                
-               {/* PRAWA STRONA: CZYSTY PRZYCISK */}
-               <div className="flex-1 md:max-w-[280px]">
+               {/* PRAWA STRONA: CZYSTY PRZYCISK + BLIK */}
+               <div className="flex-1 md:max-w-[280px] flex flex-col gap-2">
                  <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="relative z-50 w-full bg-red-600 text-white py-5 rounded-2xl font-black text-base lg:text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-600/30 flex items-center justify-center gap-3 cursor-pointer">
                    <span>DODAJ DO KOSZYKA ➔</span>
+                 </button>
+                 
+                 <button onClick={() => console.log('Przejdź do szybkiego BLIKa')} className="relative z-50 w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                   Kup błyskawicznie z <span className="bg-white text-black px-1.5 py-0.5 rounded text-[10px] italic">BLIK</span>
                  </button>
                </div>
                
@@ -493,7 +490,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               </div>
             )}
 
-            {/* Zaktualizowany box z informacją o kurierze - logiki dostawy */}
             <div className="bg-slate-50 text-slate-800 p-5 rounded-2xl mb-4 border border-slate-200 flex items-start gap-4">
                <div className="text-2xl mt-0.5">📦</div>
                <div>
@@ -581,7 +577,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </div>
         </div>
 
-        {/* 🚀 KUP W ZESTAWIE (BUNDLE UP-SELL) NA SAMYM DOLE */}
         {bundleProduct && (
           <section className="mt-16 bg-white rounded-[32px] p-6 lg:p-10 border-2 border-red-600 shadow-xl relative overflow-hidden">
              <div className="absolute top-0 right-0 bg-red-600 text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest shadow-md">
@@ -632,7 +627,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           </section>
         )}
 
-        {/* 🚀 INNI OGLĄDALI TEŻ */}
         {othersViewedProducts.length > 0 && (
           <section className="mt-12 bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 relative z-10 gap-4">
@@ -652,7 +646,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         )}
       </main>
 
-      <div className={`fixed bottom-[60px] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-full md:translate-y-[120%]'}`}>
+      <div className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+68px)] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-[150%] md:translate-y-[120%]'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="hidden md:flex items-center gap-4">
             {mainImageUrl && (
@@ -680,9 +674,15 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               </div>
             </div>
             
-            <button onClick={handleAddToCartMain} className="relative z-50 bg-red-600 hover:bg-red-700 text-white font-black text-[11px] md:text-xs uppercase tracking-widest px-6 md:px-10 py-3.5 md:py-4 rounded-xl transition-all shadow-lg shadow-red-600/30 shrink-0 hover:scale-[1.02] active:scale-95 cursor-pointer">
-              DODAJ DO KOSZYKA ➔
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => console.log('Szybki BLIK')} className="hidden md:flex relative z-50 bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest px-4 py-4 rounded-xl transition-all shadow-md items-center justify-center gap-1.5 cursor-pointer">
+                 <span className="bg-white text-black px-1.5 py-0.5 rounded text-[9px] italic leading-none">BLIK</span>
+              </button>
+              
+              <button onClick={handleAddToCartMain} className="relative z-50 bg-red-600 hover:bg-red-700 text-white font-black text-[11px] md:text-xs uppercase tracking-widest px-6 md:px-8 py-3.5 md:py-4 rounded-xl transition-all shadow-lg shadow-red-600/30 shrink-0 hover:scale-[1.02] active:scale-95 cursor-pointer">
+                DODAJ <span className="hidden sm:inline">DO KOSZYKA</span> ➔
+              </button>
+            </div>
           </div>
         </div>
       </div>
