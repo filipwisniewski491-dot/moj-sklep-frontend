@@ -31,11 +31,12 @@ export default function MobileBottomNav() {
         <span className="text-[8px] font-black uppercase tracking-widest">Działy</span>
       </Link>
       
-      {/* 3. Środek - PŁYWAJĄCE LOGO (Wystające do góry jak aplikacja natywna) */}
+      {/* 3. Środek - PŁYWAJĄCE LOGO */}
       <Link href="/" className="flex flex-col items-center w-[20%] relative -top-3 group z-50">
         <div className="bg-white p-1.5 rounded-full shadow-[0_5px_15px_rgba(0,0,0,0.15)] border border-slate-100 group-hover:scale-105 transition-transform flex items-center justify-center -mb-0.5">
-           <div className="bg-slate-50 w-12 h-12 rounded-full overflow-hidden flex items-center justify-center border border-slate-200">
-             <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="Start" className="w-10 object-contain mix-blend-multiply" />
+           {/* POPRAWKA: Czyste białe tło, brak mix-blend-multiply, wymuszone wymiary w-10 h-10 */}
+           <div className="bg-white w-12 h-12 rounded-full overflow-hidden flex items-center justify-center border border-slate-200">
+             <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="Start" className="w-10 h-10 object-contain" />
            </div>
         </div>
         <span className="text-[9px] font-black uppercase tracking-widest text-slate-900 mt-1">Start</span>
@@ -51,8 +52,9 @@ export default function MobileBottomNav() {
 
       {/* 5. Prawa strona - Koszyk */}
       <button onClick={() => setIsOpen?.(true)} className="flex flex-col items-center w-[20%] pb-2 text-slate-400 hover:text-red-600 transition-colors relative cursor-pointer z-50">
+        {/* POPRAWKA: Dodana klasa animate-bounce do powiadomienia koszyka */}
         {cartCount > 0 && (
-          <div className="absolute top-0 right-[15%] bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+          <div className="absolute top-0 right-[15%] bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm animate-bounce">
             {cartCount}
           </div>
         )}

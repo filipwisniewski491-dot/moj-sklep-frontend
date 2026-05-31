@@ -282,7 +282,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0 relative">
+    {/* POPRAWKA: Zwiększyłem pb do 36, by główna treść nie chowała się pod nawigacją i lepką belką */}
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0 relative">
       
       <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
@@ -339,7 +340,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <button onClick={() => setIsOpen?.(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200 mt-1">
-                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
+                 {cartTotalItems > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartTotalItems}</div>}
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
                 Koszyk
@@ -457,7 +459,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                  </div>
                </div>
                
-               {/* PRAWA STRONA: CZYSTY PRZYCISK + BLIK */}
                <div className="flex-1 md:max-w-[280px] flex flex-col gap-2">
                  <button ref={mainBuyButtonRef} onClick={handleAddToCartMain} className="relative z-50 w-full bg-red-600 text-white py-5 rounded-2xl font-black text-base lg:text-lg uppercase tracking-widest hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-600/30 flex items-center justify-center gap-3 cursor-pointer">
                    <span>DODAJ DO KOSZYKA ➔</span>
@@ -646,7 +647,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         )}
       </main>
 
-      <div className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+68px)] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-[150%] md:translate-y-[120%]'}`}>
+      {/* POPRAWKA: Zwiększony odstęp bottom z 68px na 76px, aby "Add to Cart" swobodnie unosiło się nad menu dolnym */}
+      <div className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+76px)] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-[150%] md:translate-y-[120%]'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="hidden md:flex items-center gap-4">
             {mainImageUrl && (

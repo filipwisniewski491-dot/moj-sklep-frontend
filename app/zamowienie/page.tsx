@@ -44,9 +44,17 @@ export default function CheckoutPage() {
     }
   }, [items, router, isProcessing]);
 
-  // Detekcja Exit-Intent (Próba ucieczki)
+  // Detekcja Exit-Intent (Próba ucieczki) z 24-godzinną blokadą
   const handleMouseLeave = useCallback((e: MouseEvent) => {
     if (e.clientY <= 0 && !showExitIntent && !exitDiscountApplied && items.length > 0) {
+      
+      // Sprawdzamy, czy pop-up nie był już zamknięty w ciągu ostatnich 24h
+      const closedAt = localStorage.getItem('exit_intent_closed_at');
+      if (closedAt) {
+        const hoursPassed = (new Date().getTime() - parseInt(closedAt)) / (1000 * 60 * 60);
+        if (hoursPassed < 24) return; // Przerywamy, jeśli nie minęły 24 godziny
+      }
+      
       setShowExitIntent(true);
     }
   }, [showExitIntent, exitDiscountApplied, items.length]);
@@ -60,9 +68,16 @@ export default function CheckoutPage() {
     };
   }, [checkoutStep, handleMouseLeave]);
 
+  // Funkcja akceptująca rabat
   const applyExitDiscount = () => {
     setExitDiscountApplied(true);
     setShowExitIntent(false);
+  };
+
+  // NOWA Funkcja zamykająca (odrzucająca) pop-up i ustawiająca blokadę na 24h
+  const closeExitIntent = () => {
+    setShowExitIntent(false);
+    localStorage.setItem('exit_intent_closed_at', new Date().getTime().toString());
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -174,10 +189,13 @@ export default function CheckoutPage() {
       {/* EXIT INTENT MODAL (Pojawia się tylko gdy showExitIntent jest true) */}
       {showExitIntent && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowExitIntent(false)}></div>
+          {/* ZMIANA: Podpięcie closeExitIntent pod tło */}
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeExitIntent}></div>
           <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-[40px] p-8 md:p-12 shadow-2xl relative z-10 overflow-hidden text-center transform animate-in zoom-in-95 duration-300">
              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-amber-600"></div>
-             <button onClick={() => setShowExitIntent(false)} className="absolute top-5 right-5 text-slate-500 hover:text-white text-xl">✕</button>
+             
+             {/* ZMIANA: Podpięcie closeExitIntent pod przycisk krzyżyka */}
+             <button onClick={closeExitIntent} className="absolute top-5 right-5 text-slate-500 hover:text-white text-xl">✕</button>
              
              <span className="text-6xl mb-6 block animate-bounce">🎁</span>
              <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">Poczekaj! Nie zostawiaj maszyny w polu!</h3>
@@ -188,7 +206,9 @@ export default function CheckoutPage() {
              <button onClick={applyExitDiscount} className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-black text-xs md:text-sm uppercase tracking-widest py-5 rounded-2xl transition-all shadow-lg shadow-amber-500/20 active:scale-95 mb-4">
                Odbieram -3% i zamawiam ➔
              </button>
-             <button onClick={() => setShowExitIntent(false)} className="text-[10px] text-slate-500 uppercase font-black tracking-widest hover:text-slate-300 transition-colors">
+             
+             {/* ZMIANA: Podpięcie closeExitIntent pod szary przycisk rezygnacji */}
+             <button onClick={closeExitIntent} className="text-[10px] text-slate-500 uppercase font-black tracking-widest hover:text-slate-300 transition-colors">
                Nie dziękuję, rezygnuję z naprawy
              </button>
           </div>
