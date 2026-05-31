@@ -66,7 +66,7 @@ export default function Header() {
           
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300">
-              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="Sygnet" className="h-9 sm:h-11 md:h-14 w-auto object-contain mb-0.5" fetchPriority="high" />
+              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png" alt="Sygnet" className="h-9 sm:h-11 md:h-14 w-auto object-contain mb-0.5" fetchPriority="high" />
               <span className="font-black text-[11px] sm:text-xs md:text-sm tracking-tighter text-slate-900 leading-none uppercase">
                 CentrumRolnictwa<span className="text-red-600">.pl</span>
               </span>

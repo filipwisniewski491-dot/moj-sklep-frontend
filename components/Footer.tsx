@@ -18,7 +18,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
         <div className="flex flex-col items-start">
           <div className="bg-white rounded-full p-2 mb-3 shadow-md">
-             <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="Sygnet CentrumRolnictwa" className="h-8 w-8 object-contain" loading="lazy" />
+             <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png" alt="Sygnet CentrumRolnictwa" className="h-8 w-8 object-contain" loading="lazy" />
           </div>
           <span className="font-black text-xl tracking-tighter text-white leading-none mb-4 uppercase">
             CentrumRolnictwa<span className="text-red-500">.pl</span>

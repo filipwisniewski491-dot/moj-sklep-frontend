@@ -36,6 +36,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
 
   const [liveSale, setLiveSale] = useState<{text: string, id: number} | null>(null);
 
+  // Symulacja powiadomień o zakupach (Social Proof)
   useEffect(() => {
     const sales = [
       "Jan (woj. lubelskie) kupił: Filtry do Ursus C-360",
@@ -67,7 +68,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
     "url": "https://centrumrolnictwa.pl",
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://centrumrolnictwa.pl/szukaj?q={search_term_string}",
+      "target": "https://centrumrolnictwa.pl/kategorie?q={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   };
@@ -76,6 +77,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
+      {/* Powiadomienie Live Sale */}
       <div className={`fixed bottom-24 md:bottom-8 left-4 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-[100] border-l-4 border-red-600 transition-all duration-500 ease-out transform ${liveSale ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -84,10 +86,12 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         <p className="text-xs font-bold pr-4 leading-tight">{liveSale?.text}</p>
       </div>
 
+      {/* Globalny Nagłówek (Zastępuje zduplikowany kod) */}
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         
+        {/* Sekcja Hero z Garażem */}
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
           <article className="lg:col-span-3 bg-slate-900 rounded-[32px] md:rounded-[48px] p-8 md:p-14 flex flex-col justify-center items-start text-white relative overflow-hidden shadow-xl border border-slate-800">
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600 rounded-full blur-[140px] opacity-20 -mr-20 -mt-20"></div>
@@ -109,6 +113,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
           </aside>
         </section>
 
+        {/* Główne Kategorie */}
         <section className="mb-24">
            <h2 className="sr-only">Kategorie Główne Sklepu Rolniczego</h2>
            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 lg:gap-8">
@@ -121,6 +126,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
            </div>
         </section>
 
+        {/* Sekcja Bestsellery (Dane ze Strapi via ISR) */}
         <section className="mb-24">
           <div className="flex justify-between items-end mb-8 border-b-2 border-slate-100 pb-6">
             <div>
@@ -148,7 +154,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
 
                 return (
                   <article key={product.id} className="group flex flex-col bg-white border border-slate-100 rounded-[24px] md:rounded-[32px] p-3 md:p-5 hover:shadow-xl hover:border-red-200 transition-all duration-300 relative h-full">
-                    <Link href={`/produkt/${product.slug || product.id}`} className="absolute inset-0 z-10" aria-label={`Przejdź do ${product.name}`}></Link>
+                    <Link href={`/produkt/${product.slug || product.sku || product.id}`} className="absolute inset-0 z-10" aria-label={`Przejdź do ${product.name}`}></Link>
                     
                     <div className="aspect-square bg-slate-50 rounded-[16px] md:rounded-2xl mb-3 md:mb-4 flex items-center justify-center overflow-hidden relative border border-slate-100 p-3 md:p-6">
                       {imageUrl ? (
@@ -182,7 +188,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest md:hidden ml-0.5">zł</span>
                         </span>
                       </div>
-                      <button aria-label="Dodaj do koszyka" onClick={() => setCartOpen(true)} className="bg-slate-900 text-white w-9 h-9 md:w-auto md:px-4 md:py-3.5 rounded-lg md:rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center gap-2 relative z-20 cursor-pointer shrink-0">
+                      <button aria-label="Dodaj do koszyka" onClick={(e) => { e.preventDefault(); setCartOpen(true); }} className="bg-slate-900 text-white w-9 h-9 md:w-auto md:px-4 md:py-3.5 rounded-lg md:rounded-xl font-black text-[10px] uppercase tracking-widest group-hover:bg-red-600 transition-colors shadow-md active:scale-95 flex items-center justify-center gap-2 relative z-20 cursor-pointer shrink-0">
                         <span className="text-[14px] md:text-base leading-none">🛒</span>
                         <span className="hidden md:inline">Dodaj</span>
                       </button>
@@ -210,6 +216,8 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
       </main>
 
       <MobileBottomNav />
+      
+      {/* Globalna Stopka (Zastępuje zduplikowany kod) */}
       <Footer />
 
     </div>
