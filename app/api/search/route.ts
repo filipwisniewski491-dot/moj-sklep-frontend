@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 // 1. TWARDE WYMUSZENIE ŚRODOWISKA NODE.JS (Zdejmuje blokadę IP na Vercelu)
 export const runtime = 'nodejs';
 
-// 2. WŁĄCZAMY CACHE NA 1 GODZINĘ (Błyskawiczne ładowanie kolejnych wejść)
+// 2. WŁĄCZAMY CACHE NA 1 GODZINĘ
 export const revalidate = 3600; 
 
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
@@ -13,7 +13,6 @@ const MEILI_KEY = process.env.MEILI_MASTER_KEY;
 
 const getAttr = (obj: any, key: string) => obj?.[key] ?? obj?.attributes?.[key] ?? null;
 
-// NAGŁÓWKI CACHE CDN - Wymuszają zapis na serwerach Vercela na całym świecie
 const corsHeaders = {
   'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
   'Content-Type': 'application/json'
@@ -45,7 +44,6 @@ export async function GET(request: Request) {
   try {
     const segQuery = segments.map((s, i) => `filters[slug][$in][${i}]=${s}`).join('&');
     
-    // ZRÓWNOLEGLENIE ZAPYTAŃ DO STRAPI
     const [breadRes, catRes] = await Promise.all([
       fetch(`${STRAPI_URL}/api/categories?${segQuery}&pagination[pageSize]=50`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, next: { revalidate: 3600 } }),
       fetch(`${STRAPI_URL}/api/categories?filters[slug][$eq]=${currentSlug}&populate=*`, { headers: { 'Authorization': `Bearer ${STRAPI_TOKEN}` }, next: { revalidate: 3600 } })
@@ -97,7 +95,7 @@ export async function GET(request: Request) {
     }
   } catch (e: any) { 
       return NextResponse.json({ 
-        category: { h1_dynamic: `BŁĄD STRAPI: ${e.message}`, name: "ERROR" }, products: [], breadcrumbs: [], subcategories: [], filters: {}, totalCount: 0, faqs: [] 
+        category: { h1_dynamic: `BŁĄD STRAPI: ${e.message}`, name: "ERROR" }, products: [], breadcrumbs: [], subcategories: [], filters: {}, narrowedFilters: {}, totalCount: 0, faqs: [] 
       }, { headers: corsHeaders }); 
   }
 
@@ -109,7 +107,6 @@ export async function GET(request: Request) {
   if (allTargetCategories.size === 0) allTargetCategories.add(dbCategoryData.name);
 
   try {
-      // OPTYMALIZACJA: Błyskawiczny operator IN dla MeiliSearch
       const categoriesArray = Array.from(allTargetCategories).map(c => `"${c.replace(/"/g, '\\"')}"`);
       const baseCategoryFilter = `category IN [${categoriesArray.join(", ")}]`;
       
@@ -128,7 +125,7 @@ export async function GET(request: Request) {
       const [productsRes, facetsRes] = await Promise.all([
         fetch(`${MEILI_URL}/indexes/products/search`, {
           method: 'POST', headers: { 'Authorization': `Bearer ${MEILI_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: searchQ, filter: activeFilterArray, limit: currentLimit, sort: meiliSort }), 
+          body: JSON.stringify({ q: searchQ, filter: activeFilterArray, limit: currentLimit, sort: meiliSort, facets: ["*"] }), // ZMIANA: Dodano facets: ["*"] by pobrać dostępne zliczenia
           next: { revalidate: 60 } 
         }),
         fetch(`${MEILI_URL}/indexes/products/search`, {
@@ -145,7 +142,9 @@ export async function GET(request: Request) {
 
       const meiliData = await productsRes.json();
       const facetsData = await facetsRes.json();
+      
       const globalFilters = facetsData.facetDistribution || {};
+      const narrowedFilters = meiliData.facetDistribution || {}; // NOWOŚĆ: Przekazujemy zawężone filtry
 
       const mappedProducts = meiliData.hits?.map((hit: any) => {
         let externalImages: string[] = [];
@@ -163,12 +162,12 @@ export async function GET(request: Request) {
         };
       }) || [];
 
-      // ZWRACAMY WYNIK Z NAGŁÓWKAMI CDN
       return NextResponse.json({ 
         category: dbCategoryData, 
         breadcrumbs, 
         subcategories: Array.from(directSubcategories).sort(),
         filters: globalFilters, 
+        narrowedFilters, // NOWOŚĆ
         depth: breadcrumbs.length, 
         products: mappedProducts,
         totalCount: meiliData.estimatedTotalHits || meiliData.totalHits || 0, 
@@ -178,7 +177,7 @@ export async function GET(request: Request) {
   } catch (error: any) {
       return NextResponse.json({ 
         category: { h1_dynamic: `BŁĄD MEILI: ${error.message}`, name: "ERROR" }, 
-        products: [], breadcrumbs: [], subcategories: [], filters: {}, totalCount: 0, faqs: [] 
+        products: [], breadcrumbs: [], subcategories: [], filters: {}, narrowedFilters: {}, totalCount: 0, faqs: [] 
       }, { headers: corsHeaders }); 
   }
 }

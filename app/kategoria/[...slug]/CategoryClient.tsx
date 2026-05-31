@@ -208,6 +208,10 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [categoryData, setCategoryData] = useState<any>(initialData?.category || null);
   const [products, setProducts] = useState<any[]>(initialData?.products || []);
   const [globalFilters, setGlobalFilters] = useState<Record<string, Record<string, number>>>(initialFilters || {});
+  
+  // NOWOŚĆ: Filtry zawężone (do szarzenia opcji z wartością 0)
+  const [narrowedFilters, setNarrowedFilters] = useState<Record<string, Record<string, number>>>(initialData?.narrowedFilters || {});
+  
   const [breadcrumbs, setBreadcrumbs] = useState<any[]>(initialData?.breadcrumbs || []);
   const [subcategories, setSubcategories] = useState<string[]>(initialData?.subcategories || []);
   const [depth, setDepth] = useState<number>(initialData?.depth || 1);
@@ -311,6 +315,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         setCategoryData(json.category || null);
         setProducts(json.products || []);
         setGlobalFilters(json.filters || {});
+        setNarrowedFilters(json.narrowedFilters || {});
         setBreadcrumbs(json.breadcrumbs || []);
         setSubcategories(json.subcategories || []);
         setTotalCount(json.totalCount || 0);
@@ -374,7 +379,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   }
 
   let activeFiltersCount = 0;
-  searchParams.forEach((val, key) => { if (!['limit', 'sort', 'Pasuje do marki', 'Pasuje do modelu'].includes(key)) activeFiltersCount++; });
+  searchParams.forEach((val, key) => { if (!['limit', 'sort', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
 
   const renderFilterBlock = (filterKey: string) => {
     const filterValues = techFilters[filterKey];
@@ -405,9 +410,14 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             <div className="text-[9px] text-slate-500 uppercase font-black tracking-widest py-2">Brak wyników</div>
           ) : (
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, count]) => {
+              
+              // LOGIKA FILTROWANIA FASETOWEGO
               const isChecked = searchParams.get(filterKey) === val;
+              const activeCount = narrowedFilters[filterKey]?.[val] || 0;
+              const isDisabled = activeCount === 0 && !isChecked;
+
               return (
-                <label key={val} className={`flex items-center justify-between cursor-pointer group py-1.5 px-2 rounded-lg transition-colors ${isChecked ? 'bg-red-50/60' : 'hover:bg-slate-50'}`} onClick={(e) => { e.preventDefault(); const currentVal = searchParams.get(filterKey); updateUrlParams(filterKey, currentVal === val ? null : val); }}>
+                <label key={val} className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors group ${isDisabled ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); if (isDisabled) return; const currentVal = searchParams.get(filterKey); updateUrlParams(filterKey, currentVal === val ? null : val); }}>
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-200 bg-white group-hover:border-red-400'}`}>
                       {isChecked && <div className="w-2.5 h-2.5 bg-red-600 rounded-[2px]"></div>}
@@ -420,7 +430,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
                         ✕ Usuń
                       </span>
                     ) : (
-                      <span className="text-[9px] font-black text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{count}</span>
+                      <span className="text-[9px] font-black text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{isDisabled ? 0 : activeCount}</span>
                     )}
                   </div>
                 </label>
@@ -514,7 +524,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         </div>
       </header>
 
-      {/* Tytanicznie odchudzone MEGA MENU z komponentu! */}
       <MegaMenu />
 
       <div className="bg-white border-b pt-8 pb-6 px-6 relative z-20">
@@ -589,6 +598,14 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         
+        {/* NOWOŚĆ: Przycisk Filtruj na Mobile przeniesiony pod nagłówek (Sticky) */}
+        <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
+           <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform">
+             <span className="text-sm leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
+             {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
+           </button>
+        </div>
+
         <aside className="hidden lg:block w-full lg:w-80 flex-shrink-0">
           <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
             <FilterMenuContent {...sharedFilterProps} />
@@ -596,9 +613,33 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         </aside>
 
         <div className="flex-1 flex flex-col min-h-[500px]">
+          
+          {/* NOWOŚĆ: Aktywne filtry ("Pigułki") nad listą produktów */}
+          {activeFiltersCount > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6 items-center">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mr-2">Aktywne filtry:</span>
+              {Array.from(searchParams.entries()).map(([key, val]) => {
+                if (['limit', 'sort', 'fullPath', 'q', 'minPrice', 'maxPrice'].includes(key)) return null;
+                return (
+                  <button key={`${key}-${val}`} onClick={() => updateUrlParams(key, null)} className="bg-red-50 text-red-700 border border-red-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-red-100 transition-colors shadow-sm">
+                    {val} <span className="text-red-500 font-bold text-xs ml-1">✕</span>
+                  </button>
+                );
+              })}
+              {(searchParams.get('minPrice') || searchParams.get('maxPrice')) && (
+                 <button onClick={() => { setMinPrice(''); setMaxPrice(''); applyPriceFilter(); }} className="bg-red-50 text-red-700 border border-red-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-red-100 transition-colors shadow-sm">
+                   Cena: {searchParams.get('minPrice') || '0'} - {searchParams.get('maxPrice') || '∞'} zł <span className="text-red-500 font-bold text-xs ml-1">✕</span>
+                 </button>
+              )}
+              <button onClick={() => { setSearchQ(''); setMinPrice(''); setMaxPrice(''); router.push(`/kategoria/${fullPath}`); }} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 underline ml-2 transition-colors">
+                Wyczyść wszystko
+              </button>
+            </div>
+          )}
+
           <div className="relative flex-1">
             {loading ? (
-              <div className={isListView ? "space-y-4" : "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8"}>
+              <div className={isListView ? "space-y-4" : "grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6"}>
                 {Array.from({ length: 6 }).map((_, idx) => <ProductSkeleton key={idx} isListView={isListView} />)}
               </div>
             ) : products.length === 0 ? (
@@ -644,12 +685,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             </div>
           )}
 
-          <div className="lg:hidden mt-8 flex justify-center sticky bottom-20 z-[45]">
-             <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-[11px] uppercase tracking-widest shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex items-center justify-center gap-3 w-full max-w-[90%] border border-slate-700 transition-transform active:scale-95 min-h-[48px]">
-               FILTRUJ I ZNAJDŹ {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] ml-1">{activeFiltersCount}</span>}
-             </button>
-          </div>
-
           {categoryData?.bottom_seo_text && (
             <div className="mt-24 pt-12 border-t border-slate-200">
               <div 
@@ -687,7 +722,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         </div>
       </main>
 
-      {/* Nawigacja Mobilna z Komponentu! */}
       <MobileBottomNav />
 
       <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">
