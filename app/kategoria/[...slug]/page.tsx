@@ -64,9 +64,27 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
   };
 }
 
+// === FUNKCJA POMOCNICZA DO ADRESU URL (Naprawa błędu Vercel fetch failed) ===
+function getBaseUrl() {
+  // Najpierw sprawdzamy Twoją stałą zmienną
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  // Następnie systemowe adresy Vercela, jeśli jesteśmy na środowisku chmurowym
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  // Awaryjnie powrót do trybu deweloperskiego lokalnie
+  return 'http://localhost:3000';
+}
+
 // Funkcja fetchująca dane kategorii na serwerze 
 async function getCategoryData(fullPath: string, searchParams: any) {
-  const url = new URL(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/search`);
+  // Używamy naszej nowej, kuloodpornej funkcji adresującej
+  const url = new URL(`${getBaseUrl()}/api/search`);
   url.searchParams.append('fullPath', fullPath);
   url.searchParams.append('limit', '24');
   
@@ -82,7 +100,8 @@ async function getCategoryData(fullPath: string, searchParams: any) {
     const data = await res.json();
     return { searchData: data, filtersData: data.filters || {} };
   } catch (error: any) {
-    return { searchData: { products: [], category: { h1_dynamic: `BŁĄD SERWERA VERCEL: ${error.message}` } }, filtersData: {} };
+    console.error("Vercel Fetch Error URL:", url.toString());
+    return { searchData: { products: [], category: { h1_dynamic: `BŁĄD WYSZUKIWANIA: Brak połączenia z bazą (${error.message})` } }, filtersData: {} };
   }
 }
 
