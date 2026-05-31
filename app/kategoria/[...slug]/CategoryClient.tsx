@@ -5,8 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/store/useCart'; 
-import SearchBar from '@/components/SearchBar';
-import MegaMenu from '@/components/MegaMenu';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import MobileBottomNav from '@/components/MobileBottomNav';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
@@ -42,19 +42,6 @@ const capitalizeWords = (str: string) => {
   if (!str) return '';
   return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 };
-
-const QUICK_SILOS = [
-  { name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne", img: "🔧" },
-  { name: "Części uniwersalne", slug: "czesci-uniwersalne", img: "🔩" },
-  { name: "Chemia i smary", slug: "chemia-i-smary", img: "🛢️" },
-  { name: "Części do ciągników", slug: "czesci-do-ciagnikow", img: "🚜" },
-  { name: "Hydraulika siłowa", slug: "hydraulika-silowa", img: "🗜️" },
-  { name: "Hodowla i zootechnika", slug: "hodowla-i-zootechnika", img: "🐄" },
-  { name: "Części do maszyn", slug: "czesci-do-maszyn", img: "⚙️" },
-  { name: "Części ciągniki/maszyny", slug: "czesci-do-ciagnikow-i-maszyn", img: "🔗" },
-  { name: "Dom, ogród, las", slug: "dom-ogrod-las", img: "🌲" },
-  { name: "Materiały eksploatacyjne", slug: "materialy-eksploatacyjne", img: "📦" }
-];
 
 const ProductCard = ({ product, isListView, idx }: { product: any, isListView: boolean, idx: number }) => {
   const { addItem, setIsOpen } = useCart() as any;
@@ -184,26 +171,12 @@ const FilterMenuContent = ({ searchQ, setSearchQ, updateUrlParams, loading, gara
     <div className="space-y-8">
       {techFilterKeys.map((filterKey: string) => renderFilterBlock(filterKey))}
     </div>
-    <div className="mt-8 bg-slate-900 p-5 rounded-2xl relative overflow-hidden">
-       <div className="absolute -right-4 -bottom-4 text-6xl opacity-10">📞</div>
-       <h4 className="text-white font-black uppercase text-sm mb-2 relative z-10">Nie możesz znaleźć części?</h4>
-       <p className="text-slate-400 text-xs mb-4 relative z-10 leading-relaxed">Nasz doradca techniczny dobierze dla Ciebie zamiennik w 3 minuty. Zadzwoń do nas podając objawy lub numer OEM.</p>
-       <a href="tel:+48123456789" aria-label="Zadzwoń do doradcy" className="block w-full bg-red-600 hover:bg-red-500 text-white text-center py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-md relative z-10 min-h-[48px]">
-         📞 Zadzwoń teraz
-       </a>
-    </div>
   </div>
 );
 
 export default function CategoryClient({ initialData, initialFilters, fullPath }: { initialData: any, initialFilters: any, fullPath: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { items, setIsOpen: setCartOpen } = useCart() as any;
-  const cartTotalItems = items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
-  
-  const cartValue = items?.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) || 0;
-  const freeShippingThreshold = 500;
-  const progressPercent = Math.min((cartValue / freeShippingThreshold) * 100, 100);
 
   const [categoryData, setCategoryData] = useState<any>(initialData?.category || null);
   const [products, setProducts] = useState<any[]>(initialData?.products || []);
@@ -231,9 +204,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [activeFaq, setActiveFaq] = useState<number | null>(null); 
 
   const isFirstRender = useRef(true);
-  
-  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const [isMounted, setIsMounted] = useState(false);
 
   const rawBrandLabel = searchParams.get('Pasuje do marki');
   const rawModelLabel = searchParams.get('Pasuje do modelu');
@@ -252,31 +222,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       displayH1 += ` DO ${brandLabel.toUpperCase()}`;
       if (modelLabel) displayH1 += ` ${modelLabel.toUpperCase()}`;
     }
-    if (displayTopSeo && !displayTopSeo.toLowerCase().includes(brandLabel.toLowerCase())) {
-        displayTopSeo = `${displayTopSeo} Zobacz wyselekcjonowane, w pełni kompatybilne zamienniki i oryginały pasujące bezpośrednio do maszyn ${brandLabel} ${modelLabel || ''}.`;
-    } else if (!displayTopSeo) {
-        displayTopSeo = `Zobacz wyselekcjonowane, w pełni kompatybilne zamienniki i oryginały pasujące bezpośrednio do maszyn ${brandLabel} ${modelLabel || ''}.`;
-    }
   }
-
-  useEffect(() => {
-    setIsMounted(true);
-    const calculateTimeLeft = () => {
-      const now = new Date();
-      const cutoff = new Date();
-      cutoff.setHours(15, 0, 0, 0); 
-      if (now > cutoff) cutoff.setDate(cutoff.getDate() + 1);
-      const difference = cutoff.getTime() - now.getTime();
-      setTimeLeft({
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / 1000 / 60) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
-      });
-    };
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
@@ -447,83 +393,23 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
-      {/* POPRAWKA Z MARGINESEM DOLNYM (pb-36) ŻEBY STOPKA NIE CHOWAŁA SIĘ POD MENU */}
       
+      <Header />
+
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
               <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
               <button aria-label="Zamknij filtry" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[44px]">✕ Zamknij</button>
            </div>
-           
            <div className="flex-1 overflow-y-auto p-5 pb-24 custom-scrollbar bg-white">
               <FilterMenuContent {...sharedFilterProps} />
            </div>
-           
            <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
                <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[48px]">Pokaż {totalCount} wyników ➔</button>
            </div>
         </div>
       )}
-
-      <div className="hidden sm:block bg-slate-50 text-slate-600 py-2 px-4 font-bold relative z-[60] border-b border-slate-200">
-        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center text-center gap-3">
-          <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
-            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
-              <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
-            </a>
-            <span className="hidden md:flex items-center gap-2 text-slate-500">
-              <span className="text-emerald-500">✓</span> Ekspercki Dobór Części
-            </span>
-          </div>
-          <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
-            <span className="text-[10px] uppercase tracking-widest hidden md:inline">Wysyłamy dzisiaj. Zamów w:</span>
-            <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest">
-              ⏳ {isMounted ? `${String(timeLeft.hours).padStart(2, '0')}:${String(timeLeft.minutes).padStart(2, '0')}:${String(timeLeft.seconds).padStart(2, '0')}` : '00:00:00'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
-        <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
-          <div className="flex-shrink-0 flex items-center">
-            <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna">
-              <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="CentrumRolnictwa.pl" className="h-10 sm:h-14 md:h-20 w-auto transition-transform hover:scale-105 duration-300" fetchPriority="high" />
-            </Link>
-          </div>
-          <div className="flex-1 w-full relative z-50">
-             <SearchBar />
-          </div>
-          <nav className="hidden md:flex items-center space-x-6 text-slate-800">
-            <div className="hidden xl:block text-right mr-4">
-               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">
-                 Do darmowej: <span className="text-red-600 font-black">{Math.max(0, freeShippingThreshold - cartValue).toFixed(2)} zł</span>
-               </p>
-               <div className="w-40 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
-                 <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
-               </div>
-            </div>
-            <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all group">
-              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
-                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-              </div>
-              <span className="text-[9px] font-black mt-1.5 uppercase tracking-widest text-slate-500">Konto</span>
-            </Link>
-            <button onClick={() => setCartOpen(true)} aria-label="Twój Koszyk" className="flex flex-col items-center cursor-pointer hover:text-red-600 transition-all relative group">
-              <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
-                 {cartTotalItems > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartTotalItems}</div>}
-                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-              </div>
-              <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
-                {cartTotalItems > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
-              </span>
-            </button>
-          </nav>
-        </div>
-      </header>
-
-      <MegaMenu />
 
       <div className="bg-white border-b pt-8 pb-6 px-6 relative z-20">
         <div className="max-w-7xl mx-auto">
@@ -720,32 +606,8 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       </main>
 
       <MobileBottomNav />
+      <Footer />
 
-      <footer className="bg-slate-900 text-white py-16 border-t-4 border-red-600 pb-32 md:pb-16 mt-12">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
-          <div>
-            <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" alt="CentrumRolnictwa Logo" className="h-10 w-auto mb-6 brightness-0 invert" loading="lazy" />
-            <p className="text-[10px] font-bold text-slate-400 uppercase leading-loose tracking-widest">
-              Niezawodny Sklep Rolniczy.<br/> Części, maszyny, doradztwo.
-            </p>
-          </div>
-          <div>
-             <h4 className="text-white font-black mb-6 uppercase text-[11px] tracking-widest">Sklep</h4>
-             <ul className="space-y-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                {QUICK_SILOS.slice(0, 4).map(cat => (
-                  <li key={cat.slug}><Link href={`/kategoria/${cat.slug}`} className="hover:text-red-500 transition-colors">{cat.name}</Link></li>
-                ))}
-             </ul>
-          </div>
-          <div className="md:col-span-2 bg-slate-800/50 p-8 rounded-[32px] border border-slate-700 flex flex-col justify-center">
-             <h4 className="text-slate-300 font-black mb-4 uppercase text-[10px] tracking-[0.2em]">Infolinia i Doradztwo Techniczne</h4>
-             <a href="tel:+48257888900" className="font-black text-3xl md:text-4xl text-white tracking-tighter tabular-nums mb-3 hover:text-red-500 transition-colors w-fit">25 788 89 00</a>
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Czynne Pn-Pt: 8:00 - 16:00
-             </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
