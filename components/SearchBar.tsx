@@ -1,7 +1,16 @@
-'use client'; // To mówi Next.js, że ten kod działa w przeglądarce klienta
+'use client'; 
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useCart } from '@/store/useCart';
+
+const PHRASES = [
+  "Wpisz numer OEM części...",
+  "Szukaj części do Zetora...",
+  "Wpisz kod SKU produktu...",
+  "Jakiej części dzisiaj szukasz?",
+  "Wpisz nazwę maszyny..."
+];
 
 export default function SearchBar() {
   const [query, setQuery] = useState('');
@@ -9,7 +18,63 @@ export default function SearchBar() {
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Efekt "Debounce" - czekamy ułamek sekundy po wpisaniu litery, żeby nie zalać serwera zapytaniami
+  // --- 1. INTELIGENTNY PLACEHOLDER (Animacja pisania) ---
+  const [placeholderText, setPlaceholderText] = useState('');
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    // Jeśli użytkownik zaczął pisać, zatrzymujemy animację
+    if (query.length > 0) return;
+
+    const typingSpeed = isDeleting ? 40 : 80;
+    const currentPhrase = PHRASES[phraseIndex];
+
+    const timeout = setTimeout(() => {
+      if (!isDeleting && placeholderText === currentPhrase) {
+        // Pauza na końcu pisania zdania
+        setTimeout(() => setIsDeleting(true), 2500);
+      } else if (isDeleting && placeholderText === '') {
+        // Przejście do kolejnego zdania
+        setIsDeleting(false);
+        setPhraseIndex((prev) => (prev + 1) % PHRASES.length);
+      } else {
+        // Efekt pisania / kasowania
+        setPlaceholderText(
+          currentPhrase.substring(0, placeholderText.length + (isDeleting ? -1 : 1))
+        );
+      }
+    }, typingSpeed);
+
+    return () => clearTimeout(timeout);
+  }, [placeholderText, isDeleting, phraseIndex, query.length]);
+
+
+  // --- 2. MECHANIZM "WELCOME BACK" (Odzyskiwanie koszyka) ---
+  const { items, setIsOpen: setCartOpen } = useCart() as any;
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+
+  useEffect(() => {
+    // Sprawdzamy czy koszyk nie jest pusty i czy nie pokazaliśmy już tego w tej sesji
+    const hasSeenWelcome = sessionStorage.getItem('centrumrolnictwa_welcome_shown');
+    
+    if (items?.length > 0 && !hasSeenWelcome) {
+      const timer = setTimeout(() => {
+        setShowWelcomeBack(true);
+        sessionStorage.setItem('centrumrolnictwa_welcome_shown', 'true');
+      }, 1500); // Opóźnienie wysunięcia po wejściu na stronę
+
+      // Dymek znika sam po 6 sekundach
+      const hideTimer = setTimeout(() => {
+        setShowWelcomeBack(false);
+      }, 7500);
+
+      return () => { clearTimeout(timer); clearTimeout(hideTimer); };
+    }
+  }, [items?.length]);
+
+
+  // --- 3. LOGIKA WYSZUKIWANIA (MeiliSearch / API) ---
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
@@ -22,72 +87,102 @@ export default function SearchBar() {
       try {
         const res = await fetch(`/api/search?q=${query}`);
         const json = await res.json();
-        setResults(json.data || []);
+        setResults(json.data || json.products || []); // Dostosowane do nowej struktury API
         setIsOpen(true);
       } catch (error) {
         console.error('Błąd wyszukiwania', error);
       } finally {
         setIsSearching(false);
       }
-    }, 300); // 300 milisekund opóźnienia
+    }, 300);
 
     return () => clearTimeout(delayDebounceFn);
   }, [query]);
 
   return (
-    <div className="relative w-full z-50">
-      <input 
-        type="text" 
-        placeholder="Wpisz nazwę, np. Terrarium..." 
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => query.length >= 2 && setIsOpen(true)}
-        onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Opóźnienie, żeby dało się kliknąć w link
-        className="w-full bg-slate-100 border-2 border-transparent focus:border-red-500 focus:bg-white rounded-full py-3 px-6 pr-12 outline-none transition-all text-sm font-medium"
-      />
-      <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors">
-        {isSearching ? (
-          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-        ) : (
-          <span>🔍</span>
-        )}
-      </button>
-
-      {/* ROZWIJANE MENU Z WYNIKAMI */}
-      {isOpen && (
-        <div className="absolute top-full mt-2 w-full bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
-          {results.length > 0 ? (
-            <ul className="max-h-96 overflow-y-auto">
-              {results.map((product: any) => {
-                const img = product.images?.[0]?.url_thumbnail;
-                return (
-                  <li key={product.id} className="border-b border-slate-50 last:border-0">
-                    <Link 
-                      href={`/produkt/${product.id}`}
-                      className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors"
-                    >
-                      <div className="w-12 h-12 bg-white rounded-lg border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                        {img ? <img src={img} alt={product.name} className="w-full h-full object-contain" /> : <span className="text-[8px] text-slate-300">BRAK</span>}
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-bold text-slate-800 leading-tight">{product.name}</h4>
-                        <p className="text-[10px] text-slate-400 mt-1">SKU: {product.sku}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="font-black text-slate-900">{product.price.toFixed(2)} zł</span>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <div className="p-6 text-center text-slate-500 text-sm font-medium">
-              Brak wyników dla "{query}"
-            </div>
-          )}
+    <>
+      {/* DYMEK WELCOME BACK */}
+      <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] transition-all duration-500 ease-out ${showWelcomeBack ? 'translate-y-0 opacity-100' : '-translate-y-24 opacity-0 pointer-events-none'}`}>
+        <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 cursor-pointer hover:bg-slate-800 transition-colors" onClick={() => { setShowWelcomeBack(false); setCartOpen(true); }}>
+          <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-lg shadow-inner shrink-0">🛒</div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-0.5">Witaj z powrotem!</p>
+            <p className="text-xs font-bold">Masz {items?.length} nieopłacone pozycje w koszyku.</p>
+          </div>
+          <span className="text-slate-400 ml-4 font-bold">➔</span>
         </div>
-      )}
-    </div>
+      </div>
+
+      {/* WYSZUKIWARKA */}
+      <div className="relative w-full z-50 group">
+        <div className="relative flex items-center">
+          <input 
+            type="text" 
+            placeholder={placeholderText + (query.length === 0 && !isDeleting ? '|' : '')} 
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => query.length >= 2 && setIsOpen(true)}
+            onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+            className="w-full bg-slate-50 border-2 border-slate-200 focus:border-red-600 focus:bg-white rounded-2xl py-3.5 px-6 pr-14 outline-none transition-all text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium shadow-inner"
+          />
+          <button className="absolute right-2 bg-slate-900 text-white w-10 h-10 rounded-xl hover:bg-red-600 transition-colors flex items-center justify-center shadow-md active:scale-95 cursor-pointer">
+            {isSearching ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <span className="text-sm leading-none">🔍</span>
+            )}
+          </button>
+        </div>
+
+        {/* ROZWIJANE MENU Z WYNIKAMI */}
+        {isOpen && (
+          <div className="absolute top-full mt-3 w-full bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 overflow-hidden before:absolute before:top-0 before:left-0 before:w-full before:h-1 before:bg-gradient-to-r before:from-red-600 before:to-red-400">
+            {results.length > 0 ? (
+              <div className="flex flex-col">
+                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wyniki wyszukiwania</span>
+                  <span className="text-[10px] font-bold bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-600">Znaleziono: {results.length}</span>
+                </div>
+                <ul className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                  {results.map((product: any) => {
+                    const img = product.image || product.external_images?.[0] || product.images?.[0]?.url_thumbnail || product.images?.[0]?.url;
+                    return (
+                      <li key={product.id || product.sku} className="border-b border-slate-50 last:border-0 hover:bg-red-50/30 transition-colors">
+                        <Link 
+                          href={`/produkt/${product.slug || product.sku || product.id}`}
+                          className="flex items-center gap-5 p-4 md:p-5"
+                        >
+                          <div className="w-14 h-14 bg-white rounded-xl border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden p-1">
+                            {img ? <img src={img} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" /> : <span className="text-[8px] font-black uppercase text-slate-300">Brak</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-xs md:text-sm font-bold text-slate-800 leading-tight truncate">{product.name || product.title}</h4>
+                            <p className="text-[9px] font-black text-slate-400 mt-1 uppercase tracking-widest">SKU: {product.sku}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0 pl-4">
+                            <span className="font-black text-slate-900 tracking-tighter">{(product.price || 0).toFixed(2)} <span className="text-[10px] font-bold text-slate-400">zł</span></span>
+                          </div>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
+                  <Link href={`/kategorie?q=${query}`} className="text-[10px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 transition-colors">
+                    Zobacz wszystkie wyniki ➔
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="p-10 text-center flex flex-col items-center justify-center">
+                <span className="text-4xl mb-4 grayscale opacity-40">🚜</span>
+                <p className="text-slate-900 font-black uppercase tracking-tight mb-2">Brak części w magazynie</p>
+                <p className="text-slate-500 text-xs font-medium max-w-xs leading-relaxed">Nie znaleźliśmy wyników dla "<span className="text-slate-900 font-bold">{query}</span>". Spróbuj wpisać numer OEM lub ogólną nazwę podzespołu.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
