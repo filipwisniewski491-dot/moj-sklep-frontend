@@ -75,7 +75,8 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
 
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
-      <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do ${product.name}`} className="absolute inset-0 z-0"></Link>
+      {/* POPRAWKA ACCESSIBILITY: Unikalny aria-label z użyciem nazwy i SKU */}
+      <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do: ${product.name} (SKU: ${sku})`} className="absolute inset-0 z-0"></Link>
 
       <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
         {isShippingToday ? (
@@ -541,7 +542,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
                 <p className="text-slate-600 font-medium text-sm lg:text-base max-w-2xl mx-auto mb-8 leading-relaxed">
                   {searchQ 
                     ? <>Nie znaleźliśmy w tej kategorii nic pod frazą <strong className="text-slate-900">"{searchQ}"</strong>. Producenci często aktualizują numery OEM lub część występuje pod inną nazwą.</>
-                    : <>Prawdopodobnie użyłeś zbyt wielu filtrów naraz. W rolnictwie detale mają znaczenie, ale czasem warto spojrzeć szerzej na całą kategorię.</>
+                    : <>Prawdopodobnie użyłeś zbyt wielu filtrów naraz. W rolnictwie detale mają znaczenie, ale czasem warto spojrzeć szerzej na całą kategorii.</>
                   }
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mb-10">

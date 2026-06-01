@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import SearchBar from '@/components/SearchBar';
 import MegaMenu from '@/components/MegaMenu';
 import { useCart } from '@/store/useCart';
@@ -42,7 +43,6 @@ export default function Header() {
     <>
       <div className="bg-slate-900 sm:bg-slate-50 text-white sm:text-slate-600 py-2 px-2 sm:px-4 font-bold relative z-[60] border-b border-slate-800 sm:border-slate-200">
         
-        {/* WIDOK MOBILE */}
         <div className="sm:hidden flex justify-center items-center text-[10px] uppercase tracking-widest text-center min-h-[32px]">
            <span className="text-amber-400 mr-1.5 text-[12px]">⏳</span>
            <span>{isShippingToday ? 'Zamów TERAZ = Wysyłka DZIŚ' : 'Wysyłka JUTRO RANO'}</span>
@@ -51,7 +51,6 @@ export default function Header() {
            <span>Darmowa od 500 zł</span>
         </div>
 
-        {/* WIDOK DESKTOP */}
         <div className="hidden sm:flex max-w-7xl mx-auto flex-row justify-between items-center text-center gap-3">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
             <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800 min-h-[48px]">
@@ -77,16 +76,15 @@ export default function Header() {
           
           <div className="flex-shrink-0 flex items-center min-h-[48px]">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
-              {/* OSTATECZNA OPTYMALIZACJA LOGOTYPU (LCP + CLS) */}
-              <img 
-                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=150&format=webp" 
-                alt="Sygnet" 
-                width="150"
-                height="150"
+              <Image 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
+                alt="CentrumRolnictwa.pl" 
+                width={150}
+                height={150}
                 className="h-9 sm:h-11 md:h-14 w-auto object-contain mb-0.5" 
-                fetchPriority="high" 
+                priority 
               />
-              <span className="font-black text-[11px] sm:text-xs md:text-sm tracking-tighter text-slate-900 leading-none uppercase">
+              <span className="font-black text-[11px] sm:text-xs md:text-sm tracking-tighter text-slate-900 leading-none uppercase mt-1">
                 CentrumRolnictwa<span className="text-red-600">.pl</span>
               </span>
             </Link>
@@ -105,7 +103,6 @@ export default function Header() {
                </div>
             </div>
             
-            {/* POWIĘKSZONE STREFY DOTYKOWE (ACCESSIBILITY) */}
             <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center justify-center cursor-pointer hover:text-red-600 transition-all group min-w-[48px] min-h-[48px]">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
                  <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
