@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
-export const revalidate = 60; // Odświeżanie cache co 60 sekund
+// TWARDE WYŁĄCZENIE CACHE - Wymusza pobieranie na żywo z bazy przy każdym wejściu
+export const dynamic = 'force-dynamic'; 
+export const revalidate = 0; 
 
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://49.12.69.146:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
 const corsHeaders = {
-  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=3600',
+  'Cache-Control': 'no-store, max-age=0',
   'Content-Type': 'application/json'
 };
 
@@ -39,22 +41,25 @@ export async function GET(request: Request) {
   
   let breadcrumbs: any[] = [];
   let directSubcategories: string[] = [];
-  let categoryId = null;
+  
+  // Tablica, która zbierze ID z całej gałęzi (rodzic + dzieci + wnuki)
+  let allCategoryIdsForProducts: string[] = [];
 
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    // 1. Pobieranie danych bieżącej Kategorii
-    const catRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${currentSlug}&fields=+metadata`, { 
-      headers, next: { revalidate: 3600 } 
+    // 1. POBIERAMY KATEGORIĘ WRAZ Z CAŁYM JEJ DRZEWEM DZIECI (include_descendants_tree)
+    const catRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${currentSlug}&fields=*category_children,+metadata&include_descendants_tree=true`, { 
+      headers, cache: 'no-store' 
     });
 
     if (catRes.ok) {
       const catJson = await catRes.json();
       if (catJson.product_categories && catJson.product_categories.length > 0) {
         const category = catJson.product_categories[0];
-        categoryId = category.id;
+        
+        allCategoryIdsForProducts.push(category.id);
         
         const meta = category.metadata || {};
         dbCategoryData.name = category.name;
@@ -62,18 +67,22 @@ export async function GET(request: Request) {
         dbCategoryData.top_seo_text = meta.top_seo_text || "";
         dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
         dbCategoryData.faqs = meta.faqs || meta.faq || [];
-      }
-    }
 
-    // 2. KULOODPORNE POBIERANIE PODKATEGORII (L3)
-    if (categoryId) {
-      const subRes = await fetch(`${MEDUSA_URL}/store/product-categories?parent_category_id=${categoryId}&limit=100`, { 
-        headers, next: { revalidate: 3600 } 
-      });
-      if (subRes.ok) {
-        const subJson = await subRes.json();
-        if (subJson.product_categories) {
-          directSubcategories = subJson.product_categories.map((c: any) => c.name).sort();
+        // Jeśli kategoria ma dzieci, wyciągamy je
+        if (category.category_children && Array.isArray(category.category_children)) {
+          // Do kafelków na stronie bierzemy tylko bezpośrednie dzieci
+          directSubcategories = category.category_children.map((c: any) => c.name).sort();
+          
+          // REKURENCJA: Zbieramy ID absolutnie wszystkich podkategorii, aby wyciągnąć ich produkty
+          const extractIds = (childrenArray: any[]) => {
+            childrenArray.forEach(child => {
+              allCategoryIdsForProducts.push(child.id);
+              if (child.category_children && Array.isArray(child.category_children)) {
+                extractIds(child.category_children);
+              }
+            });
+          };
+          extractIds(category.category_children);
         }
       }
     }
@@ -84,12 +93,19 @@ export async function GET(request: Request) {
       return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
     });
 
-    // 3. Pobieranie Produktów
+    // 2. POBIERANIE PRODUKTÓW ZE WSZYSTKICH WYCIĄGNIĘTYCH KATEGORII
     let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+metadata,+images`;
-    if (categoryId) productsEndpoint += `&category_id[]=${categoryId}`;
+    
+    // Dodajemy wszystkie ID do zapytania (Dzięki temu L1 pokaże produkty z L3!)
+    if (allCategoryIdsForProducts.length > 0) {
+      allCategoryIdsForProducts.forEach(id => {
+        productsEndpoint += `&category_id[]=${id}`;
+      });
+    }
+    
     if (searchQ) productsEndpoint += `&q=${encodeURIComponent(searchQ)}`;
 
-    const prodRes = await fetch(productsEndpoint, { headers, next: { revalidate: 60 } });
+    const prodRes = await fetch(productsEndpoint, { headers, cache: 'no-store' });
     
     if (!prodRes.ok) throw new Error(`Medusa Products Error: ${prodRes.status}`);
 
@@ -139,14 +155,11 @@ export async function GET(request: Request) {
     const totalCount = filteredProducts.length;
     const paginatedProducts = filteredProducts.slice(0, currentLimit);
 
-    // 4. MAPOWANIE: Wstrzykiwanie Bunny.net bezpośrednio do głównej tablicy zdjęć
     const mappedProducts = paginatedProducts.map((p: any) => {
       const meta = p.metadata || {};
       const mainVariant = p.variants?.[0];
       
       const externalImages: string[] = meta.external_images || [];
-      
-      // Jeżeli jest zdjęcie na Bunny.net, wymuszamy je jako główne zdjęcie produktu (url)
       const finalImages = externalImages.length > 0 
         ? [{ url: externalImages[0] }] 
         : (p.images?.map((img: any) => ({ url: img.url })) || (p.thumbnail ? [{ url: p.thumbnail }] : []));
