@@ -50,8 +50,8 @@ export async function GET(request: Request) {
       ...(PUBLISHABLE_KEY ? { "x-publishable-api-key": PUBLISHABLE_KEY } : {})
     };
 
-    // 2. Pobieranie danych Kategorii z Medusa 2.0
-    const catRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${currentSlug}`, { 
+    // 2. Pobieranie danych Kategorii z Medusa 2.0 (ODBLOKOWANE DZIECI I METADANE)
+    const catRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${currentSlug}&fields=*category_children,+metadata`, { 
       headers, next: { revalidate: 3600 } 
     });
 
@@ -83,9 +83,8 @@ export async function GET(request: Request) {
       return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
     });
 
-    // 3. Pobieranie Produktów z Medusy (Faza filtrowania)
-    // Z uwagi na brak zew. silnika search, pobieramy paczkę produktów dla tej kategorii i budujemy filtry w pamięci
-    let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories`;
+    // 3. Pobieranie Produktów z Medusy (ODBLOKOWANE ZDJĘCIA I METADANE)
+    let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+images,+metadata`;
     if (categoryId) productsEndpoint += `&category_id[]=${categoryId}`;
     if (searchQ) productsEndpoint += `&q=${encodeURIComponent(searchQ)}`;
 
