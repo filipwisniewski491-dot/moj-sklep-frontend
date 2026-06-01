@@ -52,7 +52,8 @@ export async function GET(request: Request) {
     let hasMore = true;
 
     while (hasMore) {
-      const allCatsRes = await fetch(`${MEDUSA_URL}/store/product-categories?limit=${fetchLimit}&offset=${offset}&fields=id,name,handle,parent_category_id,metadata`, { 
+      // NAPRAWA 1: Zdejmujemy blokadę pól. Zostawiamy domyślne + metadane
+      const allCatsRes = await fetch(`${MEDUSA_URL}/store/product-categories?limit=${fetchLimit}&offset=${offset}&fields=+metadata`, { 
         headers, cache: 'no-store' 
       });
       
@@ -81,11 +82,18 @@ export async function GET(request: Request) {
       dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
       dbCategoryData.faqs = meta.faqs || meta.faq || [];
 
-      const children = allCategories.filter((c: any) => c.parent_category_id === currentCategory.id);
+      // NAPRAWA 2: Uodpornione szukanie ID rodzica
+      const children = allCategories.filter((c: any) => {
+        const pId = c.parent_category_id || c.parent_category?.id;
+        return pId === currentCategory.id;
+      });
       directSubcategories = children.map((c: any) => c.name).sort();
 
       const findDescendants = (parentId: string) => {
-        const subCats = allCategories.filter((c: any) => c.parent_category_id === parentId);
+        const subCats = allCategories.filter((c: any) => {
+          const pId = c.parent_category_id || c.parent_category?.id;
+          return pId === parentId;
+        });
         subCats.forEach((child: any) => {
           allCategoryIdsForProducts.push(child.id);
           findDescendants(child.id);
@@ -103,7 +111,7 @@ export async function GET(request: Request) {
     let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+metadata,+images`;
     
     if (allCategoryIdsForProducts.length > 0) {
-      const safeIds = allCategoryIdsForProducts.slice(0, 120);
+      const safeIds = allCategoryIdsForProducts.slice(0, 80); // max 80 żeby nie przepełnić linku
       safeIds.forEach(id => {
         productsEndpoint += `&category_id[]=${id}`;
       });

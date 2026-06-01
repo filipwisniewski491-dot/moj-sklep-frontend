@@ -62,6 +62,9 @@ export async function getProductData(identifier: string) {
       description: product.description || '',
       category_text: product.categories?.[0]?.name || meta.category || '',
       
+      // DODANE: Bez tego front-end nie złoży okruszków!
+      category_path: product.categories?.[0]?.metadata?.category_path || meta.category_path || null,
+      
       // Zasilanie Twojego frontendu wyciągniętymi metadanymi
       attributes: meta.technical_specs || meta.attributes || {},
       images: product.images?.map((img: any) => ({ url: img.url })) || [],
