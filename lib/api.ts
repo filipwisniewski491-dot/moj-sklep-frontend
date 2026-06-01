@@ -1,69 +1,75 @@
 // lib/api.ts
 
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://178.105.201.145:1337";
-const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN;
-const BC_STORE_HASH = process.env.BIGCOMMERCE_STORE_HASH;
-const BC_TOKEN = process.env.BIGCOMMERCE_ACCESS_TOKEN;
+const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://49.12.69.146:9000";
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
-// 🚀 Błyskawiczne pobieranie produktu bezpośrednio na serwerze
+// 🚀 Błyskawiczne pobieranie produktu bezpośrednio na serwerze (Medusa 2.0)
 export async function getProductData(identifier: string) {
   try {
-    // Poprawka dla TypeScripta: jawne zdefiniowanie typu nagłówków
-    const headers: Record<string, string> = {};
-    if (STRAPI_TOKEN) {
-      headers['Authorization'] = `Bearer ${STRAPI_TOKEN}`;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    if (PUBLISHABLE_KEY) {
+      headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
     }
 
-    const strapiOptions: RequestInit = {
+    const options: RequestInit = {
       headers: headers,
+      // Cache'owanie w Next.js - revalidacja co 24h
       next: { revalidate: 86400 } 
     };
 
-    // Szukamy po slugu
-    let res = await fetch(`${STRAPI_URL}/api/products?filters[slug][$eq]=${encodeURIComponent(identifier)}&populate=*`, strapiOptions);
-    let json = await res.json();
+    // Uderzamy do Medusy po handle (slug) i zaciągamy relacje: warianty oraz kategorie
+    const res = await fetch(
+      `${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&fields=*variants,*categories`, 
+      options
+    );
 
-    // Jeśli nie ma po slugu, szukamy po SKU
-    if (!json.data || json.data.length === 0) {
-      res = await fetch(`${STRAPI_URL}/api/products?filters[sku][$eq]=${encodeURIComponent(identifier)}&populate=*`, strapiOptions);
-      json = await res.json();
+    if (!res.ok) {
+       console.error(`[API LIB] Błąd odpowiedzi Medusy: ${res.status}`);
+       return null;
     }
 
-    if (!json.data || json.data.length === 0) return null;
+    const json = await res.json();
 
-    const strapiProd = json.data[0];
-    let bcProd = null;
-
-    // Pobieramy cenę z BigCommerce
-    if (strapiProd.sku && BC_STORE_HASH && BC_TOKEN) {
-       const bcRes = await fetch(`https://api.bigcommerce.com/stores/${BC_STORE_HASH}/v3/catalog/products?sku=${encodeURIComponent(strapiProd.sku)}&include=images`, {
-         headers: { 'X-Auth-Token': BC_TOKEN, 'Accept': 'application/json' },
-         next: { revalidate: 86400 }
-       });
-       if (bcRes.ok) {
-         const bcJson = await bcRes.json();
-         bcProd = bcJson.data?.[0] || null;
-       }
+    if (!json.products || json.products.length === 0) {
+        return null;
     }
+
+    const product = json.products[0];
+    const meta = product.metadata || {};
+    const mainVariant = product.variants?.[0] || null;
 
     return {
-      id: strapiProd.documentId || strapiProd.id,
-      sku: strapiProd.sku,
-      slug: strapiProd.slug || identifier,
-      name: strapiProd.seo_title || strapiProd.name || bcProd?.name || 'Produkt',
-      price: bcProd?.price || 0,
-      description: strapiProd.seo_description || strapiProd.description || bcProd?.description || '',
-      category_text: strapiProd.category_text || '',
-      attributes: strapiProd.technical_specs || strapiProd.attributes || {},
-      images: bcProd?.images || [],
-      external_images: strapiProd.external_images || [],
-      expert_advice: strapiProd.expert_advice || null,
-      symptoms: strapiProd.symptoms || null,
-      faq: strapiProd.faq || strapiProd.faqs || null,
-      crossSell: strapiProd.cross_sell_skus || strapiProd.cross_sell || []
+      id: product.id,
+      sku: mainVariant?.sku || meta.sku || null,
+      slug: product.handle,
+      name: product.title || 'Produkt',
+      
+      // Uwaga: Skrypt importujący wrzucił produkty jako Drafty bez cen.
+      // Docelowo cenę w Medusa 2.0 pobiera się z kalkulacji regionu.
+      price: mainVariant?.calculated_price?.calculated_amount || 0, 
+      
+      description: product.description || '',
+      category_text: product.categories?.[0]?.name || meta.category || '',
+      
+      // Dynamic Attributes Filters - płynnie zasilone danymi z Medusy
+      attributes: meta.technical_specs || {},
+      
+      // Zdjęcia własne Medusy
+      images: product.images?.map((img: any) => ({ url: img.url })) || [],
+      
+      // Zdjęcia z Bunny.net wciągnięte z metadanych
+      external_images: meta.external_images || [],
+      
+      expert_advice: meta.expert_advice || null,
+      symptoms: meta.symptoms || null,
+      faq: meta.faq || null,
+      crossSell: meta.cross_sell_skus || meta.cross_sell || []
     };
   } catch (error) {
-    console.error("[API LIB] Błąd pobierania produktu:", error);
+    console.error("[API LIB] Krytyczny błąd pobierania produktu z Medusy:", error);
     return null;
   }
 }
