@@ -46,31 +46,15 @@ export async function GET(request: Request) {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    let allCategories: any[] = [];
-    let offset = 0;
-    const fetchLimit = 250;
-    let hasMore = true;
+    // 1. POBIERAMY OBECNĄ KATEGORIĘ (z próbą pobrania drzewa)
+    const catRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${currentSlug}&include_descendants_tree=true&fields=*category_children,+metadata`, { 
+      headers, cache: 'no-store' 
+    });
+    
+    if (!catRes.ok) throw new Error(`Category fetch error: ${catRes.status}`);
 
-    while (hasMore) {
-      // NAPRAWA 1: Zdejmujemy blokadę pól. Zostawiamy domyślne + metadane
-      const allCatsRes = await fetch(`${MEDUSA_URL}/store/product-categories?limit=${fetchLimit}&offset=${offset}&fields=+metadata`, { 
-        headers, cache: 'no-store' 
-      });
-      
-      if (!allCatsRes.ok) break;
-
-      const allCatsJson = await allCatsRes.json();
-      const batch = allCatsJson.product_categories || [];
-      allCategories = allCategories.concat(batch);
-
-      if (batch.length < fetchLimit) {
-        hasMore = false;
-      } else {
-        offset += fetchLimit;
-      }
-    }
-
-    const currentCategory = allCategories.find((c: any) => c.handle === currentSlug);
+    const catJson = await catRes.json();
+    const currentCategory = catJson.product_categories?.[0];
 
     if (currentCategory) {
       allCategoryIdsForProducts.push(currentCategory.id);
@@ -82,24 +66,47 @@ export async function GET(request: Request) {
       dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
       dbCategoryData.faqs = meta.faqs || meta.faq || [];
 
-      // NAPRAWA 2: Uodpornione szukanie ID rodzica
-      const children = allCategories.filter((c: any) => {
-        const pId = c.parent_category_id || c.parent_category?.id;
-        return pId === currentCategory.id;
-      });
-      directSubcategories = children.map((c: any) => c.name).sort();
+      // 2. KULOODPORNE POBIERANIE DZIECI (L3 i WNUKÓW)
+      // Jeśli Medusa zablokowała drzewo w pierwszym zapytaniu, robimy precyzyjny strzał po ID!
+      if (currentCategory.category_children && currentCategory.category_children.length > 0) {
+         directSubcategories = currentCategory.category_children.map((c: any) => c.name).sort();
+         const extractIds = (children: any[]) => {
+            children.forEach(c => {
+               allCategoryIdsForProducts.push(c.id);
+               if (c.category_children) extractIds(c.category_children);
+            });
+         };
+         extractIds(currentCategory.category_children);
+      } else {
+         // OMIJANIE BLOKADY: Jawnie odpytujemy bazę o dzieci TEJ kategorii (L3)
+         const childRes = await fetch(`${MEDUSA_URL}/store/product-categories?parent_category_id=${currentCategory.id}&limit=100`, { 
+           headers, cache: 'no-store' 
+         });
+         
+         if (childRes.ok) {
+            const childJson = await childRes.json();
+            const children = childJson.product_categories || [];
+            
+            // Pojawią się kafelki!
+            directSubcategories = children.map((c: any) => c.name).sort();
+            
+            // Zbieramy ID dzieci, by wyświetlić z nich produkty
+            children.forEach((c: any) => allCategoryIdsForProducts.push(c.id));
 
-      const findDescendants = (parentId: string) => {
-        const subCats = allCategories.filter((c: any) => {
-          const pId = c.parent_category_id || c.parent_category?.id;
-          return pId === parentId;
-        });
-        subCats.forEach((child: any) => {
-          allCategoryIdsForProducts.push(child.id);
-          findDescendants(child.id);
-        });
-      };
-      findDescendants(currentCategory.id);
+            // Jeśli jesteśmy w L1 (i są dzieci), jawnie odpytujemy o wnuki (L3), by z nich też wziąć produkty
+            if (children.length > 0) {
+               const gcPromises = children.map((c: any) => 
+                  fetch(`${MEDUSA_URL}/store/product-categories?parent_category_id=${c.id}&limit=100`, { headers, cache: 'no-store' })
+                  .then(r => r.json()).catch(() => ({}))
+               );
+               const gcResults = await Promise.all(gcPromises);
+               gcResults.forEach((gcJson: any) => {
+                  const grandchildren = gcJson.product_categories || [];
+                  grandchildren.forEach((gc: any) => allCategoryIdsForProducts.push(gc.id));
+               });
+            }
+         }
+      }
     }
 
     let tempPath = "";
@@ -108,10 +115,13 @@ export async function GET(request: Request) {
       return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
     });
 
+    // 3. POBIERANIE PRODUKTÓW ZE WSZYSTKICH WYCIĄGNIĘTYCH GAŁĘZI
     let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+metadata,+images`;
     
+    // Zabezpieczenie przed zbyt długim linkiem API - filtrujemy unikaty i bierzemy max 100 gałęzi
     if (allCategoryIdsForProducts.length > 0) {
-      const safeIds = allCategoryIdsForProducts.slice(0, 80); // max 80 żeby nie przepełnić linku
+      const uniqueIds = Array.from(new Set(allCategoryIdsForProducts));
+      const safeIds = uniqueIds.slice(0, 100);
       safeIds.forEach(id => {
         productsEndpoint += `&category_id[]=${id}`;
       });
