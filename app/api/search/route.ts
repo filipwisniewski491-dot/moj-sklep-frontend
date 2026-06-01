@@ -16,14 +16,12 @@ export async function GET(request: Request) {
   const fullPath = searchParams.get('fullPath'); 
   const currentLimit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 24;
 
-  // 1. Odbiór aktywnych filtrów z URL
   const activeFilters = Object.fromEntries(searchParams.entries());
   const sort = activeFilters.sort || null;
   const minPrice = activeFilters.minPrice ? parseFloat(activeFilters.minPrice) : null;
   const maxPrice = activeFilters.maxPrice ? parseFloat(activeFilters.maxPrice) : null;
   const searchQ = activeFilters.q || "";
 
-  // Usuwamy parametry systemowe, żeby zostały tylko te techniczne (np. "Pasuje do marki")
   ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q'].forEach(k => delete activeFilters[k]);
 
   if (!fullPath) return NextResponse.json({ error: "Brak ścieżki" }, { status: 400 });
@@ -31,7 +29,6 @@ export async function GET(request: Request) {
   const segments = fullPath.split('/').filter(Boolean);
   const currentSlug = segments[segments.length - 1]; 
 
-  // Inicjalizacja domyślnego obiektu kategorii (Zgodność z Twoim UI)
   let dbCategoryData = { 
     h1_dynamic: currentSlug.toUpperCase().replace(/-/g, ' '), 
     name: currentSlug.replace(/-/g, ' '), 
@@ -45,13 +42,11 @@ export async function GET(request: Request) {
   let categoryId = null;
 
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      ...(PUBLISHABLE_KEY ? { "x-publishable-api-key": PUBLISHABLE_KEY } : {})
-    };
+    const headers: any = { "Content-Type": "application/json" };
+    if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    // 2. Pobieranie danych Kategorii z Medusa 2.0 (ODBLOKOWANE DZIECI I METADANE)
-    const catRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${currentSlug}&fields=*category_children,+metadata`, { 
+    // 1. Pobieranie danych bieżącej Kategorii
+    const catRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${currentSlug}&fields=+metadata`, { 
       headers, next: { revalidate: 3600 } 
     });
 
@@ -61,63 +56,63 @@ export async function GET(request: Request) {
         const category = catJson.product_categories[0];
         categoryId = category.id;
         
-        // Wyciąganie danych SEO z metadanych Medusy
         const meta = category.metadata || {};
         dbCategoryData.name = category.name;
         dbCategoryData.h1_dynamic = meta.h1_dynamic || category.name.toUpperCase();
         dbCategoryData.top_seo_text = meta.top_seo_text || "";
         dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
         dbCategoryData.faqs = meta.faqs || meta.faq || [];
+      }
+    }
 
-        // Generowanie subkategorii (jeśli Medusa zwraca dzieci)
-        if (category.category_children) {
-          directSubcategories = category.category_children.map((c: any) => c.name).sort();
+    // 2. KULOODPORNE POBIERANIE PODKATEGORII (L3)
+    if (categoryId) {
+      const subRes = await fetch(`${MEDUSA_URL}/store/product-categories?parent_category_id=${categoryId}&limit=100`, { 
+        headers, next: { revalidate: 3600 } 
+      });
+      if (subRes.ok) {
+        const subJson = await subRes.json();
+        if (subJson.product_categories) {
+          directSubcategories = subJson.product_categories.map((c: any) => c.name).sort();
         }
       }
     }
 
-    // Budowanie Breadcrumbs
     let tempPath = "";
     breadcrumbs = segments.map(s => {
       tempPath = tempPath ? `${tempPath}/${s}` : s;
       return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
     });
 
-    // 3. Pobieranie Produktów z Medusy (ODBLOKOWANE ZDJĘCIA I METADANE)
-    let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+images,+metadata`;
+    // 3. Pobieranie Produktów
+    let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+metadata,+images`;
     if (categoryId) productsEndpoint += `&category_id[]=${categoryId}`;
     if (searchQ) productsEndpoint += `&q=${encodeURIComponent(searchQ)}`;
 
     const prodRes = await fetch(productsEndpoint, { headers, next: { revalidate: 60 } });
     
-    if (!prodRes.ok) {
-      throw new Error(`Medusa Products Error: ${prodRes.status}`);
-    }
+    if (!prodRes.ok) throw new Error(`Medusa Products Error: ${prodRes.status}`);
 
     const prodJson = await prodRes.json();
     const allProducts = prodJson.products || [];
 
-    // 4. Budowanie silnika fasetowego w locie (Filtry atrybutów)
     const globalFilters: Record<string, Record<string, number>> = {};
     const narrowedFilters: Record<string, Record<string, number>> = {};
 
     let filteredProducts = allProducts.filter((p: any) => {
       const specs = p.metadata?.technical_specs || p.metadata?.attributes || {};
       const mainVariant = p.variants?.[0];
-      const price = mainVariant?.calculated_price?.calculated_amount || 0; // Drafty mają 0
+      const price = mainVariant?.calculated_price?.calculated_amount || 0; 
       
-      // Zliczanie do filtrów globalnych
       Object.entries(specs).forEach(([key, val]) => {
         const strVal = String(val);
         if (!globalFilters[key]) globalFilters[key] = {};
         globalFilters[key][strVal] = (globalFilters[key][strVal] || 0) + 1;
       });
 
-      // Filtrowanie cenowe
       if (minPrice !== null && price < minPrice) return false;
       if (maxPrice !== null && price > maxPrice) return false;
 
-      // Filtrowanie po atrybutach technicznych z URL
       let matchesAllSpecs = true;
       for (const [activeKey, activeVal] of Object.entries(activeFilters)) {
         if (String(specs[activeKey]) !== String(activeVal)) {
@@ -126,7 +121,6 @@ export async function GET(request: Request) {
         }
       }
 
-      // Jeśli produkt przeszedł filtry, zlicz go do "Zawężonych filtrów"
       if (matchesAllSpecs) {
         Object.entries(specs).forEach(([key, val]) => {
           const strVal = String(val);
@@ -138,22 +132,24 @@ export async function GET(request: Request) {
       return matchesAllSpecs;
     });
 
-    // Sortowanie wyników
     if (sort === 'price_asc') filteredProducts.sort((a: any, b: any) => (a.variants?.[0]?.calculated_price?.calculated_amount || 0) - (b.variants?.[0]?.calculated_price?.calculated_amount || 0));
     if (sort === 'price_desc') filteredProducts.sort((a: any, b: any) => (b.variants?.[0]?.calculated_price?.calculated_amount || 0) - (a.variants?.[0]?.calculated_price?.calculated_amount || 0));
     if (sort === 'name_asc') filteredProducts.sort((a: any, b: any) => a.title.localeCompare(b.title));
 
     const totalCount = filteredProducts.length;
-    // Paginacja / Limit dla Frontendu
     const paginatedProducts = filteredProducts.slice(0, currentLimit);
 
-    // 5. Mapowanie do struktury wymaganej przez CategoryClient.tsx
+    // 4. MAPOWANIE: Wstrzykiwanie Bunny.net bezpośrednio do głównej tablicy zdjęć
     const mappedProducts = paginatedProducts.map((p: any) => {
       const meta = p.metadata || {};
       const mainVariant = p.variants?.[0];
       
-      // Obsługa zdjęć (Bunny.net vs natywne Medusy)
-      let externalImages: string[] = meta.external_images || [];
+      const externalImages: string[] = meta.external_images || [];
+      
+      // Jeżeli jest zdjęcie na Bunny.net, wymuszamy je jako główne zdjęcie produktu (url)
+      const finalImages = externalImages.length > 0 
+        ? [{ url: externalImages[0] }] 
+        : (p.images?.map((img: any) => ({ url: img.url })) || (p.thumbnail ? [{ url: p.thumbnail }] : []));
       
       return {
         id: p.id,
@@ -162,7 +158,7 @@ export async function GET(request: Request) {
         price: mainVariant?.calculated_price?.calculated_amount || 0,
         slug: p.handle,
         external_images: externalImages,
-        images: p.images?.map((img: any) => ({ url: img.url })) || (p.thumbnail ? [{ url: p.thumbnail }] : [])
+        images: finalImages
       };
     });
 
