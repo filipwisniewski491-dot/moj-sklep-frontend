@@ -46,44 +46,57 @@ export async function GET(request: Request) {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    // 1. KULOODPORNE POBIERANIE WSZYSTKICH KATEGORII (Płaska lista)
-    // Pobieramy całe 1087 kategorii na raz i budujemy strukturę w pamięci
-    const allCatsRes = await fetch(`${MEDUSA_URL}/store/product-categories?limit=2000&fields=+metadata`, { 
-      headers, cache: 'no-store' 
-    });
-    
-    if (allCatsRes.ok) {
+    // 1. PĘTLA POBIERAJĄCA WSZYSTKIE 1087 KATEGORII (Omijamy blokadę Medusy)
+    let allCategories: any[] = [];
+    let offset = 0;
+    const fetchLimit = 250;
+    let hasMore = true;
+
+    while (hasMore) {
+      const allCatsRes = await fetch(`${MEDUSA_URL}/store/product-categories?limit=${fetchLimit}&offset=${offset}&fields=+metadata`, { 
+        headers, cache: 'no-store' 
+      });
+      
+      if (!allCatsRes.ok) break;
+
       const allCatsJson = await allCatsRes.json();
-      const allCategories = allCatsJson.product_categories || [];
+      const batch = allCatsJson.product_categories || [];
+      allCategories = allCategories.concat(batch);
 
-      // Szukamy naszej obecnej kategorii
-      const currentCategory = allCategories.find((c: any) => c.handle === currentSlug);
-
-      if (currentCategory) {
-        allCategoryIdsForProducts.push(currentCategory.id);
-        
-        // SEO i opisy
-        const meta = currentCategory.metadata || {};
-        dbCategoryData.name = currentCategory.name;
-        dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
-        dbCategoryData.top_seo_text = meta.top_seo_text || "";
-        dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
-        dbCategoryData.faqs = meta.faqs || meta.faq || [];
-
-        // 2. WYCIĄGAMY DZIECI (np. L3 dla strony L2)
-        const children = allCategories.filter((c: any) => c.parent_category_id === currentCategory.id);
-        directSubcategories = children.map((c: any) => c.name).sort();
-
-        // 3. REKURENCJA: Zbieramy ID wszystkich wnuków, żeby L1 miało produkty
-        const findDescendants = (parentId: string) => {
-          const subCats = allCategories.filter((c: any) => c.parent_category_id === parentId);
-          subCats.forEach((child: any) => {
-            allCategoryIdsForProducts.push(child.id);
-            findDescendants(child.id); // schodzimy głębiej
-          });
-        };
-        findDescendants(currentCategory.id);
+      // Jeśli paczka ma mniej niż limit, to znaczy, że dobrnęliśmy do końca
+      if (batch.length < fetchLimit) {
+        hasMore = false;
+      } else {
+        offset += fetchLimit;
       }
+    }
+
+    // 2. SZUKAMY OBECNEJ KATEGORII
+    const currentCategory = allCategories.find((c: any) => c.handle === currentSlug);
+
+    if (currentCategory) {
+      allCategoryIdsForProducts.push(currentCategory.id);
+      
+      const meta = currentCategory.metadata || {};
+      dbCategoryData.name = currentCategory.name;
+      dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
+      dbCategoryData.top_seo_text = meta.top_seo_text || "";
+      dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
+      dbCategoryData.faqs = meta.faqs || meta.faq || [];
+
+      // 3. WYCIĄGAMY BEZPOŚREDNIE DZIECI (np. L3 dla strony L2)
+      const children = allCategories.filter((c: any) => c.parent_category_id === currentCategory.id);
+      directSubcategories = children.map((c: any) => c.name).sort();
+
+      // 4. REKURENCJA: Zbieramy ID wszystkich wnuków, żeby L1 miało swoje produkty
+      const findDescendants = (parentId: string) => {
+        const subCats = allCategories.filter((c: any) => c.parent_category_id === parentId);
+        subCats.forEach((child: any) => {
+          allCategoryIdsForProducts.push(child.id);
+          findDescendants(child.id);
+        });
+      };
+      findDescendants(currentCategory.id);
     }
 
     let tempPath = "";
@@ -92,12 +105,12 @@ export async function GET(request: Request) {
       return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
     });
 
-    // 4. POBIERANIE PRODUKTÓW
+    // 5. POBIERANIE PRODUKTÓW
     let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+metadata,+images`;
     
-    // Dodajemy do zapytania kategorie (ograniczamy do 80 ID, by serwer nie odrzucił zbyt długiego linku)
+    // Pakujemy znalezione podkategorie do zapytania (Max 120, by uniknąć błędu za długiego linku URI)
     if (allCategoryIdsForProducts.length > 0) {
-      const safeIds = allCategoryIdsForProducts.slice(0, 80);
+      const safeIds = allCategoryIdsForProducts.slice(0, 120);
       safeIds.forEach(id => {
         productsEndpoint += `&category_id[]=${id}`;
       });
