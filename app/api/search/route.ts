@@ -46,14 +46,13 @@ export async function GET(request: Request) {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    // 1. PĘTLA POBIERAJĄCA WSZYSTKIE 1087 KATEGORII (Omijamy blokadę Medusy)
     let allCategories: any[] = [];
     let offset = 0;
     const fetchLimit = 250;
     let hasMore = true;
 
     while (hasMore) {
-      const allCatsRes = await fetch(`${MEDUSA_URL}/store/product-categories?limit=${fetchLimit}&offset=${offset}&fields=+metadata`, { 
+      const allCatsRes = await fetch(`${MEDUSA_URL}/store/product-categories?limit=${fetchLimit}&offset=${offset}&fields=id,name,handle,parent_category_id,metadata`, { 
         headers, cache: 'no-store' 
       });
       
@@ -63,7 +62,6 @@ export async function GET(request: Request) {
       const batch = allCatsJson.product_categories || [];
       allCategories = allCategories.concat(batch);
 
-      // Jeśli paczka ma mniej niż limit, to znaczy, że dobrnęliśmy do końca
       if (batch.length < fetchLimit) {
         hasMore = false;
       } else {
@@ -71,7 +69,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // 2. SZUKAMY OBECNEJ KATEGORII
     const currentCategory = allCategories.find((c: any) => c.handle === currentSlug);
 
     if (currentCategory) {
@@ -84,11 +81,9 @@ export async function GET(request: Request) {
       dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
       dbCategoryData.faqs = meta.faqs || meta.faq || [];
 
-      // 3. WYCIĄGAMY BEZPOŚREDNIE DZIECI (np. L3 dla strony L2)
       const children = allCategories.filter((c: any) => c.parent_category_id === currentCategory.id);
       directSubcategories = children.map((c: any) => c.name).sort();
 
-      // 4. REKURENCJA: Zbieramy ID wszystkich wnuków, żeby L1 miało swoje produkty
       const findDescendants = (parentId: string) => {
         const subCats = allCategories.filter((c: any) => c.parent_category_id === parentId);
         subCats.forEach((child: any) => {
@@ -105,10 +100,8 @@ export async function GET(request: Request) {
       return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
     });
 
-    // 5. POBIERANIE PRODUKTÓW
     let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+metadata,+images`;
     
-    // Pakujemy znalezione podkategorie do zapytania (Max 120, by uniknąć błędu za długiego linku URI)
     if (allCategoryIdsForProducts.length > 0) {
       const safeIds = allCategoryIdsForProducts.slice(0, 120);
       safeIds.forEach(id => {

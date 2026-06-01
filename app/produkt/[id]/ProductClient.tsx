@@ -206,11 +206,18 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const attributes = useMemo(() => typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {}, [product.attributes]);
 
   const breadcrumbPath = useMemo((): string[] => {
+    // 1. Zczytanie ścieżki wygenerowanej ze Strapi
+    const catPath = product.categories?.[0]?.metadata?.category_path || product.metadata?.category_path;
+    if (catPath) {
+      // Rozbija "czesci-do-maszyn/zbior-i-zniwa/rolki" na ładne okruszki
+      return catPath.split('/').map((s: string) => s.replace(/-/g, ' '));
+    }
+    // 2. Fallback bezpieczeństwa
     if (product.category_text) {
       return product.category_text.split('>').map((s: string) => s.trim()).filter(Boolean);
     }
     return ["Kategoria"];
-  }, [product.category_text]);
+  }, [product]);
 
   const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const priceAfterDiscount = numPrice * (1 - currentTier.discountPercent);
