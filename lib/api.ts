@@ -13,30 +13,33 @@ export async function getProductData(identifier: string) {
       headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
     }
 
-    // TYMCZASOWO: wyłączamy cache, żeby Next.js przestał pamiętać błędy Vercela
+    // Wyłączamy cache, żeby wymusić pobranie nowych pól
     const options: RequestInit = {
       headers: headers,
       cache: 'no-store' 
     };
 
+    // Wymuszamy na Medusie zwrot metadanych (+metadata) i obrazków (+images)
+    const queryFields = "fields=*variants,*categories,+metadata,+images";
+
     // 1. Próba 1: Szukamy dokładnie tego, co w pasku adresu
-    let res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&fields=*variants,*categories`, options);
+    let res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}`, options);
     let json = await res.json();
 
     // 2. DETEKTYW (Naprawa różnic ze Strapi): Ocinamy cyfry z końca sluga
     if (!json.products || json.products.length === 0) {
       const slugParts = identifier.split('-');
       if (slugParts.length > 1) {
-        slugParts.pop(); // Pozbywamy się starego ID (np. 19319249)
+        slugParts.pop(); // Pozbywamy się starego ID
         const shortHandle = slugParts.join('-');
-        res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(shortHandle)}&fields=*variants,*categories`, options);
+        res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(shortHandle)}&${queryFields}`, options);
         json = await res.json();
       }
     }
 
     // 3. KOŁO RATUNKOWE: Wyszukiwanie ogólne po znakach
     if (!json.products || json.products.length === 0) {
-      res = await fetch(`${MEDUSA_URL}/store/products?q=${encodeURIComponent(identifier)}&fields=*variants,*categories`, options);
+      res = await fetch(`${MEDUSA_URL}/store/products?q=${encodeURIComponent(identifier)}&${queryFields}`, options);
       json = await res.json();
     }
 
@@ -46,6 +49,7 @@ export async function getProductData(identifier: string) {
     }
 
     const product = json.products[0];
+    // Gwarancja, że metadane teraz tu wpadną
     const meta = product.metadata || {};
     const mainVariant = product.variants?.[0] || null;
 
@@ -57,7 +61,9 @@ export async function getProductData(identifier: string) {
       price: mainVariant?.calculated_price?.calculated_amount || 0, 
       description: product.description || '',
       category_text: product.categories?.[0]?.name || meta.category || '',
-      attributes: meta.technical_specs || {},
+      
+      // Zasilanie Twojego frontendu wyciągniętymi metadanymi
+      attributes: meta.technical_specs || meta.attributes || {},
       images: product.images?.map((img: any) => ({ url: img.url })) || [],
       external_images: meta.external_images || [],
       expert_advice: meta.expert_advice || null,
