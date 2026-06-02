@@ -79,3 +79,40 @@ export async function getProductData(identifier: string) {
     return null;
   }
 }
+
+// === FUNKCJA POBIERANIA DANYCH KATEGORII (Wymagana przez page.tsx) ===
+export async function getCategoryData(fullPath: string, searchParams: any) {
+  try {
+    // Automatyczne wykrywanie adresu URL (lokalnie lub na Vercelu)
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+                   
+    const queryStr = new URLSearchParams(searchParams || {});
+    queryStr.set('fullPath', fullPath);
+    if (!queryStr.has('limit')) queryStr.set('limit', '24');
+
+    const url = new URL(`/api/search?${queryStr.toString()}`, baseUrl);
+
+    // Fetch z no-store, aby Vercel nie blokował buildu i zawsze miał świeże dane
+    const res = await fetch(url.toString(), {
+      cache: 'no-store'
+    });
+
+    if (!res.ok) {
+      throw new Error(`API Error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return { searchData: data, filtersData: data.filters || {} };
+    
+  } catch (error: any) {
+    console.error("Fetch Error URL:", error.message);
+    return { 
+      searchData: { 
+        products: [], 
+        category: { h1_dynamic: `BŁĄD WYSZUKIWANIA: Brak połączenia z bazą (${error.message})` } 
+      }, 
+      filtersData: {} 
+    };
+  }
+}
