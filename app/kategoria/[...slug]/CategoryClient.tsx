@@ -53,7 +53,7 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
   const reviewsCount = 12 + (hash % 10); 
   const isLowStock = (hash % 5) === 0; 
 
-  const isLcpElement = idx === 0;
+  const isLcpElement = idx < 4;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); 

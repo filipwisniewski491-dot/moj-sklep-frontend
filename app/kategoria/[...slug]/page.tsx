@@ -48,16 +48,10 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
   };
 }
 
-// === GŁÓWNY KOMPONENT STRONY KATEGORII ===
-export default async function CategoryPage({ params, searchParams }: any) {
-  const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
+// === KOMPONENT ŁADUJĄCY DANE (MUSI BYĆ OSOBNO, ABY SUSPENSE ZADZIAŁAŁ) ===
+async function CategoryDataLoader({ fullPath, searchParams }: { fullPath: string, searchParams: any }) {
+  const { searchData, filtersData } = await getCategoryData(fullPath, searchParams);
 
-  const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
-  
-  const { searchData, filtersData } = await getCategoryData(fullPath, resolvedSearchParams);
-
-  // Wstrzykiwanie Google JSON-LD dla FAQ wygenerowanego przez AI
   const faqs = searchData?.category?.faqs || [];
   const jsonLd = faqs.length > 0 ? {
     "@context": "https://schema.org",
@@ -80,14 +74,24 @@ export default async function CategoryPage({ params, searchParams }: any) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      
-      <Suspense fallback={<Loading />}>
-        <CategoryClient 
-          initialData={searchData} 
-          initialFilters={filtersData} 
-          fullPath={fullPath}
-        />
-      </Suspense>
+      <CategoryClient 
+        initialData={searchData} 
+        initialFilters={filtersData} 
+        fullPath={fullPath}
+      />
     </>
+  );
+}
+
+// === GŁÓWNY KOMPONENT STRONY KATEGORII ===
+export default async function CategoryPage({ params, searchParams }: any) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
+
+  return (
+    <Suspense fallback={<Loading />}>
+      <CategoryDataLoader fullPath={fullPath} searchParams={resolvedSearchParams} />
+    </Suspense>
   );
 }
