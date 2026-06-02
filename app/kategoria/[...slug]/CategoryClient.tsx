@@ -13,10 +13,15 @@ const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
 const FaqSection = dynamic(() => import('./FaqSection'), { ssr: false });
 const SeoSection = dynamic(() => import('./SeoSection'), { ssr: false });
 
+// === OPTYMALIZACJA BUNNY CDN ===
+// Parametry Next.js potrafią oszukać loader na słabych łączach.
+// Ta funkcja zmusza CDN do twardego docinania zdjęć, nie większych niż ekran smartfona.
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
-  return `${cleanSrc}?width=${width}&format=webp`;
+  // Ograniczamy max width dla mobile do 384px (zupełnie wystarczy do ostrego obrazu 228px, nie pozwalając na 750px!)
+  const optimalWidth = width > 384 ? 384 : width;
+  return `${cleanSrc}?width=${optimalWidth}&format=webp`;
 };
 
 const generateSlug = (text: string) => {
@@ -80,13 +85,13 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
       <div className={`bg-slate-50 rounded-[24px] lg:rounded-[32px] overflow-hidden relative flex items-center justify-center border border-slate-50 shadow-inner shrink-0 pointer-events-none ${isListView ? 'w-28 h-28 lg:w-36 lg:h-36 p-4' : 'aspect-square mb-3 lg:mb-4 p-4 lg:p-8 w-full'}`}>
         {imageUrl ? (
           <div className="relative w-full h-full">
-            {/* LCP PRIORITY FIX */}
+            {/* LCP PRIORITY FIX: Atrybut sizes precyzyjnie informuje że na mobile są 2 sztuki w rzędzie (50vw) zamiast 100vw! */}
             <Image 
               loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} 
               src={imageUrl} 
               alt={product.name || 'Zdjęcie produktu'} 
               fill 
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" 
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" 
               priority={isLcpElement}
               fetchPriority={isLcpElement ? "high" : "auto"}
               loading={isLcpElement ? "eager" : "lazy"}
@@ -381,7 +386,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
-      {/* 🚀 Header wyrenderowany asynchronicznie poza SSR Suspense! 🚀 */}
       <Header />
 
       {isMobileFiltersOpen && (
@@ -560,7 +564,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
         </div>
       </main>
       
-      {/* 🚀 Dolny Pasek renderowany niezależnie */}
       <MobileBottomNav />
       <Footer />
     </div>
