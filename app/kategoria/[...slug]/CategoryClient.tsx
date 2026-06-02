@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/store/useCart'; 
+import Header from '@/components/Header';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
 const FaqSection = dynamic(() => import('./FaqSection'), { ssr: false });
@@ -51,7 +53,8 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
   const reviewsCount = 12 + (hash % 10); 
   const isLowStock = (hash % 5) === 0; 
 
-  const isLcpElement = idx < 4;
+  // WYDAJNOŚĆ LCP: TYLKO PIERWSZE ZDJĘCIE 
+  const isLcpElement = idx === 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); 
@@ -62,6 +65,7 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
 
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
+      
       <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do: ${product.name} (SKU: ${sku})`} className="absolute inset-0 z-0"></Link>
 
       <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
@@ -76,13 +80,16 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
       <div className={`bg-slate-50 rounded-[24px] lg:rounded-[32px] overflow-hidden relative flex items-center justify-center border border-slate-50 shadow-inner shrink-0 pointer-events-none ${isListView ? 'w-28 h-28 lg:w-36 lg:h-36 p-4' : 'aspect-square mb-3 lg:mb-4 p-4 lg:p-8 w-full'}`}>
         {imageUrl ? (
           <div className="relative w-full h-full">
+            {/* LCP PRIORITY FIX */}
             <Image 
               loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} 
               src={imageUrl} 
               alt={product.name || 'Zdjęcie produktu'} 
               fill 
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" 
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" 
               priority={isLcpElement}
+              fetchPriority={isLcpElement ? "high" : "auto"}
+              loading={isLcpElement ? "eager" : "lazy"}
               className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
             />
           </div>
@@ -372,9 +379,11 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
   const sharedFilterProps = { searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath };
 
-  // Usuwamy znaczniki Header i MobileBottomNav, renderujemy czysty kontent
   return (
-    <>
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
+      {/* 🚀 Header wyrenderowany asynchronicznie poza SSR Suspense! 🚀 */}
+      <Header />
+
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
@@ -550,7 +559,10 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           
         </div>
       </main>
+      
+      {/* 🚀 Dolny Pasek renderowany niezależnie */}
+      <MobileBottomNav />
       <Footer />
-    </>
+    </div>
   );
 }

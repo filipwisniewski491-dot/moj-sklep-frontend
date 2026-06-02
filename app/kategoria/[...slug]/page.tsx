@@ -3,10 +3,10 @@ import { Suspense } from 'react';
 import Loading from './loading';
 import CategoryClient from './CategoryClient';
 import { getCategoryData } from '@/lib/api';
-import Header from '@/components/Header';
-import MobileBottomNav from '@/components/MobileBottomNav';
 
-export const revalidate = 60;
+// Ustaw revalidate na 0 na czas testów (wymusza najświeższe dane i omija wadliwy cache Vercela)
+export const revalidate = 0; 
+export const dynamic = 'force-dynamic';
 
 // === GENEROWANIE METADANYCH SEO Z OBSŁUGĄ FASETOWANIA (LONG-TAIL) ===
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
@@ -50,7 +50,7 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
   };
 }
 
-// === KOMPONENT ŁADUJĄCY DANE ===
+// === KOMPONENT ŁADUJĄCY DANE (Zoptymalizowany dla Suspense) ===
 async function CategoryDataLoader({ fullPath, searchParams }: { fullPath: string, searchParams: any }) {
   const { searchData, filtersData } = await getCategoryData(fullPath, searchParams);
 
@@ -86,19 +86,17 @@ async function CategoryDataLoader({ fullPath, searchParams }: { fullPath: string
 }
 
 // === GŁÓWNY KOMPONENT STRONY KATEGORII ===
+// Renderuje strukturę strony asynchronicznie od samego początku
 export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
 
-  // 🔥 KLUCZOWE ZMIANY: Header i Nawigacja ładują się poza blokerem serwera!
+  // 🔥 KLUCZOWE ZMIANY: Header wraca do CategoryClient (gdzie może działać asynchronicznie) 
+  // Omijamy opóźnianie TTFB (Time to First Byte).
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
-      <Header />
-      <Suspense fallback={<Loading />}>
-        <CategoryDataLoader fullPath={fullPath} searchParams={resolvedSearchParams} />
-      </Suspense>
-      <MobileBottomNav />
-    </div>
+    <Suspense fallback={<Loading />}>
+      <CategoryDataLoader fullPath={fullPath} searchParams={resolvedSearchParams} />
+    </Suspense>
   );
 }
