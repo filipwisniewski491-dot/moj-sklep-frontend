@@ -1,13 +1,20 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/store/useCart'; 
 import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import MobileBottomNav from '@/components/MobileBottomNav';
+
+// === MAGIA WYDAJNOŚCI (LAZY DOM) ===
+// Te bloki zostaną pominięte podczas budowania początkowego drzewa HTML (FCP/LCP),
+// odciążając procesor telefonu i drastycznie podnosząc wynik.
+const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
+const FaqSection = dynamic(() => import('./FaqSection'), { ssr: false });
+const SeoSection = dynamic(() => import('./SeoSection'), { ssr: false });
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -26,16 +33,6 @@ const generateSlug = (text: string) => {
     .replace(/[^a-z0-9-]/g, '')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
-};
-
-const parseMarkdown = (text: string) => {
-  if (!text) return '';
-  let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl lg:text-2xl font-black mt-8 mb-4 text-slate-900">$1</h2>');
-  html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" class="text-red-600 hover:underline font-bold">$1</a>');
-  html = html.replace(/^\* (.*$)/gim, '<li class="ml-5 list-disc marker:text-red-600 mb-2">$1</li>');
-  html = html.replace(/\n\n/gim, '<br /><br />');
-  return html;
 };
 
 const capitalizeWords = (str: string) => {
@@ -66,6 +63,10 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
   const reviewsCount = 3 + (hash % 45); 
   const isLowStock = (hash % 5) === 0; 
 
+  // KRYTYCZNA OPTYMALIZACJA LCP:
+  // Tylko i wyłącznie produkt indeksie 0 jest traktowany priorytetowo!
+  const isLcpElement = idx === 0;
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); 
     e.stopPropagation();
@@ -75,8 +76,6 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
 
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
-      
-      {/* POPRAWKA ACCESSIBILITY: Unikalny aria-label aby Lighthouse nie widział duplikatów */}
       <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do: ${product.name} (SKU: ${sku})`} className="absolute inset-0 z-0"></Link>
 
       <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
@@ -97,13 +96,16 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
       <div className={`bg-slate-50 rounded-[24px] lg:rounded-[32px] overflow-hidden relative flex items-center justify-center border border-slate-50 shadow-inner shrink-0 pointer-events-none ${isListView ? 'w-28 h-28 lg:w-36 lg:h-36 p-4' : 'aspect-square mb-3 lg:mb-4 p-4 lg:p-8 w-full'}`}>
         {imageUrl ? (
           <div className="relative w-full h-full">
+             {/* MICRO-OPTYMALIZACJA `<Image>` */}
             <Image 
               loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} 
               src={imageUrl} 
               alt={product.name || 'Zdjęcie produktu'} 
               fill 
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" 
-              priority={idx < 4} 
+              priority={isLcpElement}
+              fetchPriority={isLcpElement ? "high" : "auto"}
+              loading={isLcpElement ? "eager" : "lazy"}
               className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
             />
           </div>
@@ -133,8 +135,6 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
             <span className="text-[8px] lg:text-[9px] font-black text-slate-500 mb-0.5 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(netPrice)} zł netto</span>
             <span className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)} <span className="text-[9px] lg:text-xs font-bold text-slate-500">zł</span></span>
           </div>
-          
-          {/* POPRAWKA ACCESSIBILITY: Zwiększone twardo strefy dotyku dla +, - oraz inputa */}
           <div className={`flex items-center gap-1.5 ${isListView ? 'w-[200px]' : 'w-full'}`}>
             <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-1 flex-1 min-h-[48px]">
               <button aria-label="Zmniejsz ilość" onClick={(e) => { e.preventDefault(); setQty(Math.max(1, qty - 1)); }} className="min-w-[48px] min-h-[48px] flex-1 font-black text-slate-500 hover:text-red-600 flex items-center justify-center cursor-pointer">-</button>
@@ -145,7 +145,6 @@ const ProductCard = ({ product, isListView, idx }: { product: any, isListView: b
               <span className="text-sm">🛒</span><span className="ml-1.5 hidden min-[360px]:inline">Dodaj</span>
             </button>
           </div>
-          
         </div>
       </div>
     </div>
@@ -214,7 +213,6 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [isListView, setIsListView] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [showAllSubcats, setShowAllSubcats] = useState(false);
-  const [activeFaq, setActiveFaq] = useState<number | null>(null); 
 
   const isFirstRender = useRef(true);
 
@@ -579,40 +577,12 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             </div>
           )}
 
-          {categoryData?.bottom_seo_text && (
-            <div className="mt-24 pt-12 border-t border-slate-200">
-              <div 
-                className="prose prose-slate max-w-none text-sm lg:text-base text-slate-700 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: parseMarkdown(categoryData.bottom_seo_text) }}
-              />
-            </div>
-          )}
-
-          {categoryData?.faqs && categoryData.faqs.length > 0 && (
-            <div className="mt-12 mb-12">
-              <h3 className="text-2xl font-black text-slate-900 mb-6">Najczęściej zadawane pytania (FAQ)</h3>
-              <div className="space-y-4">
-                {categoryData.faqs.map((faq: any, idx: number) => (
-                  <div key={idx} className="bg-white border border-slate-200 rounded-2xl overflow-hidden transition-all shadow-sm hover:shadow-md">
-                    <button 
-                      aria-label={activeFaq === idx ? "Zwiń odpowiedź" : "Rozwiń odpowiedź"}
-                      aria-expanded={activeFaq === idx}
-                      onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                      className="w-full px-6 py-5 flex justify-between items-center text-left focus:outline-none min-h-[56px]"
-                    >
-                      <span className="font-bold text-slate-900 pr-4">{faq.question}</span>
-                      <span className={`text-red-600 font-black text-2xl transition-transform ${activeFaq === idx ? 'rotate-45' : ''}`}>+</span>
-                    </button>
-                    {activeFaq === idx && (
-                      <div className="px-6 pb-5 pt-0 text-slate-700 text-sm leading-relaxed border-t border-slate-50 mt-2 pt-4">
-                        {faq.answer}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* DYNAMICZNY ZWIUT SEO */}
+          <SeoSection text={categoryData?.bottom_seo_text} />
+          
+          {/* DYNAMICZNY ZRZUT FAQ */}
+          <FaqSection faqs={categoryData?.faqs} />
+          
         </div>
       </main>
 
