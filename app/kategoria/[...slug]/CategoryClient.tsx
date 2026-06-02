@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -9,7 +9,6 @@ import { useCart } from '@/store/useCart';
 import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 
-// === MAGIA WYDAJNOŚCI (LAZY DOM) ===
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
 const FaqSection = dynamic(() => import('./FaqSection'), { ssr: false });
 const SeoSection = dynamic(() => import('./SeoSection'), { ssr: false });
@@ -38,8 +37,6 @@ const capitalizeWords = (str: string) => {
   return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 };
 
-// === LEKKI KAFELEK PRODUKTU ===
-// Zoptymalizowany pod kątem TBT (Total Blocking Time)
 const ProductCard = React.memo(({ product, isListView, idx }: { product: any, isListView: boolean, idx: number }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
@@ -49,8 +46,7 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
   const netPrice = price / 1.23; 
   const sku = product.sku || "BRAK SKU";
   
-  // Wbudowana w komponent zmienna bez polegania na Date() wywołaniu dla KAŻDEGO kafelka!
-  const isShippingToday = true; // Zastępujemy to statycznie by zaoszczędzić ms na re-render
+  const isShippingToday = true; 
   
   const hash = sku.charCodeAt(0) || 0;
   const rating = "4.8"; 
@@ -92,8 +88,6 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
               fill 
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" 
               priority={isLcpElement}
-              fetchPriority={isLcpElement ? "high" : "auto"}
-              loading={isLcpElement ? "eager" : "lazy"}
               className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
             />
           </div>
@@ -136,7 +130,6 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
   );
 });
 
-// Reszta Helperów (SearchableSelect, FilterMenuContent) ... (Pomiń w zmianach lub zostaw domyślne)
 const SearchableSelect = ({ label, options, value, onChange, placeholder }: any) => { const [isOpen, setIsOpen] = useState(false); const [searchTerm, setSearchTerm] = useState(''); const wrapperRef = useRef<HTMLDivElement>(null); useEffect(() => { function handleClickOutside(event: MouseEvent) { if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setIsOpen(false); } document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, []); const sortedOptions = Object.entries(options).sort((a, b) => (b[1] as number) - (a[1] as number)); const filteredOptions = sortedOptions.filter(([val]) => val.toLowerCase().includes(searchTerm.toLowerCase())); return ( <div className="w-full relative" ref={wrapperRef}> <h3 className="text-slate-600 font-black uppercase text-[10px] tracking-widest mb-2">{label}</h3> <button aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3.5 min-h-[48px] flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value || placeholder}</span> <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg> </button> {isOpen && ( <div className="absolute z-[99] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"> <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md"> <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-3 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors min-h-[48px]" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} /> </div> <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white"> <button aria-label="Wyczyść wybór" className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</button> {filteredOptions.length === 0 ? ( <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div> ) : ( filteredOptions.map(([val, count]) => ( <button aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}> <span className="line-clamp-1 pr-2">{val}</span> <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">{count as number}</span> </button> )) )} </div> </div> )} </div> );};
 
 const FilterMenuContent = ({ searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath }: any) => (
@@ -174,11 +167,9 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // === KLUCZOWE: Używamy initialData BEZ kopiowania go do useState na start ===
   const [activeProducts, setActiveProducts] = useState<any[] | null>(null);
   const [activeFiltersData, setActiveFiltersData] = useState<any | null>(null);
   
-  // Zmienna używająca się do wyświetlenia (Server data vs Client fetch)
   const productsToDisplay = activeProducts || initialData?.products || [];
   const filtersToDisplay = activeFiltersData?.filters || initialFilters || {};
   const narrowedToDisplay = activeFiltersData?.narrowedFilters || initialData?.narrowedFilters || {};
@@ -203,6 +194,9 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [showAllSubcats, setShowAllSubcats] = useState(false);
 
   const isFirstRender = useRef(true);
+  
+  // === OPTYMALIZACJA TBT: Stringifikujemy parametry do tablicy zależności useEffect ===
+  const searchParamsString = searchParams.toString();
 
   const rawBrandLabel = searchParams.get('Pasuje do marki');
   const rawModelLabel = searchParams.get('Pasuje do modelu');
@@ -229,7 +223,20 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  // To pobiera dane TYLKO gdy zmienią się parametry wyszukiwania, a nie na start!
+  useEffect(() => {
+    const garage = localStorage.getItem('centrum_rolnictwa_garage');
+    if (garage) {
+      const parsed = JSON.parse(garage);
+      setSavedGarage(parsed);
+      if (!searchParams.get('Pasuje do marki') && !searchParams.get('Pasuje do modelu')) {
+        const currentParams = new URLSearchParams(searchParams.toString());
+        currentParams.set('Pasuje do marki', parsed.make);
+        currentParams.set('Pasuje do modelu', parsed.model);
+        router.push(`/kategoria/${fullPath}?${currentParams.toString()}`, { scroll: false });
+      }
+    }
+  }, [fullPath]);
+
   useEffect(() => {
     if (isFirstRender.current) { 
       isFirstRender.current = false; 
@@ -239,7 +246,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
     async function fetchFilteredData() {
       setLoading(true);
       try {
-        const queryStr = new URLSearchParams(searchParams.toString());
+        const queryStr = new URLSearchParams(searchParamsString);
         queryStr.set('fullPath', fullPath);
         queryStr.set('limit', displayLimit.toString());
 
@@ -255,7 +262,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       }
     }
     fetchFilteredData();
-  }, [fullPath, searchParams, displayLimit]);
+  }, [fullPath, searchParamsString, displayLimit]); // TBT Fix: uzależnienie od stringa
 
   const clearGarage = () => {
     localStorage.removeItem('centrum_rolnictwa_garage');
@@ -552,10 +559,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
             </div>
           )}
 
-          {/* DYNAMICZNY ZRZUT SEO */}
           <SeoSection text={categoryData?.bottom_seo_text} />
-          
-          {/* DYNAMICZNY ZRZUT FAQ */}
           <FaqSection faqs={categoryData?.faqs} />
           
         </div>

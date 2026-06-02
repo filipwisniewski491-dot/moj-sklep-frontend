@@ -1,6 +1,5 @@
 import { Metadata } from 'next';
 import { Suspense } from 'react';
-import { preload } from 'react-dom'; // 🚀 OSTATECZNA BROŃ NA LCP
 import Loading from './loading';
 import CategoryClient from './CategoryClient';
 import { getCategoryData } from '@/lib/api';
@@ -49,7 +48,7 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
   };
 }
 
-// === GŁÓWNY KOMPONENT STRONY KATEGORII (SERVER COMPONENT) ===
+// === GŁÓWNY KOMPONENT STRONY KATEGORII ===
 export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
@@ -57,19 +56,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
   
   const { searchData, filtersData } = await getCategoryData(fullPath, resolvedSearchParams);
-
-  // === 🔥 EKSTREMALNA OPTYMALIZACJA LCP 🔥 ===
-  // Serwer samodzielnie zagląda do danych, znajduje pierwsze zdjęcie, które wyświetli się na mobile
-  // i wstrzykuje instrukcję pobrania go poza główną kolejką (FetchPriority: High).
-  const firstProduct = searchData?.products?.[0];
-  if (firstProduct) {
-    const imageUrl = firstProduct.external_images?.[0] || firstProduct.images?.[0]?.url || firstProduct.thumbnail || null;
-    if (imageUrl && imageUrl.includes('b-cdn.net')) {
-      const cleanSrc = imageUrl.split('?')[0];
-      // Odwzorowujemy precyzyjnie parametry z bunnyLoader, aby przeglądarka pobrała dokładnie ten sam plik
-      preload(`${cleanSrc}?width=640&format=webp`, { as: 'image', fetchPriority: 'high' });
-    }
-  }
 
   // Wstrzykiwanie Google JSON-LD dla FAQ wygenerowanego przez AI
   const faqs = searchData?.category?.faqs || [];
