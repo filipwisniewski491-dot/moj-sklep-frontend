@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 import Loading from './loading';
 import CategoryClient from './CategoryClient';
 import { getCategoryData } from '@/lib/api';
+import Header from '@/components/Header';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 export const revalidate = 60;
 
@@ -48,7 +50,7 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
   };
 }
 
-// === KOMPONENT ŁADUJĄCY DANE (MUSI BYĆ OSOBNO, ABY SUSPENSE ZADZIAŁAŁ) ===
+// === KOMPONENT ŁADUJĄCY DANE ===
 async function CategoryDataLoader({ fullPath, searchParams }: { fullPath: string, searchParams: any }) {
   const { searchData, filtersData } = await getCategoryData(fullPath, searchParams);
 
@@ -89,9 +91,14 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedSearchParams = await searchParams;
   const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
 
+  // 🔥 KLUCZOWE ZMIANY: Header i Nawigacja ładują się poza blokerem serwera!
   return (
-    <Suspense fallback={<Loading />}>
-      <CategoryDataLoader fullPath={fullPath} searchParams={resolvedSearchParams} />
-    </Suspense>
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
+      <Header />
+      <Suspense fallback={<Loading />}>
+        <CategoryDataLoader fullPath={fullPath} searchParams={resolvedSearchParams} />
+      </Suspense>
+      <MobileBottomNav />
+    </div>
   );
 }

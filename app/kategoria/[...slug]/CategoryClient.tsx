@@ -6,8 +6,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/store/useCart'; 
-import Header from '@/components/Header';
-import MobileBottomNav from '@/components/MobileBottomNav';
 
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
 const FaqSection = dynamic(() => import('./FaqSection'), { ssr: false });
@@ -64,16 +62,13 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
 
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
-      
       <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do: ${product.name} (SKU: ${sku})`} className="absolute inset-0 z-0"></Link>
 
       <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
         {isShippingToday ? (
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
-              Wysyłka dziś
-            </span>
+            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Wysyłka dziś</span>
           </div>
         ) : null}
       </div>
@@ -93,7 +88,6 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center opacity-20 group-hover:opacity-40 transition-opacity">
-            <svg className="w-8 h-8 lg:w-16 lg:h-16 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M19.14,12.94...z M12,15.6...z"/></svg>
             <span className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center">Brak zdjęcia</span>
           </div>
         )}
@@ -101,9 +95,7 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
       
       <div className={`flex flex-col pt-1 w-full pointer-events-none ${isListView ? 'justify-center pr-3 lg:pr-4' : 'px-3 pb-4 lg:px-6 lg:pb-5 flex-1'}`}>
         <div className="flex justify-between items-center mb-1.5">
-          <div className="flex items-center gap-1 text-[10px] lg:text-[11px] text-amber-400 font-black">
-            ★ {rating} <span className="text-slate-500 font-medium text-[9px] lg:text-[10px]">({reviewsCount})</span>
-          </div>
+          <div className="flex items-center gap-1 text-[10px] lg:text-[11px] text-amber-400 font-black">★ {rating} <span className="text-slate-500 font-medium text-[9px] lg:text-[10px]">({reviewsCount})</span></div>
         </div>
 
         <h2 className="font-black text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs lg:text-sm tracking-normal">{product.name}</h2>
@@ -119,11 +111,10 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
               <input aria-label="Ilość" type="number" value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-full text-center bg-transparent text-[11px] lg:text-xs font-black text-slate-900 outline-none appearance-none p-0 m-0 min-h-[48px] min-w-[48px]" />
               <button aria-label="Zwiększ ilość" onClick={(e) => { e.preventDefault(); setQty(qty + 1); }} className="min-w-[48px] min-h-[48px] flex-1 font-black text-slate-500 hover:text-emerald-600 flex items-center justify-center cursor-pointer">+</button>
             </div>
-            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="bg-slate-900 text-white px-3 lg:px-4 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:scale-105 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50 min-h-[48px] min-w-[48px]">
+            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="bg-slate-900 text-white px-3 lg:px-4 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50 min-h-[48px] min-w-[48px]">
               <span className="text-sm">🛒</span><span className="ml-1.5 hidden min-[360px]:inline">Dodaj</span>
             </button>
           </div>
-          
         </div>
       </div>
     </div>
@@ -194,20 +185,16 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
   const [showAllSubcats, setShowAllSubcats] = useState(false);
 
   const isFirstRender = useRef(true);
-  
-  // === OPTYMALIZACJA TBT: Stringifikujemy parametry do tablicy zależności useEffect ===
   const searchParamsString = searchParams.toString();
 
   const rawBrandLabel = searchParams.get('Pasuje do marki');
   const rawModelLabel = searchParams.get('Pasuje do modelu');
-  
   const brandLabel = rawBrandLabel ? capitalizeWords(rawBrandLabel) : null;
   const modelLabel = rawModelLabel ? capitalizeWords(rawModelLabel) : null;
   
   let displayH1 = categoryData?.h1_dynamic;
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
   if (!displayH1) displayH1 = "Kategoria";
-  
   let displayTopSeo = categoryData?.top_seo_text || "";
 
   if (brandLabel) {
@@ -262,7 +249,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
       }
     }
     fetchFilteredData();
-  }, [fullPath, searchParamsString, displayLimit]); // TBT Fix: uzależnienie od stringa
+  }, [fullPath, searchParamsString, displayLimit]);
 
   const clearGarage = () => {
     localStorage.removeItem('centrum_rolnictwa_garage');
@@ -385,10 +372,9 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
 
   const sharedFilterProps = { searchQ, setSearchQ, updateUrlParams, loading, garageMake, garageModel, searchParams, minPrice, setMinPrice, maxPrice, setMaxPrice, applyPriceFilter, activeFiltersCount, techFilterKeys, renderFilterBlock, router, fullPath };
 
+  // Usuwamy znaczniki Header i MobileBottomNav, renderujemy czysty kontent
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
-      <Header />
-
+    <>
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
@@ -564,10 +550,7 @@ export default function CategoryClient({ initialData, initialFilters, fullPath }
           
         </div>
       </main>
-
-      <MobileBottomNav />
       <Footer />
-
-    </div>
+    </>
   );
 }
