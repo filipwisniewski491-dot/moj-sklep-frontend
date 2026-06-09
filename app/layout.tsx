@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { GoogleTagManager } from '@next/third-parties/google';
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
 
@@ -8,14 +7,12 @@ const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   display: 'swap',
-  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   display: 'swap',
-  preload: true,
 });
 
 export const viewport: Viewport = {
@@ -43,12 +40,15 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Optymalizacja sieciowa */}
+        {/* Optymalizacja połączenia z CDN - to przyspieszy ładowanie obrazów */}
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
         
-        {/* Prefetch dla zasobów krytycznych - przyspiesza LCP */}
-        <link rel="preload" as="font" type="font/woff2" href="/fonts/geist-sans.woff2" crossOrigin="anonymous" />
+        {/* UWAGA: Usunąłem tutaj ręczny link "preload" dla fontów. 
+          Next.js automatycznie zarządza tym procesem i ma własny system cache.
+          Ręczne wymuszanie ścieżki /fonts/... generowało błąd 404, który
+          opóźniał renderowanie strony.
+        */}
       </head>
       
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900">
@@ -58,8 +58,8 @@ export default function RootLayout({
         <CartDrawer />
       </body>
       
-      {/* GTM jest za komentowany, aby utrzymać wynik 100/100.
-        Gdy będziesz gotowy do wdrożenia, odkomentuj poniższą linię.
+      {/* GTM jest wyłączony dla zachowania 100/100 punktów. 
+        Jeśli potrzebujesz go włączyć, użyj komponentu:
         <GoogleTagManager gtmId="GTM-XXXXXXX" />
       */}
     </html>
