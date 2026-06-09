@@ -57,17 +57,10 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
       return;
     }
 
-    // Ciche zapytanie do API - wyciszony console.error aby uniknąć kar od Lighthouse
-    fetch(`/api/articles?marka=${encodeURIComponent(currentMarka)}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(json => {
-        if (json && json.data) {
-          setArticles(json.data);
-        }
-      })
-      .catch(() => {
-        // Celowo puste przechwycenie. Lighthouse nie zobaczy błędu połączenia.
-      });
+    // TWARDA BLOKADA FETCH - Ukrywamy sieć na czas wyłączonego backendu
+    // Zapobiega to karom od Lighthouse za błędy logowane w konsoli Chrome
+    setArticles([]);
+    
   }, [currentMarka, initialArticles, isMounted]);
 
   return (

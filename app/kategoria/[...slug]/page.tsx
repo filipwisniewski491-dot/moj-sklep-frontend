@@ -1,5 +1,4 @@
 import { Metadata } from 'next';
-import { Suspense } from 'react';
 import { getCategoryData } from '@/lib/api';
 
 import Header from '@/components/Header';
@@ -8,7 +7,6 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import CategoryHeader from '@/components/CategoryHeader';
 import CategoryFilters from '@/components/CategoryFilters';
 import ProductGrid from '@/components/ProductGrid';
-import ProductGridSkeleton from '@/components/ProductGridSkeleton';
 import FaqSection from '@/components/FaqSection';
 import SeoSection from '@/components/SeoSection';
 
@@ -52,64 +50,35 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
   };
 }
 
-// === NOWY IZOLOWANY KONTENER DANYCH ===
-// Całe oczekiwanie na bazę odbywa się tutaj, nie blokując reszty strony.
-async function CategoryContent({ fullPath, searchParams }: { fullPath: string, searchParams: any }) {
-  try {
-    const { searchData, filtersData } = await getCategoryData(fullPath, searchParams);
-    
-    const totalCount = searchData?.totalCount || 0;
-    const products = searchData?.products || [];
-    const categoryData = searchData?.category || null;
-    const faqs = categoryData?.faqs || [];
-
-    return (
-      <>
-        <CategoryHeader initialData={searchData} searchParams={searchParams} fullPath={fullPath} /> 
-        <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
-          <aside className="w-full lg:w-80 flex-shrink-0">
-            <CategoryFilters initialFilters={filtersData} initialTotalCount={totalCount} />
-          </aside>
-          <div className="flex-1 flex flex-col min-h-[500px]">
-            <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
-            <SeoSection text={categoryData?.bottom_seo_text} />
-            <FaqSection faqs={faqs} />
-          </div>
-        </main>
-      </>
-    );
-  } catch (error) {
-    console.error("Błąd pobierania danych z bazy:", error);
-    // Ten fallback zapobiega wywaleniu całej strony, gdy baza leży
-    return (
-       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
-         <span className="text-6xl mb-4 block">🔌</span>
-         <h2 className="text-3xl font-black text-slate-900 mb-4 uppercase">Błąd połączenia z magazynem</h2>
-         <p className="text-slate-600 font-medium">Nasz system nie mógł w tej chwili połączyć się z bazą danych.</p>
-       </div>
-    );
-  }
-}
-
-// === GŁÓWNY KOMPONENT ===
 export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
+  
+  // BŁYSKAWICZNE POBRANIE DANYCH (Teraz 0ms dzięki Mock API)
+  // Brak Suspense oznacza, że cała struktura HTML wyląduje u klienta za jednym zamachem!
+  const { searchData, filtersData } = await getCategoryData(fullPath, resolvedSearchParams);
+  
+  const totalCount = searchData?.totalCount || 0;
+  const products = searchData?.products || [];
+  const categoryData = searchData?.category || null;
+  const faqs = categoryData?.faqs || [];
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       
-      {/* Suspense natychmiast ładuje szkielet, a w tle odpala CategoryContent */}
-      <Suspense fallback={
-        <main className="max-w-7xl mx-auto px-4 py-12 flex flex-col lg:flex-row gap-8 lg:gap-12">
-           <div className="hidden lg:block w-80 h-[600px] bg-slate-100 rounded-[32px] animate-pulse"></div>
-           <ProductGridSkeleton />
-        </main>
-      }>
-         <CategoryContent fullPath={fullPath} searchParams={resolvedSearchParams} />
-      </Suspense>
+      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} /> 
+      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
+        <aside className="w-full lg:w-80 flex-shrink-0">
+          <CategoryFilters initialFilters={filtersData} initialTotalCount={totalCount} />
+        </aside>
+        <div className="flex-1 flex flex-col min-h-[500px]">
+          <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
+          <SeoSection text={categoryData?.bottom_seo_text} />
+          <FaqSection faqs={faqs} />
+        </div>
+      </main>
 
       <MobileBottomNav />
       <Footer />
