@@ -1,15 +1,9 @@
 'use client';
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
-
-const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
-  if (!src.includes('b-cdn.net')) return src;
-  const cleanSrc = src.split('?')[0]; 
-  const optimalWidth = width > 384 ? 384 : width;
-  return `${cleanSrc}?width=${optimalWidth}&format=webp`;
-};
 
 const ProductCard = React.memo(({ product, isListView, idx }: { product: any, isListView: boolean, idx: number }) => {
   const { addItem, setIsOpen } = useCart() as any;
@@ -52,7 +46,6 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
         {imageUrl ? (
           <div className="relative w-full h-full">
             <Image 
-              loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} 
               src={imageUrl} 
               alt={product.name || 'Zdjęcie produktu'} 
               fill 

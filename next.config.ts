@@ -3,6 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
 
   images: {
+    // AKTYWUJEMY GLOBALNY OPTYMALIZATOR BUNNY CDN
+    loader: 'custom',
+    loaderFile: './lib/bunnyLoader.ts',
+    
     remotePatterns: [
       {
         protocol: 'https',

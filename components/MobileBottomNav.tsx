@@ -32,15 +32,12 @@ export default function MobileBottomNav() {
       <Link href="/" aria-label="Strona Główna" className="flex flex-col items-center justify-center flex-1 relative -top-4 z-50">
         <div className="bg-white p-1 rounded-full shadow-lg border border-slate-100 flex items-center justify-center transition-transform hover:scale-105">
            <div className="bg-white w-12 h-12 rounded-full overflow-hidden flex items-center justify-center border border-slate-200 relative">
-             {/* OPTYMALIZACJA LCP: Brak priority - to logo załaduje się natychmiast po produktach */}
              <Image 
-                src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png?width=48&format=webp" 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png" 
                 alt="Start" 
-                width={40} 
-                height={40}
-                sizes="40px"
+                width={56} 
+                height={45}
                 className="object-contain"
-                unoptimized
              />
            </div>
         </div>
