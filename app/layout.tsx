@@ -50,8 +50,8 @@ export default function RootLayout({
       {/* Zabezpiecza wynik 100/100 ładując kody śledzące (np. dla GAds) 
         dopiero po interakcji / głównym renderze.
         Wstaw swój identyfikator GTM w miejsce GTM-XXXXXXX 
-      */}
-      <GoogleTagManager gtmId="GTM-XXXXXXX" />
+      
+      <GoogleTagManager gtmId="GTM-XXXXXXX" />*/}
     </html>
   );
 }

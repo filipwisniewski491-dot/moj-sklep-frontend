@@ -5,7 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
 
-const ProductCard = React.memo(({ product, isListView, idx }: { product: any, isListView: boolean, idx: number }) => {
+// Usunęliśmy idx, ponieważ nie faworyzujemy już obrazków ponad nagłówek LCP
+const ProductCard = React.memo(({ product, isListView }: { product: any, isListView: boolean }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
 
@@ -18,8 +19,6 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
   const hash = sku.charCodeAt(0) || 0;
   const rating = "4.8"; 
   const reviewsCount = 12 + (hash % 10); 
-  
-  const isLcpElement = idx === 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); 
@@ -45,14 +44,13 @@ const ProductCard = React.memo(({ product, isListView, idx }: { product: any, is
       <div className={`bg-slate-50 rounded-[24px] lg:rounded-[32px] overflow-hidden relative flex items-center justify-center border border-slate-50 shadow-inner shrink-0 pointer-events-none ${isListView ? 'w-28 h-28 lg:w-36 lg:h-36 p-4' : 'aspect-square mb-3 lg:mb-4 p-4 lg:p-8 w-full'}`}>
         {imageUrl ? (
           <div className="relative w-full h-full">
+            {/* OSTATNI SZLIF: Usunięcie priority i twarda blokada sizes na max 150px dla mobile */}
             <Image 
               src={imageUrl} 
               alt={product.name || 'Zdjęcie produktu'} 
               fill 
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" 
-              priority={isLcpElement}
-              fetchPriority={isLcpElement ? "high" : "auto"}
-              loading={isLcpElement ? "eager" : "lazy"}
+              sizes="(max-width: 640px) 150px, (max-width: 1024px) 250px, 300px" 
+              loading="lazy"
               className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
             />
           </div>
