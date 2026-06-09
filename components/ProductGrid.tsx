@@ -73,7 +73,7 @@ export default function ProductGrid({ initialProducts, totalCount, fullPath, loa
         ) : (
           <div className={isListView ? "space-y-4 w-full" : "grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6"}>
             {productsToDisplay.map((product: any, idx: number) => (
-              <ProductCard key={`${product.id || product.sku}-${idx}`} product={product} isListView={isListView} idx={idx} />
+              <ProductCard key={`${product.id || product.sku}-${idx}`} product={product} isListView={isListView} />
             ))}
           </div>
         )}
