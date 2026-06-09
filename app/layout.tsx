@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "CentrumRolnictwa.pl - Części i akcesoria do maszyn rolniczych",
   description: "Największy internetowy katalog części zamiennych. Szybka wysyłka, gwarancja dopasowania i wsparcie ekspertów.",
-  metadataBase: new URL('https://centrumrolnictwa.pl'), // Wymóg do perfekcyjnego SEO (Canonical)
+  metadataBase: new URL('https://centrumrolnictwa.pl'),
 };
 
 export default function RootLayout({
@@ -37,21 +37,31 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
+    <html 
+      lang="pl" 
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scroll-smooth`} 
+      suppressHydrationWarning
+    >
       <head>
+        {/* Optymalizacja sieciowa */}
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
+        
+        {/* Prefetch dla zasobów krytycznych - przyspiesza LCP */}
+        <link rel="preload" as="font" type="font/woff2" href="/fonts/geist-sans.woff2" crossOrigin="anonymous" />
       </head>
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans">
-        {children}
+      
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900">
+        <main className="flex-1 flex flex-col">
+          {children}
+        </main>
         <CartDrawer />
       </body>
       
-      {/* Zabezpiecza wynik 100/100 ładując kody śledzące (np. dla GAds) 
-        dopiero po interakcji / głównym renderze.
-        Wstaw swój identyfikator GTM w miejsce GTM-XXXXXXX 
-      
-      <GoogleTagManager gtmId="GTM-XXXXXXX" />*/}
+      {/* GTM jest za komentowany, aby utrzymać wynik 100/100.
+        Gdy będziesz gotowy do wdrożenia, odkomentuj poniższą linię.
+        <GoogleTagManager gtmId="GTM-XXXXXXX" />
+      */}
     </html>
   );
 }
