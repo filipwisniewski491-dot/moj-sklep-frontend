@@ -33,11 +33,12 @@ export default function MobileBottomNav() {
         <div className="bg-white p-1 rounded-full shadow-lg border border-slate-100 flex items-center justify-center transition-transform hover:scale-105">
            <div className="bg-white w-12 h-12 rounded-full overflow-hidden flex items-center justify-center border border-slate-200 relative">
              <Image 
-                src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png" 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png?width=56&format=webp&quality=60" 
                 alt="Start" 
                 width={56} 
                 height={45}
                 className="object-contain"
+                unoptimized
              />
            </div>
         </div>

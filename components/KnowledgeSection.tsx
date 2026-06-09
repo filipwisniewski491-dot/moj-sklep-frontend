@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // Definiujemy ścisły interfejs danych dla kompilatora TypeScript, aby Vercel przeszedł bez błędu
 interface Article {
@@ -98,11 +99,12 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
             <Link href={`/wiedza/${article.slug}`} key={article.id} className="group flex flex-col h-full">
               <div className="h-64 rounded-[40px] overflow-hidden mb-6 relative border border-slate-100 bg-slate-50">
                 {article.image ? (
-                  <img 
+                  <Image 
                     src={article.image} 
                     alt={article.title} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    loading="lazy"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-cover group-hover:scale-110 transition-transform duration-700"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300 font-bold">CR.pl</div>
