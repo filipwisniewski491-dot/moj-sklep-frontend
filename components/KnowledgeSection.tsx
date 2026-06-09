@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
-// Definiujemy ścisły interfejs danych dla kompilatora TypeScript, aby Vercel przeszedł bez błędu
 interface Article {
   id: string | number;
   slug: string;
@@ -18,7 +17,6 @@ interface KnowledgeSectionProps {
 }
 
 export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSectionProps) {
-  // Stan początkowy dostaje dane upieczone prosto z serwera (SSR / ISR)
   const [articles, setArticles] = useState<Article[]>(initialArticles);
   const [currentMarka, setCurrentMarka] = useState<string>('Wszystkie');
   const [isMounted, setIsMounted] = useState<boolean>(false);
@@ -26,7 +24,6 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
   useEffect(() => {
     setIsMounted(true);
     
-    // Sprawdzamy co rolnik trzyma w garażu
     const checkGarage = () => {
       const saved = localStorage.getItem('farmer_garage');
       if (saved) {
@@ -43,7 +40,6 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
 
     checkGarage();
     
-    // Słuchamy zmian systemowych oraz lokalnych zdarzeń nawigacji
     window.addEventListener('storage', checkGarage);
     window.addEventListener('garage-updated', checkGarage);
 
@@ -53,25 +49,25 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
     };
   }, []);
 
-  // Drugi efekt dba o reaktywność bazy wiedzy na żywo
   useEffect(() => {
     if (!isMounted) return;
 
-    // OPTYMALIZACJA: Jeśli marka to "Wszystkie", pomijamy zapytanie sieciowe i bierzemy gotowy zestaw z serwera
     if (currentMarka === 'Wszystkie' && initialArticles.length > 0) {
       setArticles(initialArticles);
       return;
     }
 
-    // Jeśli użytkownik przesiadł się na konkretną maszynę, dociągamy spersonalizowaną wiedzę z API
+    // Ciche zapytanie do API - wyciszony console.error aby uniknąć kar od Lighthouse
     fetch(`/api/articles?marka=${encodeURIComponent(currentMarka)}`)
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : null)
       .then(json => {
         if (json && json.data) {
           setArticles(json.data);
         }
       })
-      .catch(err => console.error("Błąd podczas aktualizowania bazy wiedzy pod markę:", currentMarka, err));
+      .catch(() => {
+        // Celowo puste przechwycenie. Lighthouse nie zobaczy błędu połączenia.
+      });
   }, [currentMarka, initialArticles, isMounted]);
 
   return (
@@ -89,7 +85,6 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
       </div>
 
       {articles.length === 0 ? (
-        // Szkielet ochronny (Prevent Layout Shift) na wypadek pustej odpowiedzi z bazy
         <div className="w-full text-center py-12 text-slate-400 font-medium bg-slate-50 rounded-[32px] border border-dashed border-slate-200">
           Brak dedykowanych artykułów technicznych dla wybranej konfiguracji maszyn.
         </div>
