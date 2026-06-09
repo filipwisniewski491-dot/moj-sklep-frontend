@@ -81,38 +81,69 @@ export async function getProductData(identifier: string) {
 }
 
 // === FUNKCJA POBIERANIA DANYCH KATEGORII (Wymagana przez page.tsx) ===
+// WERSJA MOCK (ZAMROŻONY BACKEND) - DO TESTÓW PAGESPEED 100/100
 export async function getCategoryData(fullPath: string, searchParams: any) {
-  try {
-    // Automatyczne wykrywanie adresu URL (lokalnie lub na Vercelu)
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
-                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-                   
-    const queryStr = new URLSearchParams(searchParams || {});
-    queryStr.set('fullPath', fullPath);
-    if (!queryStr.has('limit')) queryStr.set('limit', '24');
-
-    const url = new URL(`/api/search?${queryStr.toString()}`, baseUrl);
-
-    // Fetch z no-store, aby Vercel nie blokował buildu i zawsze miał świeże dane
-    const res = await fetch(url.toString(), {
-      cache: 'no-store'
-    });
-
-    if (!res.ok) {
-      throw new Error(`API Error: ${res.status}`);
+  // Promise.resolve natychmiast zwraca dane. Czas odpowiedzi: 0ms.
+  return Promise.resolve({
+    searchData: {
+      totalCount: 4,
+      products: [
+        {
+          id: "mock-1",
+          sku: "OEM-TEST-1",
+          name: "Sztuczny Produkt Testowy LCP - Wałek Odbioru Mocy",
+          price: 1550.00,
+          slug: "walek-odbioru-mocy-test",
+          // Używamy Twojego logo z BunnyCDN do testu ładowania obrazków na kafelkach
+          external_images: ["https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=384&format=webp"],
+          images: []
+        },
+        {
+          id: "mock-2",
+          sku: "OEM-TEST-2",
+          name: "Pompa Hydrauliczna Zębata Ursus",
+          price: 890.50,
+          slug: "pompa-hydrauliczna-test",
+          external_images: ["https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=384&format=webp"],
+          images: []
+        },
+        {
+          id: "mock-3",
+          sku: "OEM-TEST-3",
+          name: "Siedzenie Dwuczęściowe do Ciągnika",
+          price: 340.00,
+          slug: "siedzenie-test",
+          external_images: [],
+          images: []
+        },
+        {
+          id: "mock-4",
+          sku: "OEM-TEST-4",
+          name: "Filtr Oleju Silnikowego PP-8.4",
+          price: 24.99,
+          slug: "filtr-oleju-test",
+          external_images: [],
+          images: []
+        }
+      ],
+      category: {
+        h1_dynamic: "TEST WYDAJNOŚCI - 100/100",
+        top_seo_text: "To jest testowy opis kategorii. Sprawdzamy, jak szybko Vercel renderuje strukturę DOM oraz analizujemy przesunięcia układu (CLS).",
+        bottom_seo_text: "Dolny tekst pozycjonujący. Wszystko ładuje się z prędkością światła.",
+        faqs: [
+          { question: "Dlaczego ta strona jest taka szybka?", answer: "Ponieważ używamy Next.js App Router z izolowanymi komponentami serwerowymi." },
+          { question: "Czy Medusa działa?", answer: "Obecnie serwer jest zamrożony w celu oszczędności." }
+        ]
+      },
+      breadcrumbs: [
+        { name: "Części do ciągników", path: "czesci-do-ciagnikow" }
+      ],
+      subcategories: ["Ursus", "Zetor", "John Deere", "Massey Ferguson"]
+    },
+    // Sztuczne filtry do załadowania panelu bocznego
+    filtersData: {
+      "Pasuje do marki": { "Ursus": 150, "Zetor": 80, "Fendt": 25 },
+      "Typ produktu": { "Filtry": 40, "Pompy": 12, "Oleje": 8 }
     }
-
-    const data = await res.json();
-    return { searchData: data, filtersData: data.filters || {} };
-    
-  } catch (error: any) {
-    console.error("Fetch Error URL:", error.message);
-    return { 
-      searchData: { 
-        products: [], 
-        category: { h1_dynamic: `BŁĄD WYSZUKIWANIA: Brak połączenia z bazą (${error.message})` } 
-      }, 
-      filtersData: {} 
-    };
-  }
+  });
 }
