@@ -23,9 +23,9 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'], // AVIF z przodu, jest lżejszy i łapie lepsze oceny LCP
     minimumCacheTTL: 31536000,
-    // Uporządkowane pod Tailwind, z usunięciem nietypowych rozdzielczości zżerających CPU Vercela
-    deviceSizes: [384, 640, 768, 1024, 1280, 1536],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    // DODANO: 256 dla perfekcyjnego ucięcia wagi kafelków na smartfonach
+    deviceSizes: [256, 384, 640, 768, 1024, 1280, 1536],
+    imageSizes: [16, 32, 48, 64, 96, 128],
   },
 
   compiler: {

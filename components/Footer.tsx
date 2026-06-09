@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const QUICK_SILOS = [
   { name: "Warsztat i uniwersalne", slug: "warsztat-i-uniwersalne" },
@@ -18,7 +19,14 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12">
         <div className="flex flex-col items-start">
           <div className="bg-white rounded-full p-2 mb-3 shadow-md">
-             <img src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png" alt="Sygnet CentrumRolnictwa" className="h-8 w-8 object-contain" loading="lazy" />
+             <Image 
+               src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png?width=64&format=webp&quality=60" 
+               alt="Sygnet CentrumRolnictwa" 
+               width={32}
+               height={32}
+               className="h-8 w-8 object-contain" 
+               unoptimized
+             />
           </div>
           <span className="font-black text-xl tracking-tighter text-white leading-none mb-4 uppercase">
             CentrumRolnictwa<span className="text-red-500">.pl</span>
