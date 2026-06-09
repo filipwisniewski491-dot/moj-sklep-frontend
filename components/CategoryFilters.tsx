@@ -1,0 +1,298 @@
+'use client';
+
+import React, { useEffect, useState, useRef } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+
+// === KOMPONENT POMOCNICZY: Inteligentny Select z wyszukiwaniem ===
+const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
+  const [isOpen, setIsOpen] = useState(false); 
+  const [searchTerm, setSearchTerm] = useState(''); 
+  const wrapperRef = useRef<HTMLDivElement>(null); 
+
+  useEffect(() => { 
+    function handleClickOutside(event: MouseEvent) { 
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setIsOpen(false); 
+    } 
+    document.addEventListener("mousedown", handleClickOutside); 
+    return () => document.removeEventListener("mousedown", handleClickOutside); 
+  }, []); 
+
+  const sortedOptions = Object.entries(options).sort((a, b) => (b[1] as number) - (a[1] as number)); 
+  const filteredOptions = sortedOptions.filter(([val]) => val.toLowerCase().includes(searchTerm.toLowerCase())); 
+
+  return ( 
+    <div className="w-full relative" ref={wrapperRef}> 
+      <h3 className="text-slate-600 font-black uppercase text-[10px] tracking-widest mb-2">{label}</h3> 
+      <button aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3.5 min-h-[48px] flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> 
+        <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value || placeholder}</span> 
+        <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg> 
+      </button> 
+      {isOpen && ( 
+        <div className="absolute z-[99] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"> 
+          <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md"> 
+            <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-3 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors min-h-[48px]" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} /> 
+          </div> 
+          <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white"> 
+            <button aria-label="Wyczyść wybór" className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</button> 
+            {filteredOptions.length === 0 ? ( 
+              <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div> 
+            ) : ( 
+              filteredOptions.map(([val, count]) => ( 
+                <button aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}> 
+                  <span className="line-clamp-1 pr-2">{val}</span> 
+                  <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">{count as number}</span> 
+                </button> 
+              )) 
+            )} 
+          </div> 
+        </div> 
+      )} 
+    </div> 
+  );
+};
+
+// === GŁÓWNY KOMPONENT FILTRÓW ===
+export default function CategoryFilters({ initialFilters = {}, initialTotalCount = 0 }: { initialFilters?: any, initialTotalCount?: number }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname(); // Pobieramy fullPath dynamicznie
+  
+  const [activeFiltersData, setActiveFiltersData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  
+  const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
+  const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
+  const [searchQ, setSearchQ] = useState(searchParams.get('q') || '');
+  
+  const [filterSearchQuery, setFilterSearchQuery] = useState<Record<string, string>>({});
+  const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({});
+  const [savedGarage, setSavedGarage] = useState<{ make: string; model: string } | null>(null);
+  
+  const isFirstRender = useRef(true);
+  const searchParamsString = searchParams.toString();
+
+  // Dane do wyświetlenia
+  const filtersToDisplay = activeFiltersData?.filters || initialFilters || {};
+  const narrowedToDisplay = activeFiltersData?.narrowedFilters || {};
+  const totalCount = activeFiltersData?.totalCount || initialTotalCount;
+
+  // Obsługa scrolla na mobile
+  useEffect(() => {
+    if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isMobileFiltersOpen]);
+
+  // Pobieranie garażu z local storage
+  useEffect(() => {
+    const garage = localStorage.getItem('centrum_rolnictwa_garage');
+    if (garage) {
+      const parsed = JSON.parse(garage);
+      setSavedGarage(parsed);
+      if (!searchParams.get('Pasuje do marki') && !searchParams.get('Pasuje do modelu')) {
+        const currentParams = new URLSearchParams(searchParams.toString());
+        currentParams.set('Pasuje do marki', parsed.make);
+        currentParams.set('Pasuje do modelu', parsed.model);
+        router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+      }
+    }
+  }, [pathname, searchParams, router]);
+
+  // Asynchroniczne dociąganie dostępności filtrów przy zmianie URL
+  useEffect(() => {
+    if (isFirstRender.current) { 
+      isFirstRender.current = false; 
+      return; 
+    }
+
+    async function fetchFilterCounts() {
+      setLoading(true);
+      try {
+        const queryStr = new URLSearchParams(searchParamsString);
+        queryStr.set('fullPath', pathname.replace('/kategoria/', ''));
+        queryStr.set('limit', '0'); // Chcemy tylko filtry, bez produktów (produkty ładuje główna strona)
+
+        const res = await fetch(`/api/search?${queryStr.toString()}`);
+        const json = await res.json();
+        setActiveFiltersData(json);
+      } catch (error) { 
+        console.error("Błąd pobierania filtrów:", error); 
+      } finally { 
+        setLoading(false); 
+      }
+    }
+    fetchFilterCounts();
+  }, [pathname, searchParamsString]);
+
+  const updateUrlParams = (key: string, value: string | null) => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    if (value === null || value === '') currentParams.delete(key);
+    else currentParams.set(key, value);
+    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+  };
+
+  const applyPriceFilter = () => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    if (minPrice) currentParams.set('minPrice', minPrice); else currentParams.delete('minPrice');
+    if (maxPrice) currentParams.set('maxPrice', maxPrice); else currentParams.delete('maxPrice');
+    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+    setIsMobileFiltersOpen(false);
+  };
+
+  // Przygotowanie opcji
+  const garageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka maszyny'] || filtersToDisplay['marka maszyny'] || {};
+  const garageModel = filtersToDisplay['Pasuje do modelu'] || {};
+
+  let techFilters = { ...filtersToDisplay };
+  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu'];
+
+  Object.keys(techFilters).forEach(key => {
+    const lowerKey = key.toLowerCase();
+    if (excludeKeys.includes(lowerKey) || lowerKey.includes('waga') || Object.keys(techFilters[key] || {}).length < 2) {
+       delete techFilters[key];
+    }
+  });
+
+  const filterCoverage = Object.keys(techFilters).map(key => {
+    const count = Object.values(techFilters[key] as Record<string, number>).reduce((sum, c) => sum + c, 0);
+    return { key, count };
+  }).sort((a, b) => b.count - a.count);
+
+  let techFilterKeys: string[] = [];
+  const hasTypProduktu = filterCoverage.find(f => f.key.toLowerCase() === 'typ produktu' || f.key.toLowerCase() === 'typ');
+  if (hasTypProduktu) techFilterKeys.push(hasTypProduktu.key);
+
+  for (const f of filterCoverage) {
+     if (techFilterKeys.length >= (hasTypProduktu ? 6 : 5)) break;
+     if (!techFilterKeys.includes(f.key)) techFilterKeys.push(f.key);
+  }
+
+  let activeFiltersCount = 0;
+  searchParams.forEach((val, key) => { if (!['limit', 'sort', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
+
+  const renderFilterBlock = (filterKey: string) => {
+    const filterValues = techFilters[filterKey] as Record<string, number>;
+    if (!filterValues) return null;
+    const searchQuery = filterSearchQuery[filterKey]?.toLowerCase() || '';
+    
+    const sortedEntries = Object.entries(filterValues).sort((a, b) => b[1] - a[1]);
+    const matchedEntries = sortedEntries.filter(([val]) => val.toLowerCase().includes(searchQuery));
+    
+    const isLongList = sortedEntries.length > 5;
+    const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
+    
+    return (
+      <div key={filterKey} className="space-y-3">
+        <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
+        
+        {isLongList && (
+          <div className="relative mb-3">
+            <input aria-label={`Szukaj w filtrze ${filterKey}`} type="text" placeholder={`Szukaj w ${filterKey.toLowerCase()}...`} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-3 min-h-[48px] text-[11px] font-bold text-slate-700 outline-none focus:border-red-600 transition-colors" value={filterSearchQuery[filterKey] || ''} onChange={(e) => setFilterSearchQuery(prev => ({ ...prev, [filterKey]: e.target.value }))} />
+            <span className="absolute right-3 top-3 text-slate-500 text-sm">🔍</span>
+          </div>
+        )}
+        
+        <div className={`space-y-2 ${isExpanded ? 'max-h-[300px] overflow-y-auto pr-2 custom-scrollbar' : ''}`}>
+          {matchedEntries.length === 0 ? (
+            <div className="text-[9px] text-slate-500 uppercase font-black tracking-widest py-2">Brak wyników</div>
+          ) : (
+            (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val]) => {
+              const isChecked = searchParams.get(filterKey) === val;
+              const activeCount = narrowedToDisplay[filterKey]?.[val] || 0;
+              const isDisabled = activeCount === 0 && !isChecked;
+
+              return (
+                <label key={val} className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); if (isDisabled) return; updateUrlParams(filterKey, isChecked ? null : val); }}>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-300 bg-white group-hover:border-red-400'}`}>
+                      {isChecked && <div className="w-3 h-3 bg-red-600 rounded-[3px]"></div>}
+                    </div>
+                    <span className={`text-sm transition-colors truncate ${isChecked ? 'text-red-700 font-black' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{val}</span>
+                  </div>
+                  <div className="flex items-center gap-2 pl-2 flex-shrink-0">
+                    {isChecked ? (
+                      <span className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1 bg-red-100/50 px-2 py-1 rounded-md hover:bg-red-200 transition-colors">✕ Usuń</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{isDisabled ? 0 : activeCount}</span>
+                    )}
+                  </div>
+                </label>
+              );
+            })
+          )}
+        </div>
+
+        {isLongList && !isExpanded && (<button aria-label="Pokaż więcej opcji filtru" onClick={() => setExpandedFilters(prev => ({ ...prev, [filterKey]: true }))} className="text-[11px] p-2 min-h-[48px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center justify-center w-full pt-2 border-t border-slate-50">+ Pokaż więcej ({sortedEntries.length - 5})</button>)}
+        {isLongList && isExpanded && (<button aria-label="Zwiń opcje filtru" onClick={() => { setExpandedFilters(prev => ({ ...prev, [filterKey]: false })); setFilterSearchQuery(prev => ({ ...prev, [filterKey]: '' })); }} className="text-[11px] p-2 min-h-[48px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center justify-center w-full pt-2 border-t border-slate-50">- Zwiń listę</button>)}
+      </div>
+    );
+  };
+
+  const FilterContent = () => (
+    <div className="space-y-6">
+      <div className="mb-6 pb-6 border-b border-slate-100">
+        <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
+        <div className="relative flex items-center">
+          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
+          <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center">🔍</button>
+        </div>
+      </div>
+      
+      <div className="mb-6 pb-6 border-b border-slate-100">
+        <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
+        <div className="space-y-3">
+          <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={garageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
+          <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={garageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
+        </div>
+      </div>
+
+      <div className="mb-6 border-b border-slate-100 pb-6">
+        <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-600 mb-3">Zakres Cenowy (zł)</h4>
+        <div className="flex gap-2 items-center">
+          <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
+          <span className="text-slate-500 font-black">-</span>
+          <input aria-label="Cena maksymalna" type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
+        </div>
+        <button aria-label="Zastosuj filtr cenowy" onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[48px]">Zastosuj cenę</button>
+      </div>
+
+      <div className="space-y-8">
+        {techFilterKeys.map((filterKey: string) => renderFilterBlock(filterKey))}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Przycisk Mobile (pojawia się tylko na małych ekranach) */}
+      <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
+         <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
+           <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
+           {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] ml-1 shadow-inner">{activeFiltersCount}</span>}
+         </button>
+      </div>
+
+      {/* Pop-up Mobile */}
+      {isMobileFiltersOpen && (
+        <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
+           <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
+              <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
+              <button aria-label="Zamknij filtry" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[48px] min-h-[48px]">✕ Zamknij</button>
+           </div>
+           <div className="flex-1 overflow-y-auto p-5 pb-24 custom-scrollbar bg-white">
+              <FilterContent />
+           </div>
+           <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+               <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[56px]">Pokaż {totalCount} wyników ➔</button>
+           </div>
+        </div>
+      )}
+
+      {/* Widok Desktop */}
+      <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
+        <FilterContent />
+      </div>
+    </>
+  );
+}

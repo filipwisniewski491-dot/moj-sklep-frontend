@@ -6,20 +6,22 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.b-cdn.net', // Odblokowuje wszystkie zdjęcia z BunnyCDN
+        hostname: '**.b-cdn.net', 
       },
       {
         protocol: 'http',
-        hostname: '178.105.201.145', // Odblokowuje zdjęcia bezpośrednio ze Strapi
+        hostname: '178.105.201.145', 
       },
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
     ],
-    formats: ['image/webp', 'image/avif'],
+    formats: ['image/avif', 'image/webp'], // AVIF z przodu, jest lżejszy i łapie lepsze oceny LCP
     minimumCacheTTL: 31536000,
-    deviceSizes: [640, 750, 828, 1080, 1200],
+    // Uporządkowane pod Tailwind, z usunięciem nietypowych rozdzielczości zżerających CPU Vercela
+    deviceSizes: [384, 640, 768, 1024, 1280, 1536],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
 
   compiler: {
@@ -31,6 +33,40 @@ const nextConfig = {
   },
 
   output: 'standalone',
+
+  // Dodajemy sztywne nagłówki dla Best Practices (Lighthouse 100/100)
+  async headers() {
+    return [
+      {
+        // Globalne nagłówki bezpieczeństwa
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+      {
+        // Cache na mur-beton dla zdjęć
+        source: '/_next/image(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

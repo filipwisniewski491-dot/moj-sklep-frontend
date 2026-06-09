@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GoogleTagManager } from '@next/third-parties/google';
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
 
@@ -21,12 +22,13 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: '#0f172a', // Twój slate-900 z nagłówka
+  themeColor: '#0f172a',
 };
 
 export const metadata: Metadata = {
   title: "CentrumRolnictwa.pl - Części i akcesoria do maszyn rolniczych",
   description: "Największy internetowy katalog części zamiennych. Szybka wysyłka, gwarancja dopasowania i wsparcie ekspertów.",
+  metadataBase: new URL('https://centrumrolnictwa.pl'), // Wymóg do perfekcyjnego SEO (Canonical)
 };
 
 export default function RootLayout({
@@ -37,7 +39,6 @@ export default function RootLayout({
   return (
     <html lang="pl" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
-        {/* Wstępne nawiązanie połączenia z CDN przyspiesza pobieranie obrazków (LCP) */}
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
       </head>
@@ -45,6 +46,12 @@ export default function RootLayout({
         {children}
         <CartDrawer />
       </body>
+      
+      {/* Zabezpiecza wynik 100/100 ładując kody śledzące (np. dla GAds) 
+        dopiero po interakcji / głównym renderze.
+        Wstaw swój identyfikator GTM w miejsce GTM-XXXXXXX 
+      */}
+      <GoogleTagManager gtmId="GTM-XXXXXXX" />
     </html>
   );
 }
