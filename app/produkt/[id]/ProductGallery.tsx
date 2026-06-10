@@ -19,10 +19,10 @@ export default function ProductGallery({ images, productName }: { images: string
          {mainImageUrl ? (
           <div className="relative w-full aspect-square max-h-[250px] md:max-h-[500px]">
             <img
-              src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=500&format=webp&quality=65` : mainImageUrl}
-              alt={productName || "Produkt"}
-              width={500}
-              height={500}
+              src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=450&format=webp&quality=65` : mainImageUrl}
+              alt={productName || "Zdjęcie"}
+              width={450}
+              height={450}
               fetchPriority="high"
               decoding="async"
               className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
@@ -39,9 +39,10 @@ export default function ProductGallery({ images, productName }: { images: string
             <button 
               key={idx} 
               onClick={() => setSelectedImgIdx(idx)} 
-              className={`relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${selectedImgIdx === idx ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50'}`}
+              aria-label={`Zobacz detal ${idx + 1}`}
+              className={`relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${selectedImgIdx === idx ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50 hover:bg-slate-100'}`}
             >
-              <Image loader={bunnyLoader} src={imgUrl} alt={`Detal ${idx + 1}`} fill sizes="96px" className="object-contain mix-blend-multiply p-2" />
+              <Image loader={bunnyLoader} src={imgUrl} alt={`${productName} detal ${idx + 1}`} fill sizes="96px" className="object-contain mix-blend-multiply p-2" />
             </button>
           ))}
         </div>

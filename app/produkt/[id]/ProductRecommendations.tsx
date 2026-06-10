@@ -12,7 +12,6 @@ const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   return `${cleanSrc}?width=${Math.min(width, 750)}&format=webp&quality=65&sharpen=false`;
 };
 
-// Kafelek "Inni oglądali też"
 const MiniProductCard = ({ product }: { product: any }) => {
   const { addItem, setIsOpen } = useCart();
   const imageUrl = product.image || product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
@@ -31,7 +30,7 @@ const MiniProductCard = ({ product }: { product: any }) => {
       <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2 relative z-0">
         <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4">
           {imageUrl ? (
-            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 200px" quality={60} className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 150px" quality={60} className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Brak pliku</span>
           )}
@@ -54,9 +53,8 @@ const MiniProductCard = ({ product }: { product: any }) => {
 
 export default function ProductRecommendations({ product, mainImageUrl }: { product: any, mainImageUrl: string | null }) {
   const { addItem, setIsOpen } = useCart();
-  const { currentTier } = getUserTier(105000); // Mock VIP
+  const { currentTier } = getUserTier(105000);
 
-  // Twarde mocki aby zapobiec błędom 500 z nieaktywnej Medusy na serwerze Vercela
   const [relatedProducts] = useState<any[]>([
     { id: "bundle-1", sku: "OEM-TEST-4", name: "Filtr Oleju Silnikowego PP-8.4", price: 24.99, image: "https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" },
     { id: "bundle-2", sku: "OEM-TEST-3", name: "Siedzenie Dwuczęściowe do Ciągnika", price: 340.00, image: "https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" }
@@ -94,7 +92,7 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
          <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
             <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
               <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                {mainImageUrl ? <img src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=200&format=webp&quality=65` : mainImageUrl} alt="Wybrany artykuł" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
+                {mainImageUrl ? <img src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=150&format=webp&quality=65` : mainImageUrl} alt="Wybrany artykuł" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
               </div>
               <div>
                 <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
@@ -109,7 +107,7 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
               <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                  {(() => {
                     const bImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
-                    return bImg ? <img src={bImg.includes('b-cdn.net') ? `${bImg.split('?')[0]}?width=200&format=webp&quality=65` : bImg} alt="Polecany zestaw" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
+                    return bImg ? <img src={bImg.includes('b-cdn.net') ? `${bImg.split('?')[0]}?width=150&format=webp&quality=65` : bImg} alt="Polecany zestaw" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
                  })()}
               </div>
               <div>

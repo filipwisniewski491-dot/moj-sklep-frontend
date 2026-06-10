@@ -1,4 +1,4 @@
-import React from 'react'; // 🚀 DODANY IMPORT REACTA
+import React from 'react';
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { preload } from 'react-dom';
@@ -48,7 +48,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     );
   }
 
-  // LCP PRELOAD
+  // LCP PRELOAD (Zoptymalizowane pod 450px)
   let cdnImages: string[] = [];
   if (product.external_images) {
     if (Array.isArray(product.external_images)) cdnImages = product.external_images;
@@ -62,7 +62,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
 
   if (mainImageUrl?.includes('b-cdn.net')) {
     const cleanSrc = mainImageUrl.split('?')[0];
-    preload(`${cleanSrc}?width=500&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
+    preload(`${cleanSrc}?width=450&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
   }
 
   // --- STATYCZNA LOGIKA (Zero JS) ---
@@ -163,12 +163,10 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
           </div>
         </div>
 
-        {/* WYSPA 3: Polecane produkty */}
         <ProductRecommendations product={product} mainImageUrl={mainImageUrl} />
         
       </main>
 
-      {/* WYSPA 4: Dolny Sticky Nav */}
       <StickyBottomBuy product={product} mainImageUrl={mainImageUrl} />
 
       <MobileBottomNav />
