@@ -9,7 +9,8 @@ import { getUserTier } from '@/lib/cashbackEngine';
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
-  return `${cleanSrc}?width=${Math.min(width, 750)}&format=webp&quality=65&sharpen=false`;
+  const quality = width < 300 ? 50 : 65; 
+  return `${cleanSrc}?width=${width}&format=webp&quality=${quality}&sharpen=false`;
 };
 
 const MiniProductCard = ({ product }: { product: any }) => {
@@ -30,7 +31,7 @@ const MiniProductCard = ({ product }: { product: any }) => {
       <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2 relative z-0">
         <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4">
           {imageUrl ? (
-            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 150px" quality={60} className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+            <Image loader={bunnyLoader} src={imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 150px" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Brak pliku</span>
           )}
@@ -92,7 +93,7 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
          <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
             <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
               <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                {mainImageUrl ? <img src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=150&format=webp&quality=65` : mainImageUrl} alt="Wybrany artykuł" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
+                {mainImageUrl ? <img src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=100&format=webp&quality=65` : mainImageUrl} alt="Wybrany artykuł" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
               </div>
               <div>
                 <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
@@ -107,7 +108,7 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
               <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                  {(() => {
                     const bImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
-                    return bImg ? <img src={bImg.includes('b-cdn.net') ? `${bImg.split('?')[0]}?width=150&format=webp&quality=65` : bImg} alt="Polecany zestaw" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
+                    return bImg ? <img src={bImg.includes('b-cdn.net') ? `${bImg.split('?')[0]}?width=100&format=webp&quality=65` : bImg} alt="Polecany zestaw" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
                  })()}
               </div>
               <div>

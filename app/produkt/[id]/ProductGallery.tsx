@@ -6,7 +6,9 @@ import Image from 'next/image';
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
-  return `${cleanSrc}?width=${Math.min(width, 750)}&format=webp&quality=65&sharpen=false`;
+  // Ostra kompresja dla miniaturek poniżej 300px, żeby wyciszyć ostrzeżenia Lighthouse
+  const quality = width < 300 ? 50 : 65; 
+  return `${cleanSrc}?width=${width}&format=webp&quality=${quality}&sharpen=false`;
 };
 
 export default function ProductGallery({ images, productName }: { images: string[], productName: string }) {
@@ -17,7 +19,7 @@ export default function ProductGallery({ images, productName }: { images: string
     <div className="flex flex-col gap-4">
       <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
          {mainImageUrl ? (
-          <div className="relative w-full aspect-square max-h-[250px] md:max-h-[500px]">
+          <div className="relative w-full aspect-square max-h-[500px]">
             <img
               src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=450&format=webp&quality=65` : mainImageUrl}
               alt={productName || "Zdjęcie"}

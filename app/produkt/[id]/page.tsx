@@ -8,7 +8,6 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MobileBottomNav from '@/components/MobileBottomNav';
 
-// --- NASZE WYSPY JS ---
 import ProductGallery from './ProductGallery';
 import ProductBuyPanel from './ProductBuyPanel';
 import ProductRecommendations from './ProductRecommendations';
@@ -48,7 +47,6 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     );
   }
 
-  // LCP PRELOAD (Zoptymalizowane pod 450px)
   let cdnImages: string[] = [];
   if (product.external_images) {
     if (Array.isArray(product.external_images)) cdnImages = product.external_images;
@@ -65,7 +63,6 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     preload(`${cleanSrc}?width=450&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
   }
 
-  // --- STATYCZNA LOGIKA (Zero JS) ---
   const attributes = typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {};
   const faq = typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [];
   
@@ -99,7 +96,8 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
           <ProductGallery images={displayImages} productName={product.name} />
 
           <div className="flex flex-col h-full justify-start">
-            <h1 className="text-4xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-loose mb-6 tracking-tight py-4 md:py-0 border-y border-transparent">
+            {/* Poprawka CLS: Usunięty hack paddingów, czysty i lekki nagłówek H1 */}
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-tight mb-6 tracking-tight">
               {product.name}
             </h1>
             <ProductBuyPanel product={product} mainImageUrl={mainImageUrl} attributes={attributes} />
