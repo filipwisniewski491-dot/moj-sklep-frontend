@@ -31,7 +31,7 @@ const MiniProductCard = ({ product }: { product: any }) => {
       <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2 relative z-0">
         <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4">
           {imageUrl ? (
-            <Image loader={bunnyLoader} src={imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 150px" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+            <Image loader={bunnyLoader} src={imageUrl} alt="" fill sizes="(max-width: 768px) 50vw, 150px" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Brak pliku</span>
           )}
@@ -93,7 +93,7 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
          <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
             <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
               <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                {mainImageUrl ? <img src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=100&format=webp&quality=65` : mainImageUrl} alt="Wybrany artykuł" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
+                {mainImageUrl ? <img src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=100&format=webp&quality=65` : mainImageUrl} alt="" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
               </div>
               <div>
                 <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
@@ -108,7 +108,7 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
               <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                  {(() => {
                     const bImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
-                    return bImg ? <img src={bImg.includes('b-cdn.net') ? `${bImg.split('?')[0]}?width=100&format=webp&quality=65` : bImg} alt="Polecany zestaw" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
+                    return bImg ? <img src={bImg.includes('b-cdn.net') ? `${bImg.split('?')[0]}?width=100&format=webp&quality=65` : bImg} alt="" className="w-full h-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
                  })()}
               </div>
               <div>
@@ -122,8 +122,8 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
             <div className="w-full h-px bg-slate-100 lg:hidden"></div>
             
             <div className="flex flex-col items-center lg:items-end w-full lg:w-auto shrink-0 bg-red-50 p-6 rounded-2xl border border-red-100">
-               <p className="line-through text-slate-500 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
-               <p className="text-3xl lg:text-4xl font-black text-red-600 tracking-tighter leading-none mb-4">{bundleDiscountPrice.toFixed(2)} <span className="text-lg">zł</span></p>
+               <p className="line-through text-slate-600 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
+               <p className="text-3xl lg:text-4xl font-black text-red-700 tracking-tighter leading-none mb-4">{bundleDiscountPrice.toFixed(2)} <span className="text-lg">zł</span></p>
                <button onClick={handleAddBundle} className="relative z-50 w-full lg:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-md hover:scale-[1.02] active:scale-95 cursor-pointer">
                  DODAJ ZESTAW ➔
                </button>

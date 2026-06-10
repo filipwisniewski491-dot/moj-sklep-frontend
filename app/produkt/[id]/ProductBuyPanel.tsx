@@ -94,7 +94,7 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
             {cashbackEarned >= 0 && (
               <>
                 <div className="w-px h-3 bg-slate-200"></div>
-                <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                <p className="text-emerald-700 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
                   <span>💰</span> +{cashbackEarned.toFixed(2)} zł
                 </p>
               </>

@@ -41,7 +41,6 @@ export default function Header() {
   return (
     <>
       <div className="bg-slate-900 sm:bg-slate-50 text-white sm:text-slate-600 py-2 px-2 sm:px-4 font-bold relative z-[60] border-b border-slate-800 sm:border-slate-200">
-        
         <div className="sm:hidden flex justify-center items-center text-[10px] uppercase tracking-widest text-center min-h-[32px]">
            <span className="text-amber-400 mr-1.5 text-[12px]">⏳</span>
            <span>{isShippingToday ? 'Zamów TERAZ = Wysyłka DZIŚ' : 'Wysyłka JUTRO RANO'}</span>
@@ -72,13 +71,11 @@ export default function Header() {
 
       <header className="bg-white relative z-50 shadow-sm border-b border-slate-100 py-3 md:py-6">
         <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
-          
           <div className="flex-shrink-0 flex items-center min-h-[48px]">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
-              {/* OSTATNIA POPRAWKA LCP: Twardy tag <img> z narzuconą kompresją zamiast <Image> z Next.js */}
               <img 
-                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=200&format=webp&quality=65" 
-                alt="CentrumRolnictwa.pl" 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=150&format=webp&quality=65" 
+                alt="" 
                 width="150"
                 height="121"
                 fetchPriority="high"
@@ -119,7 +116,6 @@ export default function Header() {
                 {cartTotalItems > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
               </span>
             </button>
-
           </nav>
         </div>
       </header>
