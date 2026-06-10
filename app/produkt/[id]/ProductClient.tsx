@@ -49,7 +49,7 @@ const MiniProductCard = ({ product }: { product: any }) => {
       <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2 relative z-0">
         <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4">
           {imageUrl ? (
-            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 200px" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Brak zdjęcia</span>
           )}
