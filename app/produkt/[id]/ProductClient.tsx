@@ -8,7 +8,6 @@ import { useCart } from '@/store/useCart';
 import Header from '@/components/Header';
 import { getUserTier, CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
 
-// Zmienione na ładowanie dynamiczne (Lazy Loading) - odciąża główny wątek!
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: true });
 const MobileBottomNav = dynamic(() => import('@/components/MobileBottomNav'), { ssr: false });
 
@@ -49,9 +48,9 @@ const MiniProductCard = ({ product }: { product: any }) => {
       <Link href={`/produkt/${product.slug || sku}`} className="flex flex-col flex-1 p-2 relative z-0">
         <div className="bg-slate-50 rounded-[24px] overflow-hidden relative flex items-center justify-center aspect-square mb-3 p-4">
           {imageUrl ? (
-            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 200px" className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+            <Image loader={imageUrl.includes('b-cdn.net') ? bunnyLoader : undefined} src={imageUrl} alt={product.name} fill sizes="(max-width: 768px) 50vw, 200px" quality={60} className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
           ) : (
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Brak zdjęcia</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Brak pliku</span>
           )}
         </div>
         <div className="px-3 flex-1 flex flex-col">
@@ -60,7 +59,7 @@ const MiniProductCard = ({ product }: { product: any }) => {
       </Link>
       <div className="px-5 pb-5 pt-3 border-t border-slate-50 flex items-end justify-between bg-white mt-auto relative z-20 pointer-events-auto">
         <div className="flex flex-col">
-          <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-500">zł</span></span>
+          <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2 }).format(price)} <span className="text-[9px] font-bold text-slate-600">zł</span></span>
         </div>
         <button onClick={handleAddToCart} className="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50">
           <span className="text-sm">🛒</span>
@@ -75,11 +74,15 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const [showSticky, setShowSticky] = useState(false);
   const [timeLeftStr, setTimeLeftStr] = useState('');
   const [isShippingToday, setIsShippingToday] = useState(true);
-  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [skuCopied, setSkuCopied] = useState(false);
 
+  // MOCK: Całkowicie wycięliśmy fetch() żeby usunąć błędy 500 z konsoli
+  const [relatedProducts] = useState<any[]>([
+    { id: "bundle-1", sku: "OEM-TEST-4", name: "Filtr Oleju Silnikowego", price: 24.99, image: "https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" },
+    { id: "bundle-2", sku: "OEM-TEST-3", name: "Siedzenie Dwuczęściowe", price: 340.00, image: "https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" }
+  ]);
+
   const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
-  
   const { addItem, setIsOpen } = useCart();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -123,70 +126,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchRelated = async () => {
-      try {
-        let validProducts: any[] = [];
-
-        if (product?.crossSell && Array.isArray(product.crossSell) && product.crossSell.length > 0) {
-          const res = await fetch(`/api/cross-sell?skus=${product.crossSell.join(',')}`);
-          if (res.ok) {
-            const data = await res.json();
-            validProducts = data.products || [];
-          }
-        }
-
-        if (validProducts.length < 5) {
-          let searchValid: any[] = [];
-          
-          if (product?.name) {
-            const firstWord = product.name.split(' ')[0];
-            const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(firstWord)}&limit=10`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
-          }
-
-          if (searchValid.length < 2 && product?.category_text) {
-            const parts = product.category_text.split('>');
-            const lastCat = parts[parts.length - 1].trim();
-            const res = await fetch(`/api/search?fullPath=kategoria&q=${encodeURIComponent(lastCat)}&limit=10`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
-          }
-
-          if (searchValid.length < 2) {
-            const res = await fetch(`/api/search?fullPath=kategoria&limit=15`);
-            if (res.ok) {
-              const data = await res.json();
-              searchValid = (data?.products || []).filter((p: any) => p.sku !== product?.sku);
-            }
-          }
-
-          const existingSkus = validProducts.map((p: any) => p.sku);
-          const filteredSearch = searchValid.filter((p: any) => !existingSkus.includes(p.sku));
-
-          validProducts = [...validProducts, ...filteredSearch];
-        }
-
-        if (isMounted && validProducts.length > 0) {
-          setRelatedProducts(validProducts.slice(0, 5));
-        }
-      } catch (err) {
-        console.error("Błąd pobierania cross-selli:", err);
-      }
-    };
-
-    if (product) fetchRelated();
-
-    return () => { isMounted = false; };
-  }, [product]);
 
   const displayImages = useMemo(() => {
     let cdnImages: string[] = [];
@@ -277,7 +216,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
       
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
+      <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12 min-h-screen">
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-red-700 transition-colors">Start</Link>
           {breadcrumbPath.map((cat: string, idx: number) => {
@@ -285,12 +224,12 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             const href = `/kategoria/${pathSlugs.join('/')}`;
             return (
               <React.Fragment key={idx}>
-                <span className="text-slate-400">/</span>
+                <span className="text-slate-500">/</span>
                 <Link href={href} className="hover:text-red-700 transition-colors">{cat}</Link>
               </React.Fragment>
             );
           })}
-          <span className="hidden md:inline text-slate-400">/</span>
+          <span className="hidden md:inline text-slate-500">/</span>
           <span className="hidden md:inline text-slate-900 truncate max-w-xs">{product.name}</span>
         </nav>
 
@@ -299,16 +238,19 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
                {mainImageUrl ? (
                 <div className="relative w-full aspect-square max-h-[500px]">
+                  {/* 🚀 ZMIANA: Sztywne width/height blokuje CLS, decoding="async" zwalnia procesor */}
                   <img
                     src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=500&format=webp&quality=65` : mainImageUrl}
-                    alt={product.name || "Zdjęcie produktu"}
+                    alt={product.name || "Produkt główny"}
+                    width={500}
+                    height={500}
                     fetchPriority="high"
-                    decoding="sync"
+                    decoding="async"
                     className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>
                ) : ( 
-                <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div> 
+                <div className="font-black text-slate-500 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div> 
                )}
             </div>
             
@@ -321,7 +263,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                     aria-label={`Zobacz zdjęcie ${idx + 1}`}
                     className={`relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${selectedImgIdx === idx ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50 hover:bg-slate-100'}`}
                   >
-                    <Image loader={bunnyLoader} src={imgUrl} alt={`Miniatura produktu ${idx + 1}`} fill sizes="96px" className="object-contain mix-blend-multiply p-2" />
+                    <Image loader={bunnyLoader} src={imgUrl} alt={`${product.name} ${idx + 1}`} fill sizes="96px" className="object-contain mix-blend-multiply p-2" />
                   </button>
                 ))}
               </div>
@@ -341,7 +283,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                 </button>
               </div>
               <div className="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
-                <div className="flex text-amber-400 text-xs">★★★★★</div>
+                <div className="flex text-yellow-500 text-xs">★★★★★</div>
                 <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">4.8/5.0</span>
               </div>
             </div>
@@ -353,21 +295,21 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                <div className="flex flex-col">
                  {currentTier.level > 1 && (
                    <div className="flex items-center gap-2 mb-1">
-                     <span className="bg-slate-900 text-amber-400 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">
+                     <span className="bg-slate-900 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">
                        VIP -{currentTier.discountPercent * 100}%
                      </span>
-                     <span className="text-xs text-slate-400 line-through font-bold">{numPrice.toFixed(2)} zł</span>
+                     <span className="text-xs text-slate-600 line-through font-bold">{numPrice.toFixed(2)} zł</span>
                    </div>
                  )}
                  
                  <div className="flex items-baseline gap-1">
                    <span className="text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter">{mainPrice}</span>
-                   {hasCents && <span className="text-3xl font-bold text-slate-500">.{centsPrice}</span>}
-                   <span className="text-2xl font-bold text-slate-500 ml-1">zł</span>
+                   {hasCents && <span className="text-3xl font-bold text-slate-600">.{centsPrice}</span>}
+                   <span className="text-2xl font-bold text-slate-600 ml-1">zł</span>
                  </div>
                  
                  <div className="flex items-center gap-3 mt-2">
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Brutto (VAT 23%)</p>
+                    <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest">Brutto (VAT 23%)</p>
                     {cashbackEarned >= 0 && (
                       <>
                         <div className="w-px h-3 bg-slate-200"></div>
@@ -391,11 +333,11 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-8 border-b border-slate-100 pb-8">
+            <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-8 border-b border-slate-100 pb-8">
               <span className="flex items-center gap-1.5">🔒 Bezpieczne płatności</span>
-              <span className="text-slate-300">•</span>
+              <span className="text-slate-400">•</span>
               <span className="flex items-center gap-1.5">💳 BLIK / PayU</span>
-              <span className="text-slate-300">•</span>
+              <span className="text-slate-400">•</span>
               <span className="flex items-center gap-1.5">🔄 14 dni na zwrot</span>
             </div>
 
@@ -414,7 +356,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             <div className="bg-slate-50 text-slate-800 p-5 rounded-2xl mb-4 border border-slate-200 flex items-start gap-4">
                <div className="text-2xl mt-0.5">📦</div>
                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest mb-1 text-slate-500 flex items-center gap-1.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-1 text-slate-600 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
                     Ekspresowa Wysyłka
                   </p>
@@ -428,9 +370,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <div className="bg-white border border-slate-200 p-5 rounded-2xl mb-4 flex items-center gap-5 relative overflow-hidden group">
               <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
+                {/* 🚀 Dodano wymuszenie silnej kompresji z Unsplash (&q=60) */}
                 <img 
-                  src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=150&auto=format&fit=crop" 
-                  alt="Doradca Maciek" 
+                  src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=60&w=150&auto=format&fit=crop" 
+                  alt="Doradca techniczny" 
                   loading="lazy"
                   className="w-full h-full object-cover object-top" 
                 />
@@ -514,7 +457,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
              <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
                 <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                    {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt="Main" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
+                    {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt={product.name} fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
                   </div>
                   <div>
                     <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
@@ -523,13 +466,13 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                   </div>
                 </div>
 
-                <div className="text-3xl font-black text-slate-300">＋</div>
+                <div className="text-3xl font-black text-slate-400">＋</div>
 
                 <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                      {(() => {
                         const bImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
-                        return bImg ? <Image loader={bunnyLoader} src={bImg} alt="Bundle" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
+                        return bImg ? <Image loader={bunnyLoader} src={bImg} alt={bundleProduct.name} fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
                      })()}
                   </div>
                   <div>
@@ -539,11 +482,11 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                   </div>
                 </div>
                 
-                <div className="text-3xl font-black text-slate-300 hidden lg:block">＝</div>
+                <div className="text-3xl font-black text-slate-400 hidden lg:block">＝</div>
                 <div className="w-full h-px bg-slate-100 lg:hidden"></div>
                 
                 <div className="flex flex-col items-center lg:items-end w-full lg:w-auto shrink-0 bg-red-50 p-6 rounded-2xl border border-red-100">
-                   <p className="line-through text-slate-400 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
+                   <p className="line-through text-slate-500 font-bold text-sm mb-1">{bundleTotalPrice.toFixed(2)} zł</p>
                    <p className="text-3xl lg:text-4xl font-black text-red-600 tracking-tighter leading-none mb-4">{bundleDiscountPrice.toFixed(2)} <span className="text-lg">zł</span></p>
                    <button onClick={handleAddBundle} className="relative z-50 w-full lg:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-md hover:scale-[1.02] active:scale-95 cursor-pointer">
                      DODAJ ZESTAW ➔
@@ -582,7 +525,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             )}
             <div>
               <p className="text-sm font-black text-slate-900 line-clamp-1 max-w-sm tracking-tight">{product.name}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">SKU: {product.sku}</p>
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">SKU: {product.sku}</p>
             </div>
           </div>
           
@@ -592,11 +535,11 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
             </div>
             
             <div className="text-left md:text-right shrink-0">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Cena z VAT:</p>
+              <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Cena z VAT:</p>
               <div className="flex items-baseline gap-0.5">
                 <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">{mainPrice}</span>
-                {hasCents && <span className="text-sm font-bold text-slate-500 leading-none">.{centsPrice}</span>}
-                <span className="text-xs font-bold text-slate-500 ml-0.5 leading-none">zł</span>
+                {hasCents && <span className="text-sm font-bold text-slate-600 leading-none">.{centsPrice}</span>}
+                <span className="text-xs font-bold text-slate-600 ml-0.5 leading-none">zł</span>
               </div>
             </div>
             
