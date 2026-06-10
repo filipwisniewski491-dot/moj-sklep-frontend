@@ -295,20 +295,17 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           <div className="flex flex-col gap-4">
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
                {mainImageUrl ? (
-                <div className="relative w-full aspect-square max-h-[500px]">
-                  <Image
-                    src={mainImageUrl}
-                    alt={product.name}
-                    fill
-                    priority
-                    quality={65}
-                    loader={bunnyLoader}
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
-                    fetchPriority="high"
-                  />
-                </div>
-               ) : ( 
+ <div className="relative w-full aspect-square max-h-[500px]">
+   {/* Twardy tag HTML wymusza natychmiastowe rysowanie obrazu (0ms render delay) */}
+   <img
+     src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=750&format=webp&quality=65` : mainImageUrl}
+     alt={product.name || "Zdjęcie produktu"}
+     fetchPriority="high"
+     decoding="sync"
+     className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
+   />
+ </div>
+) : (
                 <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div> 
                )}
             </div>
