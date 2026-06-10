@@ -1,3 +1,4 @@
+import React from 'react'; // 🚀 DODANY IMPORT REACTA
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { preload } from 'react-dom';
