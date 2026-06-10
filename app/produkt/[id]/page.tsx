@@ -60,7 +60,8 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
 
   if (mainImageUrl?.includes('b-cdn.net')) {
     const cleanSrc = mainImageUrl.split('?')[0];
-    preload(`${cleanSrc}?width=750&format=webp&quality=65`, { 
+    // 🚀 ZMIANA: preload w rozmiarze 500, idealnie pod urządzenia mobilne i LCP
+    preload(`${cleanSrc}?width=500&format=webp&quality=65`, { 
       as: 'image',
       fetchPriority: 'high'
     });

@@ -4,7 +4,10 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
-import Header from '@/components/Header';
+import dynamic from 'next/dynamic';
+
+const Footer = dynamic(() => import('@/components/Footer'), { ssr: true });
+const MobileBottomNav = dynamic(() => import('@/components/MobileBottomNav'), { ssr: false });
 import Footer from '@/components/Footer';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { getUserTier, CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
@@ -298,12 +301,12 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
  <div className="relative w-full aspect-square max-h-[500px]">
    {/* Twardy tag HTML wymusza natychmiastowe rysowanie obrazu (0ms render delay) */}
    <img
-     src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=750&format=webp&quality=65` : mainImageUrl}
-     alt={product.name || "Zdjęcie produktu"}
-     fetchPriority="high"
-     decoding="sync"
-     className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
-   />
+  src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=500&format=webp&quality=65` : mainImageUrl}
+  alt={product.name || "Zdjęcie produktu"}
+  fetchPriority="high"
+  decoding="sync"
+  className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
+/>
  </div>
 ) : (
                 <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div> 
