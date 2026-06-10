@@ -77,7 +77,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
   const mainBuyButtonRef = useRef<HTMLButtonElement>(null);
   
-  const { addItem, setIsOpen, items } = useCart();
+  const { addItem, setIsOpen } = useCart();
   const [isMounted, setIsMounted] = useState(false);
 
   const userTotalSpent = 105000; 
@@ -206,13 +206,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
   const attributes = useMemo(() => typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {}, [product.attributes]);
 
   const breadcrumbPath = useMemo((): string[] => {
-    // 1. Zczytanie bezpiecznej, wygenerowanej w api.ts ścieżki
     const catPath = product.category_path;
     if (catPath) {
-      // Rozbija np. "czesci-do-maszyn/zbior-i-zniwa/rolki" na ładne okruszki
       return catPath.split('/').map((s: string) => s.replace(/-/g, ' '));
     }
-    // 2. Fallback
     if (product.category_text) {
       return product.category_text.split('>').map((s: string) => s.trim()).filter(Boolean);
     }
@@ -388,7 +385,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                    <span>DODAJ DO KOSZYKA ➔</span>
                  </button>
                  
-                 <button onClick={() => console.log('Przejdź do szybkiego BLIKa')} className="relative z-50 w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                 <button onClick={() => console.log('Szybki BLIK')} className="relative z-50 w-full bg-slate-900 text-white py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
                    Kup błyskawicznie z <span className="bg-white text-black px-1.5 py-0.5 rounded text-[10px] italic">BLIK</span>
                  </button>
                </div>
@@ -430,9 +427,16 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                </div>
             </div>
 
-            <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden group">
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl mb-4 flex items-center gap-5 relative overflow-hidden group">
               <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-                <Image src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop&w=150"" alt="Doradca Maciek" fill sizes="56px" className="object-cover object-top" />
+                {/* 🚀 ROZWIĄZANIE ERROREK / LIGHTHOUSE: Dodany parametr &w=150 optymalizujący pobieranie z Unsplash */}
+                <Image 
+                  src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop&w=150" 
+                  alt="Doradca Maciek" 
+                  fill 
+                  sizes="56px" 
+                  className="object-cover object-top" 
+                />
               </div>
               <div className="flex-1">
                 <p className="font-black uppercase text-[9px] text-red-700 tracking-widest mb-0.5">Twój opiekun techniczny</p>
@@ -571,7 +575,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
         )}
       </main>
 
-      {/* 🚀 NOWOŚĆ: ZADOKOWANY PŁYWAJĄCY PASEK KOSZYKA (BRAK SZPARY NA MOBILE) */}
       <div className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+60px)] md:bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-5px_20px_rgba(0,0,0,0.08)] z-40 transform transition-transform duration-300 px-4 py-2.5 md:py-3.5 ${showSticky ? 'translate-y-0' : 'translate-y-[150%] md:translate-y-[120%]'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="hidden md:flex items-center gap-4">
