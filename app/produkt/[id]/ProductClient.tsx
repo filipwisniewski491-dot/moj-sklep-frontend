@@ -237,8 +237,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           <div className="flex flex-col gap-4">
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
                {mainImageUrl ? (
-                {/* HACK LCP 1: Zdjęcie na mobile ma ograniczoną maksymalną wysokość do 250px, aby zająć mniej miejsca */}
                 <div className="relative w-full aspect-square max-h-[250px] md:max-h-[500px]">
+                  {/* HACK LCP 1: Zdjęcie na mobile ma ograniczoną maksymalną wysokość do 250px, aby zająć mniej miejsca */}
                   <img
                     src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=500&format=webp&quality=65` : mainImageUrl}
                     alt={product.name || "Produkt główny"}
