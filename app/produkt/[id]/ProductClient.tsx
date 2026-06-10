@@ -432,7 +432,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden group">
               <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-                <Image src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop" alt="Doradca Maciek" fill sizes="56px" className="object-cover object-top" />
+                <Image src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop&w=150"" alt="Doradca Maciek" fill sizes="56px" className="object-cover object-top" />
               </div>
               <div className="flex-1">
                 <p className="font-black uppercase text-[9px] text-red-700 tracking-widest mb-0.5">Twój opiekun techniczny</p>
