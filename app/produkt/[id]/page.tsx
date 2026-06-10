@@ -1,20 +1,17 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { preload } from 'react-dom';
-import dynamic from 'next/dynamic';
 import { getProductData } from '@/lib/api';
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
-// --- NASZE WYSPY ---
+// --- NASZE WYSPY JS ---
 import ProductGallery from './ProductGallery';
 import ProductBuyPanel from './ProductBuyPanel';
 import ProductRecommendations from './ProductRecommendations';
 import StickyBottomBuy from './StickyBottomBuy';
-
-// Optymalizacja ładowania dolnej navki na komórkach
-const MobileBottomNav = dynamic(() => import('@/components/MobileBottomNav'), { ssr: false });
 
 export const revalidate = 86400;
 
