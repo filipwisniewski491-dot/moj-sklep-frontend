@@ -3,53 +3,82 @@
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://49.12.69.146:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
+// =========================================================================
+// MOCK PRODUKTU (TWARDE DANE DLA PAGESPEED 100/100 PRZY ODPIĘTYM BACKENDZIE)
+// =========================================================================
+const MOCK_PRODUCT = {
+  id: "prod_mock_hyd_360",
+  sku: "HYD-URS-360-WZ",
+  slug: "pompa-hydrauliczna-wzmocniona-ursus-c360",
+  name: "Wzmocniona Pompa Hydrauliczna Zębata Ursus C-360 (Wydajność 32L)",
+  price: 450.00,
+  description: "<h2>Najwyższej jakości pompa hydrauliczna Hylmet</h2><p>Idealnie dopasowana do ciągników Ursus C-360. Gwarantuje stabilne ciśnienie w układzie hydraulicznym i bezawaryjną pracę z ciężkimi maszynami rolniczymi, takimi jak tury czy agregaty uprawowe. Wykonana z odlewów żeliwnych o zwiększonej wytrzymałości.</p>",
+  seo_description: "<h2>Najwyższej jakości pompa hydrauliczna Hylmet</h2><p>Idealnie dopasowana do ciągników Ursus C-360. Gwarantuje stabilne ciśnienie w układzie hydraulicznym i bezawaryjną pracę z ciężkimi maszynami rolniczymi, takimi jak tury czy agregaty uprawowe. Wykonana z odlewów żeliwnych o zwiększonej wytrzymałości.</p>",
+  category_text: "Części do maszyn > Ursus > Hydraulika",
+  category_path: "czesci-do-ciagnikow/ursus/hydraulika",
+  attributes: {
+    "Pasuje do marki": "Ursus",
+    "Pasuje do modelu": "C-360, C-360 3P, C-355, C-4011",
+    "Wydajność": "32 l/min",
+    "Ciśnienie nominalne": "16 MPa",
+    "Kierunek obrotów": "Lewy",
+    "Producent": "Hylmet (Produkt Polski)"
+  },
+  // Używamy Twojego testowego obrazka z BunnyCDN aby sprawdzić optymalizator!
+  external_images: [
+    "https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg",
+    "https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg"
+  ],
+  images: [],
+  expert_advice: "Zawsze przed montażem nowej pompy wymień olej hydrauliczny na nowy (np. Agrol U) oraz koniecznie wyczyść filtry! Stary, zanieczyszczony opiłkami olej potrafi zatrzeć nową pompę w ciągu zaledwie 2 roboczogodzin, co nie podlega gwarancji.",
+  symptoms: "Jeżeli podnośnik 'pulsuje', opada pod obciążeniem, wolno podnosi ciężkie maszyny lub po rozgrzaniu oleju z okolic pompy wydobywa się głośne wycie – to stuprocentowy znak zużytych uszczelniaczy i sekcji tłoczącej. Wymiana na wzmocniony model rozwiązuje te problemy od ręki.",
+  faq: [
+    { question: "Czy do montażu pompy potrzebuję kupić osobno uszczelki?", answer: "Nie, w zestawie znajduje się oryginalny komplet oringów niezbędnych do prawidłowego uszczelnienia przyłącza pompy." },
+    { question: "Jaki jest okres gwarancji?", answer: "Pompa objęta jest rygorystyczną, 24-miesięczną gwarancją producenta (wymiana door-to-door w przypadku wad fabrycznych)." }
+  ],
+  // Cross-sell celowo spięty z mockami z getCategoryData, żeby pokazać Bundle na dole strony
+  crossSell: ["OEM-TEST-4", "OEM-TEST-3"]
+};
+
+
 export async function getProductData(identifier: string) {
+  // 🚀 ZWROT MOCKA W TRYBIE TESTOWYM 
+  // Na razie omijamy serwer całkowicie. Vercel wygeneruje stronę w 50ms.
+  return MOCK_PRODUCT;
+
+  /* --- WŁAŚCIWY KOD (ZAMROŻONY NA CZAS TESTÓW FRONTENDU) ---
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    
-    if (PUBLISHABLE_KEY) {
-      headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-    }
+    if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
-    // Wyłączamy cache, żeby wymusić pobranie nowych pól
-    const options: RequestInit = {
-      headers: headers,
-      cache: 'no-store' 
-    };
-
-    // Wymuszamy na Medusie zwrot metadanych (+metadata) i obrazków (+images)
+    const options: RequestInit = { headers: headers, cache: 'no-store' };
     const queryFields = "fields=*variants,*categories,+metadata,+images";
 
-    // 1. Próba 1: Szukamy dokładnie tego, co w pasku adresu
     let res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}`, options);
     let json = await res.json();
 
-    // 2. DETEKTYW (Naprawa różnic ze Strapi): Ocinamy cyfry z końca sluga
     if (!json.products || json.products.length === 0) {
       const slugParts = identifier.split('-');
       if (slugParts.length > 1) {
-        slugParts.pop(); // Pozbywamy się starego ID
+        slugParts.pop();
         const shortHandle = slugParts.join('-');
         res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(shortHandle)}&${queryFields}`, options);
         json = await res.json();
       }
     }
 
-    // 3. KOŁO RATUNKOWE: Wyszukiwanie ogólne po znakach
     if (!json.products || json.products.length === 0) {
       res = await fetch(`${MEDUSA_URL}/store/products?q=${encodeURIComponent(identifier)}&${queryFields}`, options);
       json = await res.json();
     }
 
     if (!json.products || json.products.length === 0) {
-       console.error(`[API LIB] Produkt całkowicie nieodnaleziony: ${identifier}`);
        return null;
     }
 
     const product = json.products[0];
-    // Gwarancja, że metadane teraz tu wpadną
     const meta = product.metadata || {};
     const mainVariant = product.variants?.[0] || null;
 
@@ -61,11 +90,7 @@ export async function getProductData(identifier: string) {
       price: mainVariant?.calculated_price?.calculated_amount || 0, 
       description: product.description || '',
       category_text: product.categories?.[0]?.name || meta.category || '',
-      
-      // DODANE: Bez tego front-end nie złoży okruszków!
       category_path: product.categories?.[0]?.metadata?.category_path || meta.category_path || null,
-      
-      // Zasilanie Twojego frontendu wyciągniętymi metadanymi
       attributes: meta.technical_specs || meta.attributes || {},
       images: product.images?.map((img: any) => ({ url: img.url })) || [],
       external_images: meta.external_images || [],
@@ -78,10 +103,12 @@ export async function getProductData(identifier: string) {
     console.error("[API LIB] Krytyczny błąd pobierania produktu z Medusy:", error);
     return null;
   }
+  ------------------------------------------------------------- */
 }
 
-// === FUNKCJA POBIERANIA DANYCH KATEGORII (Wymagana przez page.tsx) ===
-// WERSJA MOCK (ZAMROŻONY BACKEND) - DO TESTÓW PAGESPEED 100/100
+// =========================================================================
+// MOCK KATEGORII (PEŁNA WERSJA Z FILTRAMI I SEO)
+// =========================================================================
 export async function getCategoryData(fullPath: string, searchParams: any) {
   // Promise.resolve natychmiast zwraca dane. Czas odpowiedzi: 0ms.
   return Promise.resolve({
