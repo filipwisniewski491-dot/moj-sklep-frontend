@@ -1,19 +1,23 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { preload } from 'react-dom';
+import dynamic from 'next/dynamic';
 import { getProductData } from '@/lib/api';
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import MobileBottomNav from '@/components/MobileBottomNav';
 
-// Te komponenty stworzymy za chwilę (nasze "wyspy" JS)
+// --- NASZE WYSPY ---
 import ProductGallery from './ProductGallery';
 import ProductBuyPanel from './ProductBuyPanel';
+import ProductRecommendations from './ProductRecommendations';
+import StickyBottomBuy from './StickyBottomBuy';
+
+// Optymalizacja ładowania dolnej navki na komórkach
+const MobileBottomNav = dynamic(() => import('@/components/MobileBottomNav'), { ssr: false });
 
 export const revalidate = 86400;
 
-// Funkcja generująca slug (skopiowana z ProductClient)
 const generateSlug = (text: string) => {
   if (!text) return '';
   return text.toLowerCase()
@@ -27,9 +31,10 @@ const generateSlug = (text: string) => {
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const params = await props.params;
   const product = await getProductData(params.id);
-  // ... (Twoja logika metadata zostaje bez zmian)
+  
   return {
     title: product?.name ? `${product.name} - CentrumRolnictwa.pl` : "Produkt",
+    description: product?.description ? product.description.substring(0, 160) : "Wysokiej jakości części rolnicze."
   };
 }
 
@@ -45,7 +50,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     );
   }
 
-  // Preload obrazka dla 100/100 LCP
+  // LCP PRELOAD
   let cdnImages: string[] = [];
   if (product.external_images) {
     if (Array.isArray(product.external_images)) cdnImages = product.external_images;
@@ -62,7 +67,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
     preload(`${cleanSrc}?width=500&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
   }
 
-  // --- STATYCZNA LOGIKA (Zero JS po stronie klienta!) ---
+  // --- STATYCZNA LOGIKA (Zero JS) ---
   const attributes = typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {};
   const faq = typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [];
   
@@ -78,7 +83,6 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12 min-h-screen">
-        {/* STATYCZNE OKRUSZKI HTML */}
         <nav className="flex flex-wrap items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2">
           <Link href="/" className="hover:text-red-700 transition-colors">Start</Link>
           {breadcrumbPath.map((cat: string, idx: number) => {
@@ -94,20 +98,16 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
 
         <div className="bg-white rounded-[32px] p-6 lg:p-12 shadow-sm border border-slate-100 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           
-          {/* WYSPA 1: Interaktywna Galeria (Client Component) */}
           <ProductGallery images={displayImages} productName={product.name} />
 
           <div className="flex flex-col h-full justify-start">
             <h1 className="text-4xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-loose mb-6 tracking-tight py-4 md:py-0 border-y border-transparent">
               {product.name}
             </h1>
-
-            {/* WYSPA 2: Interaktywny Panel Zakupowy (Client Component) */}
             <ProductBuyPanel product={product} mainImageUrl={mainImageUrl} attributes={attributes} />
           </div>
         </div>
 
-        {/* STATYCZNE OPISY SEO, TABELE, FAQ (Zero JS!) */}
         <div className="mt-12 grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-8">
             {product.description && (
@@ -137,6 +137,18 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
           </div>
           
           <div className="space-y-8">
+            {product.symptoms && (
+              <div className="bg-[#FFF4ED] rounded-[32px] p-8 border border-orange-100">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-700 mb-4 flex items-center gap-2"><span>🔎</span> Diagnostyka / Porady</h3>
+                <p className="text-orange-900 font-medium leading-relaxed text-sm">{product.symptoms}</p>
+              </div>
+            )}
+            {product.expert_advice && (
+              <div className="bg-slate-900 rounded-[32px] p-8 shadow-xl">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-4 flex items-center gap-2"><span>💡</span> Okiem Eksperta</h3>
+                <p className="text-slate-300 font-medium leading-relaxed text-sm">{product.expert_advice}</p>
+              </div>
+            )}
             {faq.length > 0 && (
               <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-900 mb-6 border-l-4 border-red-600 pl-4">Pytania i odpowiedzi</h3>
@@ -152,7 +164,14 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
             )}
           </div>
         </div>
+
+        {/* WYSPA 3: Polecane produkty */}
+        <ProductRecommendations product={product} mainImageUrl={mainImageUrl} />
+        
       </main>
+
+      {/* WYSPA 4: Dolny Sticky Nav */}
+      <StickyBottomBuy product={product} mainImageUrl={mainImageUrl} />
 
       <MobileBottomNav />
       <Footer />
