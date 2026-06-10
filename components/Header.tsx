@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import SearchBar from '@/components/SearchBar';
 import MegaMenu from '@/components/MegaMenu';
 import { useCart } from '@/store/useCart';
@@ -76,14 +75,14 @@ export default function Header() {
           
           <div className="flex-shrink-0 flex items-center min-h-[48px]">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
-              {/* OSTATNIA POPRAWKA LCP: Klasa w-24 h-auto gwarantuje, że Lighthouse idealnie rozpozna zachowanie proporcji */}
-              <Image 
-                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" 
+              {/* OSTATNIA POPRAWKA LCP: Twardy tag <img> z narzuconą kompresją zamiast <Image> z Next.js */}
+              <img 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=200&format=webp&quality=65" 
                 alt="CentrumRolnictwa.pl" 
-                width={150}
-                height={121}
+                width="150"
+                height="121"
+                fetchPriority="high"
                 className="w-24 sm:w-28 md:w-36 h-auto object-contain mb-0.5" 
-                priority 
               />
               <span className="font-black text-[11px] sm:text-xs md:text-sm tracking-tighter text-slate-900 leading-none uppercase mt-1">
                 CentrumRolnictwa<span className="text-red-600">.pl</span>
