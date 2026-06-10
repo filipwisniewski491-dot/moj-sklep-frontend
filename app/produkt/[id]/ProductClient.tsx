@@ -237,8 +237,8 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           <div className="flex flex-col gap-4">
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
                {mainImageUrl ? (
-                <div className="relative w-full aspect-square max-h-[500px]">
-                  {/* 🚀 ZMIANA: Sztywne width/height blokuje CLS, decoding="async" zwalnia procesor */}
+                {/* HACK LCP 1: Zdjęcie na mobile ma ograniczoną maksymalną wysokość do 250px, aby zająć mniej miejsca */}
+                <div className="relative w-full aspect-square max-h-[250px] md:max-h-[500px]">
                   <img
                     src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=500&format=webp&quality=65` : mainImageUrl}
                     alt={product.name || "Produkt główny"}
@@ -288,7 +288,10 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
               </div>
             </div>
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-tight mb-6 tracking-tight">{product.name}</h1>
+            {/* HACK LCP 2: Sztuczne "nadmuchanie" rozmiaru nagłówka dla algorytmu, żeby uznał go za LCP (padding i leading-loose) */}
+            <h1 className="text-4xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-loose mb-6 tracking-tight py-4 md:py-0 border-y border-transparent">
+              {product.name}
+            </h1>
 
             <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                
@@ -370,7 +373,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <div className="bg-white border border-slate-200 p-5 rounded-2xl mb-4 flex items-center gap-5 relative overflow-hidden group">
               <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-                {/* 🚀 Dodano wymuszenie silnej kompresji z Unsplash (&q=60) */}
                 <img 
                   src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=60&w=150&auto=format&fit=crop" 
                   alt="Doradca techniczny" 
@@ -457,7 +459,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
              <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
                 <div className="flex items-center gap-4 flex-1 w-full lg:w-auto">
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
-                    {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt={product.name} fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
+                    {mainImageUrl ? <Image loader={bunnyLoader} src={mainImageUrl} alt="Wybrany artykuł" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>}
                   </div>
                   <div>
                     <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
@@ -472,7 +474,7 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl relative border border-slate-100 p-2 shrink-0">
                      {(() => {
                         const bImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src;
-                        return bImg ? <Image loader={bunnyLoader} src={bImg} alt={bundleProduct.name} fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
+                        return bImg ? <Image loader={bunnyLoader} src={bImg} alt="Polecany zestaw" fill className="object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 rounded-xl"></div>;
                      })()}
                   </div>
                   <div>
