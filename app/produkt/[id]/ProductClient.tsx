@@ -3,14 +3,14 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCart } from '@/store/useCart';
 import dynamic from 'next/dynamic';
+import { useCart } from '@/store/useCart';
+import Header from '@/components/Header';
+import { getUserTier, CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
 
+// Zmienione na ładowanie dynamiczne (Lazy Loading) - odciąża główny wątek!
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: true });
 const MobileBottomNav = dynamic(() => import('@/components/MobileBottomNav'), { ssr: false });
-import Footer from '@/components/Footer';
-import MobileBottomNav from '@/components/MobileBottomNav';
-import { getUserTier, CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -298,17 +298,16 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
           <div className="flex flex-col gap-4">
             <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
                {mainImageUrl ? (
- <div className="relative w-full aspect-square max-h-[500px]">
-   {/* Twardy tag HTML wymusza natychmiastowe rysowanie obrazu (0ms render delay) */}
-   <img
-  src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=500&format=webp&quality=65` : mainImageUrl}
-  alt={product.name || "Zdjęcie produktu"}
-  fetchPriority="high"
-  decoding="sync"
-  className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
-/>
- </div>
-) : (
+                <div className="relative w-full aspect-square max-h-[500px]">
+                  <img
+                    src={mainImageUrl.includes('b-cdn.net') ? `${mainImageUrl.split('?')[0]}?width=500&format=webp&quality=65` : mainImageUrl}
+                    alt={product.name || "Zdjęcie produktu"}
+                    fetchPriority="high"
+                    decoding="sync"
+                    className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
+                  />
+                </div>
+               ) : ( 
                 <div className="font-black text-slate-300 text-xl uppercase tracking-widest text-center aspect-square flex items-center justify-center">BRAK ZDJĘCIA</div> 
                )}
             </div>
@@ -429,7 +428,6 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <div className="bg-white border border-slate-200 p-5 rounded-2xl mb-4 flex items-center gap-5 relative overflow-hidden group">
               <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-                {/* 🚀 ROZWIĄZANIE 100/100: Czysty znacznik <img> zamiast <Image> wymusza prawidłowe pobranie 10KB pliku */}
                 <img 
                   src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=150&auto=format&fit=crop" 
                   alt="Doradca Maciek" 
