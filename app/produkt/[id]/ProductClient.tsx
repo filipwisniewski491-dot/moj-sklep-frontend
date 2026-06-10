@@ -429,13 +429,12 @@ export default function ProductClient({ product, fullUrl }: { product: any, full
 
             <div className="bg-white border border-slate-200 p-5 rounded-2xl mb-4 flex items-center gap-5 relative overflow-hidden group">
               <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 shadow-sm shrink-0">
-                {/* 🚀 ROZWIĄZANIE ERROREK / LIGHTHOUSE: Dodany parametr &w=150 optymalizujący pobieranie z Unsplash */}
-                <Image 
-                  src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&auto=format&fit=crop&w=150" 
+                {/* 🚀 ROZWIĄZANIE 100/100: Czysty znacznik <img> zamiast <Image> wymusza prawidłowe pobranie 10KB pliku */}
+                <img 
+                  src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=150&auto=format&fit=crop" 
                   alt="Doradca Maciek" 
-                  fill 
-                  sizes="56px" 
-                  className="object-cover object-top" 
+                  loading="lazy"
+                  className="w-full h-full object-cover object-top" 
                 />
               </div>
               <div className="flex-1">
