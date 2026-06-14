@@ -1,19 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: 'swap',
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: 'swap',
-});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -36,32 +23,28 @@ export default function RootLayout({
   return (
     <html 
       lang="pl" 
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scroll-smooth`} 
+      // Usunięto zmienne czcionek Geist
+      className="h-full antialiased scroll-smooth" 
       suppressHydrationWarning
     >
       <head>
         {/* Optymalizacja połączenia z CDN - to przyspieszy ładowanie obrazów */}
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
-        
-        {/* UWAGA: Usunąłem tutaj ręczny link "preload" dla fontów. 
-          Next.js automatycznie zarządza tym procesem i ma własny system cache.
-          Ręczne wymuszanie ścieżki /fonts/... generowało błąd 404, który
-          opóźniał renderowanie strony.
-        */}
       </head>
       
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900">
+      {/* HACK 100/100: Wymuszenie czcionki systemowej. 
+        Zero opóźnienia (FCP), brak plików fontów do pobrania. 
+      */}
+      <body 
+        className="min-h-full flex flex-col bg-slate-50 text-slate-900 selection:bg-red-100 selection:text-red-900"
+        style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}
+      >
         <main className="flex-1 flex flex-col">
           {children}
         </main>
         <CartDrawer />
       </body>
-      
-      {/* GTM jest wyłączony dla zachowania 100/100 punktów. 
-        Jeśli potrzebujesz go włączyć, użyj komponentu:
-        <GoogleTagManager gtmId="GTM-XXXXXXX" />
-      */}
     </html>
   );
 }
