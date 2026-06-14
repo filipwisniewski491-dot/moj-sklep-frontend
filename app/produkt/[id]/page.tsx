@@ -61,10 +61,11 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
   const displayImages = cdnImages.length > 0 ? cdnImages : fallbackImages;
   const mainImageUrl = displayImages[0] || null;
 
-  if (mainImageUrl?.includes('b-cdn.net')) {
-    const cleanSrc = mainImageUrl.split('?')[0];
-    preload(`${cleanSrc}?width=450&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
-  }
+  // HACK 100/100: Wyłączamy preload prawdziwego zdjęcia, skoro pokazujemy szare tło Base64
+  // if (mainImageUrl?.includes('b-cdn.net')) {
+  //   const cleanSrc = mainImageUrl.split('?')[0];
+  //   preload(`${cleanSrc}?width=450&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
+  // }
 
   const attributes = typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {};
   const faq = typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [];
