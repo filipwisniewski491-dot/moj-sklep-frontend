@@ -1,7 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { preload } from 'react-dom';
 import { getProductData } from '@/lib/api';
 
 import Header from '@/components/Header';
@@ -15,7 +14,7 @@ import ProductBuyPanel from './ProductBuyPanel';
 // import ProductRecommendations from './ProductRecommendations';
 // import StickyBottomBuy from './StickyBottomBuy';
 
-export const dynamic = 'force-static'; // Wymuszenie czystego statyka dla Lighthouse
+export const dynamic = 'force-static'; 
 export const revalidate = 86400;
 
 const generateSlug = (text: string) => {

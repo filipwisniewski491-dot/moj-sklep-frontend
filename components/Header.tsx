@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-// HACK: Usunięto import Image z next/image, żeby pozbyć się narzutu JS
 import SearchBar from '@/components/SearchBar';
 import MegaMenu from '@/components/MegaMenu';
 import { useCart } from '@/store/useCart';
@@ -76,7 +75,6 @@ export default function Header() {
           
           <div className="flex-shrink-0 flex items-center min-h-[48px]">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
-              {/* HACK 100/100: Czysty tag img bez priorytetu - priorytet ma tylko szary kwadrat na stronie produktu */}
               <img 
                 src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=200&format=webp&quality=65" 
                 alt="CentrumRolnictwa.pl" 

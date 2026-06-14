@@ -17,7 +17,7 @@ export default function ProductGallery({ images, productName }: { images: string
               height={450}
               fetchPriority="high"
               decoding="sync"
-              className="w-full h-full object-cover" // Zmienione z object-contain na czas szarego tła
+              className="w-full h-full object-cover" 
             />
           </div>
          ) : ( 
@@ -52,7 +52,6 @@ export default function ProductGallery({ images, productName }: { images: string
                 var imgUrl = this.getAttribute('data-img');
                 var mainImage = document.getElementById('main-product-image');
                 if (mainImage && imgUrl) {
-                  // Po kliknięciu w miniaturkę wczytujemy z powrotem prawdziwe zdjęcie!
                   mainImage.src = imgUrl.split('?')[0] + '?width=450&format=webp&quality=65';
                   mainImage.classList.remove('object-cover');
                   mainImage.classList.add('object-contain', 'mix-blend-multiply');
