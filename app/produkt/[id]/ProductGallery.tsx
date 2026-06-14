@@ -7,14 +7,16 @@ export default function ProductGallery({ images, productName }: { images: string
     <div className="flex flex-col gap-4">
       <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
          {mainImageUrl ? (
-          <div className="relative w-full aspect-square max-h-[500px]">
+          <div className="relative w-full aspect-square max-h-[500px]" style={{ contentVisibility: 'auto' }}>
             <img
               id="main-product-image"
               src={`${mainImageUrl.split('?')[0]}?width=450&format=webp&quality=65`}
-              alt={productName || "Zdjęcie główne"}
-              width="450"
-              height="450"
+              alt={productName || "Zdjęcie produktu"}
+              width={450}
+              height={450}
+              // TE DWA ATRYBUTY TO KLUCZ DO 100/100 (Likwidują Render Delay):
               fetchPriority="high"
+              decoding="sync"
               className="w-full h-full object-contain mix-blend-multiply"
             />
           </div>
@@ -33,12 +35,17 @@ export default function ProductGallery({ images, productName }: { images: string
                 aria-label={`Zobacz detal ${idx + 1}`}
                 className={`thumbnail-btn relative flex-shrink-0 w-24 h-24 rounded-xl p-2 border-2 transition-all overflow-hidden ${idx === 0 ? 'border-red-600 bg-white shadow-md' : 'border-transparent bg-slate-50 hover:bg-slate-100'}`}
               >
-                <img src={`${imgUrl.split('?')[0]}?width=100&format=webp&quality=50`} alt="" className="w-full h-full object-contain mix-blend-multiply p-2" />
+                <img 
+                  src={`${imgUrl.split('?')[0]}?width=100&format=webp&quality=50`} 
+                  alt="" 
+                  loading="lazy" 
+                  decoding="async" 
+                  className="w-full h-full object-contain mix-blend-multiply p-2" 
+                />
               </button>
             ))}
           </div>
           
-          {/* HACK 100/100: Vanilla JS zamiast Reacta omija hydration delay! */}
           <script dangerouslySetInnerHTML={{ __html: `
             document.querySelectorAll('.thumbnail-btn').forEach(function(btn) {
               btn.addEventListener('click', function() {

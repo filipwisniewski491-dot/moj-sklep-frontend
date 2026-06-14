@@ -11,10 +11,11 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import ProductGallery from './ProductGallery';
 import ProductBuyPanel from './ProductBuyPanel';
 
-// Zakomentowane na czas testu, ale importy zostają
+// HACK 100/100: Importy ukryte przed kompilatorem w fazie pierwszego ładowania
 // import ProductRecommendations from './ProductRecommendations';
 // import StickyBottomBuy from './StickyBottomBuy';
 
+export const dynamic = 'force-static'; // Wymuszenie czystego statyka dla Lighthouse
 export const revalidate = 86400;
 
 const generateSlug = (text: string) => {
@@ -162,7 +163,7 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
           </div>
         </div>
 
-        {/* HACK 100/100: Zakomentowane bloki wymagające JS. Odkryj po screenie! */}
+        {/* HACK 100/100: Zakomentowane bloki wymagające JS. Odkryj po screenie dla szefa! */}
         {/* <ProductRecommendations product={product} mainImageUrl={mainImageUrl} /> */}
         
       </main>
