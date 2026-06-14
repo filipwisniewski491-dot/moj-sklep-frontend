@@ -8,14 +8,14 @@ export default function ProductGallery({ images, productName }: { images: string
       <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
          {mainImageUrl ? (
           <div className="relative w-full aspect-square max-h-[500px]">
-            {/* HACK 100/100: Obrazek Base64 omija całkowicie sieć. LCP wyniesie 0.0s */}
             <img
               id="main-product-image"
-              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" 
-              alt={productName || "Zdjęcie produktu"}
+              src={`${mainImageUrl.split('?')[0]}?width=450&format=webp&quality=65`}
+              alt={productName || "Zdjęcie główne"}
               width="450"
               height="450"
-              className="w-full h-full object-cover"
+              fetchPriority="high"
+              className="w-full h-full object-contain mix-blend-multiply"
             />
           </div>
          ) : ( 
@@ -45,12 +45,7 @@ export default function ProductGallery({ images, productName }: { images: string
                 var imgUrl = this.getAttribute('data-img');
                 var mainImage = document.getElementById('main-product-image');
                 if (mainImage && imgUrl) {
-                  // Po kliknięciu podmieniamy szary kwadrat na prawdziwe zdjęcie
                   mainImage.src = imgUrl.split('?')[0] + '?width=450&format=webp&quality=65';
-                  mainImage.classList.remove('object-cover');
-                  mainImage.classList.add('object-contain', 'mix-blend-multiply');
-                  
-                  // Zmiana stylów miniaturek
                   document.querySelectorAll('.thumbnail-btn').forEach(function(b) {
                     b.classList.remove('border-red-600', 'bg-white', 'shadow-md');
                     b.classList.add('border-transparent', 'bg-slate-50');
@@ -60,18 +55,6 @@ export default function ProductGallery({ images, productName }: { images: string
                 }
               });
             });
-            
-            // Opcjonalnie: automatyczne załadowanie prawdziwego zdjęcia po 1 sekundzie (poza radarem Lighthouse)
-            setTimeout(function() {
-               var mainImage = document.getElementById('main-product-image');
-               var firstBtn = document.querySelector('.thumbnail-btn');
-               if(mainImage && firstBtn && mainImage.src.includes('data:image')) {
-                  var imgUrl = firstBtn.getAttribute('data-img');
-                  mainImage.src = imgUrl.split('?')[0] + '?width=450&format=webp&quality=65';
-                  mainImage.classList.remove('object-cover');
-                  mainImage.classList.add('object-contain', 'mix-blend-multiply');
-               }
-            }, 1500);
           `}} />
         </>
       )}
