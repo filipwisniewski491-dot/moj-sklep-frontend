@@ -1,6 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { preload } from 'react-dom';
 import { getProductData } from '@/lib/api';
 
 import Header from '@/components/Header';
@@ -10,9 +11,9 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import ProductGallery from './ProductGallery';
 import ProductBuyPanel from './ProductBuyPanel';
 
-// HACK 100/100: Importy ukryte przed kompilatorem w fazie pierwszego ładowania
-// import ProductRecommendations from './ProductRecommendations';
-// import StickyBottomBuy from './StickyBottomBuy';
+// Włączamy z powrotem "ciężkie" moduły sprzedażowe!
+import ProductRecommendations from './ProductRecommendations';
+import StickyBottomBuy from './StickyBottomBuy';
 
 export const dynamic = 'force-static'; 
 export const revalidate = 86400;
@@ -60,11 +61,11 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
   const displayImages = cdnImages.length > 0 ? cdnImages : fallbackImages;
   const mainImageUrl = displayImages[0] || null;
 
-  // HACK 100/100: Wyłączamy preload prawdziwego zdjęcia, skoro pokazujemy szare tło Base64
-  // if (mainImageUrl?.includes('b-cdn.net')) {
-  //   const cleanSrc = mainImageUrl.split('?')[0];
-  //   preload(`${cleanSrc}?width=450&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
-  // }
+  // WŁĄCZAMY PRELOAD: Mówimy przeglądarce, by ssała zdjęcie natychmiast
+  if (mainImageUrl?.includes('b-cdn.net')) {
+    const cleanSrc = mainImageUrl.split('?')[0];
+    preload(`${cleanSrc}?width=450&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
+  }
 
   const attributes = typeof product.attributes === 'string' ? JSON.parse(product.attributes || '{}') : product.attributes || {};
   const faq = typeof product.faq === 'string' ? JSON.parse(product.faq || '[]') : product.faq || [];
@@ -163,12 +164,12 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
           </div>
         </div>
 
-        {/* HACK 100/100: Zakomentowane bloki wymagające JS. Odkryj po screenie dla szefa! */}
-        {/* <ProductRecommendations product={product} mainImageUrl={mainImageUrl} /> */}
+        {/* PRZYWRÓCONE WYSPY SPRZEDAŻOWE */}
+        <ProductRecommendations product={product} mainImageUrl={mainImageUrl} />
         
       </main>
 
-      {/* <StickyBottomBuy product={product} mainImageUrl={mainImageUrl} /> */}
+      <StickyBottomBuy product={product} mainImageUrl={mainImageUrl} />
 
       <MobileBottomNav />
       <Footer />

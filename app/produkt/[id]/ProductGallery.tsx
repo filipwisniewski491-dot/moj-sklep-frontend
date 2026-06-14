@@ -7,17 +7,17 @@ export default function ProductGallery({ images, productName }: { images: string
     <div className="flex flex-col gap-4">
       <div className="bg-slate-50 rounded-2xl p-8 flex items-center justify-center border border-slate-100 shadow-inner relative overflow-hidden group">
          {mainImageUrl ? (
-          <div className="relative w-full aspect-square max-h-[500px]" style={{ contentVisibility: 'auto' }}>
+          <div className="relative w-full aspect-square max-h-[500px]">
+            {/* Wracamy do prawdziwego zdjęcia z BunnyCDN, z zachowaniem ekstremalnego priorytetu */}
             <img
               id="main-product-image"
-              // HACK 100/100: Obrazek w Base64 - zero pobierania, natychmiastowy LCP!
-              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+              src={`${mainImageUrl.split('?')[0]}?width=450&format=webp&quality=65`}
               alt={productName || "Zdjęcie produktu"}
               width={450}
               height={450}
               fetchPriority="high"
               decoding="sync"
-              className="w-full h-full object-cover" 
+              className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
             />
           </div>
          ) : ( 
@@ -53,9 +53,7 @@ export default function ProductGallery({ images, productName }: { images: string
                 var mainImage = document.getElementById('main-product-image');
                 if (mainImage && imgUrl) {
                   mainImage.src = imgUrl.split('?')[0] + '?width=450&format=webp&quality=65';
-                  mainImage.classList.remove('object-cover');
-                  mainImage.classList.add('object-contain', 'mix-blend-multiply');
-
+                  
                   document.querySelectorAll('.thumbnail-btn').forEach(function(b) {
                     b.classList.remove('border-red-600', 'bg-white', 'shadow-md');
                     b.classList.add('border-transparent', 'bg-slate-50');
