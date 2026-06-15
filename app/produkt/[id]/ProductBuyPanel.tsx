@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '@/store/useCart';
 import { getUserTier, CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
+import { trackViewItem, trackCopySku, trackSupportContact } from '@/lib/analytics'; 
 
 export default function ProductBuyPanel({ product, mainImageUrl, attributes }: { product: any, mainImageUrl: string | null, attributes: any }) {
   const { addItem, setIsOpen } = useCart();
@@ -16,6 +17,17 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
   const cashbackEarned = priceAfterDiscount * CONSTANT_CASHBACK_PERCENT;
   const [mainPrice, centsPrice] = priceAfterDiscount.toFixed(2).split('.');
   const hasCents = centsPrice !== '00';
+
+  // DATA LAYER: Rejestracja wyświetlenia produktu
+  useEffect(() => {
+    trackViewItem({
+      item_id: product.sku || product.id,
+      item_name: product.name,
+      price: priceAfterDiscount,
+      item_category: product.category_text || 'Kategoria nienazwana',
+    }, priceAfterDiscount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id, product.sku]);
 
   useEffect(() => {
     const calcTime = () => {
@@ -33,7 +45,15 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
   }, []);
 
   const handleAddToCart = () => {
-    addItem({ id: product.id || product.sku, name: product.name, price: priceAfterDiscount, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
+    addItem({ 
+      id: product.id || product.sku, 
+      name: product.name, 
+      price: priceAfterDiscount, 
+      image: mainImageUrl || '', 
+      quantity: 1, 
+      crossSell: [], 
+      category: product.category_text || '' 
+    });
     setIsOpen(true);
   };
 
@@ -41,6 +61,8 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
     if(product.sku) {
       navigator.clipboard.writeText(product.sku);
       setSkuCopied(true);
+      // DATA LAYER: Mikro-intencja (Kopiowanie SKU)
+      trackCopySku(product.sku, product.name);
       setTimeout(() => setSkuCopied(false), 2000);
     }
   };
@@ -154,7 +176,11 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
         <div className="flex-1">
           <p className="font-black uppercase text-[9px] text-red-700 tracking-widest mb-0.5">Twój opiekun techniczny</p>
           <p className="font-bold text-slate-800 text-xs leading-tight mb-2">Chcesz upewnić się, czy część na pewno pasuje?</p>
-          <a href="tel:+48500600700" className="inline-flex items-center gap-1.5 font-black text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-colors">
+          <a 
+            href="tel:+48500600700" 
+            onClick={() => trackSupportContact('phone')} 
+            className="inline-flex items-center gap-1.5 font-black text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-colors"
+          >
             📞 +48 500 600 700
           </a>
         </div>

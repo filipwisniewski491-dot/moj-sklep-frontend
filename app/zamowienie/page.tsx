@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/store/useCart';
 import { calculateCartMath } from '@/lib/cashbackEngine';
+import { trackAddShippingInfo, trackAddPaymentInfo, trackPurchase, identifyUser, GA4Item } from '@/lib/analytics';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -17,18 +18,16 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, clearCart } = useCart() as any;
   
-  // ZARZĄDZANIE KROKAMI: 1 = Login Wall, 2 = Właściwa kasa
   const [checkoutStep, setCheckoutStep] = useState<'login_wall' | 'form'>('login_wall');
-  
   const [orderType, setOrderType] = useState<'company' | 'person'>('company');
   const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'paczkomat'>('courier');
   const [paymentMethod, setPaymentMethod] = useState<'blik' | 'card' | 'pobranie'>('blik');
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // EXIT INTENT POPUP
   const [showExitIntent, setShowExitIntent] = useState(false);
   const [exitDiscountApplied, setExitDiscountApplied] = useState(false);
   
+  // Przykładowe dane z bazy docelowego użytkownika
   const [userTotalSpent] = useState(105000); 
   const [availableCashback, setAvailableCashback] = useState(250.50);
   const [useCashback, setUseCashback] = useState(false);
@@ -37,24 +36,27 @@ export default function CheckoutPage() {
     email: '', phone: '', nip: '', companyName: '', street: '', zip: '', city: '', notes: ''
   });
 
-  // Ochrona pustego koszyka
+  const ga4Items: GA4Item[] = items.map((item: any) => ({
+    item_id: String(item.id),
+    item_name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    item_category: item.category || 'Brak kategorii',
+  }));
+
   useEffect(() => {
     if (items.length === 0 && !isProcessing) {
       router.push('/');
     }
   }, [items, router, isProcessing]);
 
-  // Detekcja Exit-Intent (Próba ucieczki) z 24-godzinną blokadą
   const handleMouseLeave = useCallback((e: MouseEvent) => {
     if (e.clientY <= 0 && !showExitIntent && !exitDiscountApplied && items.length > 0) {
-      
-      // Sprawdzamy, czy pop-up nie był już zamknięty w ciągu ostatnich 24h
       const closedAt = localStorage.getItem('exit_intent_closed_at');
       if (closedAt) {
         const hoursPassed = (new Date().getTime() - parseInt(closedAt)) / (1000 * 60 * 60);
-        if (hoursPassed < 24) return; // Przerywamy, jeśli nie minęły 24 godziny
+        if (hoursPassed < 24) return; 
       }
-      
       setShowExitIntent(true);
     }
   }, [showExitIntent, exitDiscountApplied, items.length]);
@@ -68,13 +70,11 @@ export default function CheckoutPage() {
     };
   }, [checkoutStep, handleMouseLeave]);
 
-  // Funkcja akceptująca rabat
   const applyExitDiscount = () => {
     setExitDiscountApplied(true);
     setShowExitIntent(false);
   };
 
-  // NOWA Funkcja zamykająca (odrzucająca) pop-up i ustawiająca blokadę na 24h
   const closeExitIntent = () => {
     setShowExitIntent(false);
     localStorage.setItem('exit_intent_closed_at', new Date().getTime().toString());
@@ -85,20 +85,9 @@ export default function CheckoutPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFinishOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    setTimeout(() => {
-      clearCart();
-      router.push('/podziekowanie-za-zakup');
-    }, 2500);
-  };
-
-  // MATEMATYKA B2B Z SILNIKA
   const totalBrutto = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
   let cartMath = calculateCartMath(totalBrutto, userTotalSpent, availableCashback, useCashback);
   
-  // Aplikacja rabatu 3% z Exit-Intent
   let finalToPayBeforeDelivery = cartMath.finalAmountToPay;
   let exitDiscountValue = 0;
   if (exitDiscountApplied) {
@@ -109,9 +98,67 @@ export default function CheckoutPage() {
   const deliveryCost = finalToPayBeforeDelivery > 500 ? 0 : (deliveryMethod === 'courier' ? 25 : 15);
   const totalToPayWithDelivery = finalToPayBeforeDelivery + deliveryCost;
 
+  const handleDeliveryChange = (method: 'courier' | 'paczkomat') => {
+    setDeliveryMethod(method);
+    trackAddShippingInfo(ga4Items, totalToPayWithDelivery, method);
+  };
+
+  const handlePaymentChange = (method: 'blik' | 'card' | 'pobranie') => {
+    setPaymentMethod(method);
+    trackAddPaymentInfo(ga4Items, totalToPayWithDelivery, method);
+  };
+
+  const handleFinishOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+
+    // Identyfikacja klienta w warstwie danych na moment zakupu
+    // Zakładamy na sztywno, że klient kupujący z progiem 105k to VIP. W docelowej architekturze wpadnie to z sesji.
+    identifyUser('usr-10293', cartMath.tierName, userTotalSpent + totalToPayWithDelivery);
+
+    const transactionId = `CR-${Date.now()}`;
+    const tax = totalToPayWithDelivery * 0.187;
+    const netValue = finalToPayBeforeDelivery / 1.23;
+    const estimatedProfit = netValue * 0.35; 
+
+    let firstName, lastName;
+    if (orderType === 'person') {
+      const nameParts = formData.companyName.split(' ');
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(' ');
+    }
+
+    // Określenie, czy to nowy klient dla algorytmów Google NCA
+    const isNewCustomer = userTotalSpent === 0;
+
+    trackPurchase(
+      ga4Items,
+      transactionId,
+      totalToPayWithDelivery,
+      tax,
+      deliveryCost,
+      {
+        email: formData.email,
+        phone: formData.phone,
+        firstName: firstName,
+        lastName: lastName,
+        city: formData.city,
+        zip: formData.zip
+      },
+      estimatedProfit,
+      isNewCustomer,
+      exitDiscountApplied ? 'EXIT-INTENT-3' : undefined,
+      exitDiscountApplied ? exitDiscountValue : 0
+    );
+
+    setTimeout(() => {
+      clearCart();
+      router.push('/podziekowanie-za-zakup');
+    }, 2500);
+  };
+
   if (items.length === 0 && !isProcessing) return null;
 
-  // ==== KROK 1: SOFT LOGIN WALL (Awersja do straty) ====
   if (checkoutStep === 'login_wall') {
     return (
       <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center p-4">
@@ -122,7 +169,6 @@ export default function CheckoutPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
-            {/* Opcja: Gość */}
             <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100 flex flex-col h-full opacity-90 hover:opacity-100 transition-opacity">
               <div className="mb-8">
                 <span className="text-3xl mb-4 block">🏃</span>
@@ -140,7 +186,6 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Opcja: Rejestracja/Logowanie */}
             <div className="bg-slate-900 text-white rounded-[40px] p-8 md:p-12 shadow-xl border border-slate-800 flex flex-col h-full relative overflow-hidden transform hover:-translate-y-1 transition-transform">
               <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-500 rounded-full blur-[80px] opacity-20"></div>
               
@@ -182,19 +227,15 @@ export default function CheckoutPage() {
     );
   }
 
-  // ==== KROK 2: WŁAŚCIWA KASA ====
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
       
-      {/* EXIT INTENT MODAL (Pojawia się tylko gdy showExitIntent jest true) */}
       {showExitIntent && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-          {/* ZMIANA: Podpięcie closeExitIntent pod tło */}
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeExitIntent}></div>
           <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-[40px] p-8 md:p-12 shadow-2xl relative z-10 overflow-hidden text-center transform animate-in zoom-in-95 duration-300">
              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-amber-600"></div>
              
-             {/* ZMIANA: Podpięcie closeExitIntent pod przycisk krzyżyka */}
              <button onClick={closeExitIntent} className="absolute top-5 right-5 text-slate-500 hover:text-white text-xl">✕</button>
              
              <span className="text-6xl mb-6 block animate-bounce">🎁</span>
@@ -207,7 +248,6 @@ export default function CheckoutPage() {
                Odbieram -3% i zamawiam ➔
              </button>
              
-             {/* ZMIANA: Podpięcie closeExitIntent pod szary przycisk rezygnacji */}
              <button onClick={closeExitIntent} className="text-[10px] text-slate-500 uppercase font-black tracking-widest hover:text-slate-300 transition-colors">
                Nie dziękuję, rezygnuję z naprawy
              </button>
@@ -215,7 +255,6 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* Zamknięty tunel kasy (Zamknięty nagłówek bez menu) */}
       <header className="bg-white border-b py-4 px-6 sticky top-0 z-50 shadow-sm">
         <div className="max-w-6xl mx-auto flex justify-between items-center w-full">
           <Link href="/" className="font-black text-xl tracking-tighter text-slate-900 cursor-pointer">
@@ -267,7 +306,7 @@ export default function CheckoutPage() {
                 <h2 className="text-xl font-black uppercase tracking-widest text-slate-900">Sposób dostawy</h2>
               </div>
               <div className="space-y-4">
-                <button type="button" onClick={() => setDeliveryMethod('courier')} className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${deliveryMethod === 'courier' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                <button type="button" onClick={() => handleDeliveryChange('courier')} className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${deliveryMethod === 'courier' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
                   <div className="flex items-center gap-5">
                     <div className="text-3xl">📦</div>
                     <div className="text-left">
@@ -277,7 +316,7 @@ export default function CheckoutPage() {
                   </div>
                   <span className="font-black text-sm text-slate-900">{cartMath.finalAmountToPay > 500 ? <span className="text-emerald-600">GRATIS</span> : '25.00 zł'}</span>
                 </button>
-                <button type="button" onClick={() => setDeliveryMethod('paczkomat')} className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${deliveryMethod === 'paczkomat' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                <button type="button" onClick={() => handleDeliveryChange('paczkomat')} className={`w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${deliveryMethod === 'paczkomat' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
                   <div className="flex items-center gap-5">
                     <div className="text-3xl">📱</div>
                     <div className="text-left">
@@ -296,15 +335,15 @@ export default function CheckoutPage() {
                 <h2 className="text-xl font-black uppercase tracking-widest text-slate-900">Płatność</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button type="button" onClick={() => setPaymentMethod('blik')} className={`p-5 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'blik' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                <button type="button" onClick={() => handlePaymentChange('blik')} className={`p-5 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'blik' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
                    <div className="bg-slate-900 text-white px-2 py-0.5 rounded-md inline-block text-[10px] font-black mb-3 shadow-sm">BLIK</div>
                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-900">Szybki przelew</p>
                 </button>
-                <button type="button" onClick={() => setPaymentMethod('card')} className={`p-5 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'card' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                <button type="button" onClick={() => handlePaymentChange('card')} className={`p-5 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'card' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
                    <div className="text-2xl mb-2 grayscale opacity-80">💳</div>
                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-900">Karta / PayU</p>
                 </button>
-                <button type="button" onClick={() => setPaymentMethod('pobranie')} className={`p-5 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'pobranie' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                <button type="button" onClick={() => handlePaymentChange('pobranie')} className={`p-5 rounded-2xl border-2 text-center transition-all ${paymentMethod === 'pobranie' ? 'border-red-600 bg-red-50/40 ring-4 ring-red-50' : 'border-slate-100 hover:border-slate-200'}`}>
                    <div className="text-2xl mb-2 grayscale opacity-80">🚚</div>
                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-900">Przy odbiorze</p>
                 </button>
@@ -312,7 +351,6 @@ export default function CheckoutPage() {
             </section>
           </div>
 
-          {/* PRZYKLEJONE PODSUMOWANIE */}
           <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
             <div className="bg-white rounded-[32px] p-6 lg:p-8 shadow-xl border border-slate-200">
               <h3 className="text-[11px] font-black uppercase tracking-widest mb-6 border-b border-slate-100 pb-4 text-slate-400">Podsumowanie rezerwacji</h3>

@@ -1,7 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from './ProductCard';
+import { trackViewItemList, GA4Item } from '@/lib/analytics'; // 1. Dodajemy importy
 
 export default function ProductGrid({ initialProducts, totalCount, fullPath, loading }: { initialProducts: any[], totalCount: number, fullPath: string, loading: boolean }) {
   const router = useRouter();
@@ -11,6 +12,23 @@ export default function ProductGrid({ initialProducts, totalCount, fullPath, loa
   
   const searchQ = searchParams.get('q') || '';
   const productsToDisplay = initialProducts.slice(0, displayLimit);
+
+  // --- ANALYTICS: Rejestrowanie załadowania listy ---
+  useEffect(() => {
+    if (!loading && productsToDisplay.length > 0) {
+      // Przygotowujemy tablicę z poprawnym formatem dla zdarzenia view_item_list
+      const itemsToTrack: GA4Item[] = productsToDisplay.map((product) => ({
+        item_id: String(product.id || product.sku),
+        item_name: product.name,
+        price: typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0,
+        item_category: product.category_text || 'Brak kategorii'
+      }));
+
+      // Wysłanie do dataLayer
+      trackViewItemList(itemsToTrack, `list-${fullPath || 'szukaj'}`, 'Listing Kategorii');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, displayLimit, fullPath]); // Monitorujemy też zmianę limitu i wywołujemy po doładowaniu kolejnych
 
   const clearFilters = () => {
     router.push(`/kategoria/${fullPath}`);
@@ -73,7 +91,8 @@ export default function ProductGrid({ initialProducts, totalCount, fullPath, loa
         ) : (
           <div className={isListView ? "space-y-4 w-full" : "grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6"}>
             {productsToDisplay.map((product: any, idx: number) => (
-              <ProductCard key={`${product.id || product.sku}-${idx}`} product={product} isListView={isListView} />
+              {/* 2. Przekazujemy index do ProductCard, by GTM wiedziało, z jakiego miejsca z listy kliknięto produkt */}
+              <ProductCard key={`${product.id || product.sku}-${idx}`} product={product} isListView={isListView} index={idx} />
             ))}
           </div>
         )}

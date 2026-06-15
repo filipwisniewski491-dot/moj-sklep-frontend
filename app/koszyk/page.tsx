@@ -2,11 +2,30 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '@/store/useCart';
 import Link from 'next/link';
+import { trackViewCart, trackBeginCheckout, GA4Item } from '@/lib/analytics'; // Dodane importy analityczne
 
 export default function CartPage() {
   const { items, removeItem, addItem, totalPrice } = useCart() as any;
   const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minut w sekundach
   const [isCrossSellAdded, setIsCrossSellAdded] = useState(false);
+  const [hasTrackedView, setHasTrackedView] = useState(false);
+
+  // DATA LAYER: Przygotowanie formatu przedmiotów do analityki
+  const ga4Items: GA4Item[] = items.map((item: any) => ({
+    item_id: String(item.id),
+    item_name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    item_category: item.category || 'Koszyk',
+  }));
+
+  // DATA LAYER: Wysłanie zdarzenia view_cart tylko raz po załadowaniu koszyka z produktami
+  useEffect(() => {
+    if (items.length > 0 && !hasTrackedView) {
+      trackViewCart(ga4Items, totalPrice);
+      setHasTrackedView(true);
+    }
+  }, [items.length, totalPrice, ga4Items, hasTrackedView]);
 
   // Licznik rezerwacji
   useEffect(() => {
@@ -24,14 +43,21 @@ export default function CartPage() {
   };
 
   const handleAddCrossSell = () => {
+    // UWAGA: Sama funkcja addItem w useCart wysyła już zdarzenie add_to_cart!
     addItem({
       id: 'cross-sell-zmywacz',
       name: 'Zmywacz uniwersalny (Brake Cleaner) 500ml',
       price: 12.50,
-      image: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?q=80&w=200&auto=format&fit=crop', // Przykładowe zdjęcie
+      image: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?q=80&w=200&auto=format&fit=crop', 
       quantity: 1,
+      category: 'Chemia Warsztatowa' // Warto podawać dla analityki
     });
     setIsCrossSellAdded(true);
+  };
+
+  // DATA LAYER: Rozpoczęcie procesu kasy (Checkout)
+  const handleBeginCheckout = () => {
+    trackBeginCheckout(ga4Items, totalPrice);
   };
 
   return (
@@ -126,7 +152,11 @@ export default function CartPage() {
                     <span className="text-4xl font-black text-slate-900 tracking-tighter">{totalPrice.toFixed(2)} <span className="text-sm text-slate-400 font-bold uppercase">zł</span></span>
                   </div>
                 </div>
-                <Link href="/kasa" className="w-full flex justify-center items-center bg-red-600 py-5 rounded-2xl font-black text-[11px] md:text-sm uppercase tracking-widest text-white hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-red-600/30">
+                <Link 
+                  href="/kasa" 
+                  onClick={handleBeginCheckout} // DATA LAYER: Wywołanie przy przejściu dalej
+                  className="w-full flex justify-center items-center bg-red-600 py-5 rounded-2xl font-black text-[11px] md:text-sm uppercase tracking-widest text-white hover:bg-red-700 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-red-600/30"
+                >
                   DALEJ DO DOSTAWY ➔
                 </Link>
                 <div className="mt-6 flex flex-wrap justify-center gap-3 items-center opacity-60 grayscale">

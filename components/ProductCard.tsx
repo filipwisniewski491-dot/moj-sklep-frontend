@@ -4,9 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
+import { trackSelectItem, GA4Item } from '@/lib/analytics'; // 1. Dodajemy import
 
-// Usunęliśmy idx, ponieważ nie faworyzujemy już obrazków ponad nagłówek LCP
-const ProductCard = React.memo(({ product, isListView }: { product: any, isListView: boolean }) => {
+const ProductCard = React.memo(({ product, isListView, index }: { product: any, isListView: boolean, index: number }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
 
@@ -20,6 +20,14 @@ const ProductCard = React.memo(({ product, isListView }: { product: any, isListV
   const rating = "4.8"; 
   const reviewsCount = 12 + (hash % 10); 
 
+  // --- ANALTICS: Przygotowujemy obiekt dla GA4 ---
+  const itemToTrack: GA4Item = {
+    item_id: String(product.id || sku),
+    item_name: product.name,
+    price: price,
+    item_category: product.category_text || 'Listing Kategorii',
+  };
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); 
     e.stopPropagation();
@@ -27,10 +35,21 @@ const ProductCard = React.memo(({ product, isListView }: { product: any, isListV
     setIsOpen(true);
   };
 
+  const handleProductClick = () => {
+    // 2. Raportujemy wybór konkretnego produktu
+    trackSelectItem(itemToTrack, 'Listing Kategorii', index + 1);
+  };
+
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
       
-      <Link href={`/produkt/${product.slug || sku}`} aria-label={`Przejdź do: ${product.name} (SKU: ${sku})`} className="absolute inset-0 z-0"></Link>
+      {/* 3. Podpinamy raportowanie pod Link (kliknięcie w kartę) */}
+      <Link 
+        href={`/produkt/${product.slug || sku}`} 
+        aria-label={`Przejdź do: ${product.name} (SKU: ${sku})`} 
+        onClick={handleProductClick}
+        className="absolute inset-0 z-0"
+      ></Link>
 
       <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
         {isShippingToday ? (
@@ -44,7 +63,6 @@ const ProductCard = React.memo(({ product, isListView }: { product: any, isListV
       <div className={`bg-slate-50 rounded-[24px] lg:rounded-[32px] overflow-hidden relative flex items-center justify-center border border-slate-50 shadow-inner shrink-0 pointer-events-none ${isListView ? 'w-28 h-28 lg:w-36 lg:h-36 p-4' : 'aspect-square mb-3 lg:mb-4 p-4 lg:p-8 w-full'}`}>
         {imageUrl ? (
           <div className="relative w-full h-full">
-            {/* OSTATNI SZLIF: Usunięcie priority i twarda blokada sizes na max 150px dla mobile */}
             <Image 
               src={imageUrl} 
               alt={product.name || 'Zdjęcie produktu'} 

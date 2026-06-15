@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { trackAddToCart, trackRemoveFromCart } from '@/lib/analytics'; // Dodany import
 
 export interface CartItem {
   id: string | number;
@@ -14,7 +15,7 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
-  totalPrice: number; // Dodane: teraz TypeScript już nie będzie krzyczał
+  totalPrice: number;
   addItem: (item: CartItem) => void;
   removeItem: (id: string | number) => void;
   updateQuantity: (id: string | number, quantity: number) => void;
@@ -22,7 +23,6 @@ interface CartState {
   clearCart: () => void;
 }
 
-// Funkcja pomocnicza do obliczania sumy
 const calculateTotal = (items: CartItem[]) => {
   return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 };
@@ -32,7 +32,7 @@ export const useCart = create<CartState>()(
     (set) => ({
       items: [],
       isOpen: false,
-      totalPrice: 0, // Inicjalizacja
+      totalPrice: 0,
 
       setIsOpen: (isOpen) => set({ isOpen }),
 
@@ -49,6 +49,15 @@ export const useCart = create<CartState>()(
             newItems = [...state.items, item];
           }
           
+          // DATA LAYER: Wypychamy zdarzenie add_to_cart
+          trackAddToCart({
+            item_id: String(item.id),
+            item_name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            item_category: item.category || 'Brak Kategorii',
+          }, item.price * item.quantity);
+          
           return {
             items: newItems,
             totalPrice: calculateTotal(newItems),
@@ -58,6 +67,20 @@ export const useCart = create<CartState>()(
 
       removeItem: (id) =>
         set((state) => {
+          // Pobieramy usuwany element, by móc wysłać go do analityki
+          const itemToRemove = state.items.find((i) => i.id === id);
+          
+          if (itemToRemove) {
+            // DATA LAYER: Wypychamy zdarzenie remove_from_cart
+            trackRemoveFromCart({
+              item_id: String(itemToRemove.id),
+              item_name: itemToRemove.name,
+              price: itemToRemove.price,
+              quantity: itemToRemove.quantity,
+              item_category: itemToRemove.category || 'Brak Kategorii',
+            }, itemToRemove.price * itemToRemove.quantity);
+          }
+
           const newItems = state.items.filter((i) => i.id !== id);
           return {
             items: newItems,

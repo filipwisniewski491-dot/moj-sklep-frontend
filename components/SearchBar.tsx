@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/store/useCart';
+import { trackViewSearchResults } from '@/lib/analytics'; // Dodany import analityki
 
 const PHRASES = [
   "Wpisz numer OEM części...",
@@ -13,6 +15,7 @@ const PHRASES = [
 ];
 
 export default function SearchBar() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -24,7 +27,6 @@ export default function SearchBar() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    // Jeśli użytkownik zaczął pisać, zatrzymujemy animację
     if (query.length > 0) return;
 
     const typingSpeed = isDeleting ? 40 : 80;
@@ -32,14 +34,11 @@ export default function SearchBar() {
 
     const timeout = setTimeout(() => {
       if (!isDeleting && placeholderText === currentPhrase) {
-        // Pauza na końcu pisania zdania
         setTimeout(() => setIsDeleting(true), 2500);
       } else if (isDeleting && placeholderText === '') {
-        // Przejście do kolejnego zdania
         setIsDeleting(false);
         setPhraseIndex((prev) => (prev + 1) % PHRASES.length);
       } else {
-        // Efekt pisania / kasowania
         setPlaceholderText(
           currentPhrase.substring(0, placeholderText.length + (isDeleting ? -1 : 1))
         );
@@ -55,16 +54,14 @@ export default function SearchBar() {
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
 
   useEffect(() => {
-    // Sprawdzamy czy koszyk nie jest pusty i czy nie pokazaliśmy już tego w tej sesji
     const hasSeenWelcome = sessionStorage.getItem('centrumrolnictwa_welcome_shown');
     
     if (items?.length > 0 && !hasSeenWelcome) {
       const timer = setTimeout(() => {
         setShowWelcomeBack(true);
         sessionStorage.setItem('centrumrolnictwa_welcome_shown', 'true');
-      }, 1500); // Opóźnienie wysunięcia po wejściu na stronę
+      }, 1500);
 
-      // Dymek znika sam po 6 sekundach
       const hideTimer = setTimeout(() => {
         setShowWelcomeBack(false);
       }, 7500);
@@ -87,7 +84,7 @@ export default function SearchBar() {
       try {
         const res = await fetch(`/api/search?q=${query}`);
         const json = await res.json();
-        setResults(json.data || json.products || []); // Dostosowane do nowej struktury API
+        setResults(json.data || json.products || []); 
         setIsOpen(true);
       } catch (error) {
         console.error('Błąd wyszukiwania', error);
@@ -98,6 +95,15 @@ export default function SearchBar() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [query]);
+
+  // DATA LAYER: Obsługa intencji wyszukiwania (Enter lub kliknięcie lupy)
+  const handleSearchSubmit = () => {
+    if (query.length >= 2) {
+      trackViewSearchResults(query);
+      setIsOpen(false);
+      router.push(`/kategorie?q=${query}`);
+    }
+  };
 
   return (
     <>
@@ -123,9 +129,13 @@ export default function SearchBar() {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => query.length >= 2 && setIsOpen(true)}
             onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()} // DATA LAYER: Przechwytujemy Enter
             className="w-full bg-slate-50 border-2 border-slate-200 focus:border-red-600 focus:bg-white rounded-2xl py-3.5 px-6 pr-14 outline-none transition-all text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium shadow-inner"
           />
-          <button className="absolute right-2 bg-slate-900 text-white w-10 h-10 rounded-xl hover:bg-red-600 transition-colors flex items-center justify-center shadow-md active:scale-95 cursor-pointer">
+          <button 
+            onClick={handleSearchSubmit} // DATA LAYER: Przechwytujemy kliknięcie w lupę
+            className="absolute right-2 bg-slate-900 text-white w-10 h-10 rounded-xl hover:bg-red-600 transition-colors flex items-center justify-center shadow-md active:scale-95 cursor-pointer"
+          >
             {isSearching ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
@@ -150,6 +160,7 @@ export default function SearchBar() {
                       <li key={product.id || product.sku} className="border-b border-slate-50 last:border-0 hover:bg-red-50/30 transition-colors">
                         <Link 
                           href={`/produkt/${product.slug || product.sku || product.id}`}
+                          onClick={() => trackViewSearchResults(query)} // DATA LAYER: Alternatywna droga przez kliknięcie wyniku
                           className="flex items-center gap-5 p-4 md:p-5"
                         >
                           <div className="w-14 h-14 bg-white rounded-xl border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden p-1">
@@ -168,7 +179,11 @@ export default function SearchBar() {
                   })}
                 </ul>
                 <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
-                  <Link href={`/kategorie?q=${query}`} className="text-[10px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 transition-colors">
+                  <Link 
+                    href={`/kategorie?q=${query}`} 
+                    onClick={() => trackViewSearchResults(query)} // DATA LAYER: Droga przez "Zobacz wszystkie wyniki"
+                    className="text-[10px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 transition-colors"
+                  >
                     Zobacz wszystkie wyniki ➔
                   </Link>
                 </div>
