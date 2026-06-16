@@ -1,5 +1,12 @@
 // lib/analytics.ts
 
+// 1. ZŁOTY FIX DLA TYPESCRIPTU: Deklarujemy globalnie zmienną dataLayer
+declare global {
+  interface Window {
+    dataLayer: any[];
+  }
+}
+
 export const pushToDataLayer = (eventName: string, data: any) => {
   if (typeof window !== 'undefined') {
     window.dataLayer = window.dataLayer || [];
