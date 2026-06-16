@@ -16,17 +16,29 @@ const geistMono = Geist_Mono({
   display: 'swap',
 });
 
+// 1. ZAKTUALIZOWANY VIEWPORT DLA PWA (Blokada zoomu)
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
+  maximumScale: 1, 
+  userScalable: false, 
   themeColor: '#0f172a',
 };
 
+// 2. ZAKTUALIZOWANE METADATA DLA PWA (Obsługa manifestu i iOS)
 export const metadata: Metadata = {
   title: "CentrumRolnictwa.pl - Części i akcesoria do maszyn rolniczych",
   description: "Największy internetowy katalog części zamiennych. Szybka wysyłka, gwarancja dopasowania i wsparcie ekspertów.",
   metadataBase: new URL('https://centrumrolnictwa.pl'),
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'CentrumRolnictwa',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
