@@ -1,67 +1,61 @@
 'use client';
-import { useState, useEffect } from 'react';
 
+import { useState, useEffect } from 'react';
+import { useGarage } from '@/store/useGarage';
+
+// Tymczasowa baza (docelowo zaciągniesz to z API Medusy)
 const brands = ['Zetor', 'Ursus', 'John Deere', 'Massey Ferguson', 'Case IH', 'New Holland'];
-const models: Record<string, string[]> = {
+const modelsData: Record<string, string[]> = {
   'Zetor': ['7211', '5211', 'Proxima', 'Forterra'],
   'Ursus': ['C-330', 'C-360', 'C-385', '912'],
   'John Deere': ['6120M', '6155M', '5050E'],
 };
 
 export default function VehicleGarage() {
-  const [selectedBrand, setSelectedBrand] = useState('');
-  const [selectedModel, setSelectedModel] = useState('');
-  const [isActive, setIsActive] = useState(false);
+  // 1. ZACIĄGAMY GLOBALNY STAN
+  const { brand: activeBrand, model: activeModel, isActive, setVehicle, clearGarage } = useGarage();
+  
+  // 2. STAN LOKALNY TYLKO DLA FORMULARZA W TRAKCIE WYBIERANIA
+  const [tempBrand, setTempBrand] = useState('');
+  const [tempModel, setTempModel] = useState('');
 
-  // Sprawdzanie garażu przy starcie
-  useEffect(() => {
-    const saved = localStorage.getItem('farmer_garage');
-    if (saved) {
-      const { brand, model } = JSON.parse(saved);
-      setSelectedBrand(brand);
-      setSelectedModel(model);
-      setIsActive(true);
-    }
-  }, []);
+  // Hydration fix dla Next.js (zapobiega błędom renderowania statycznego)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="h-full min-h-[300px] bg-white rounded-[40px] animate-pulse"></div>;
 
   const handleSearch = () => {
-    if (selectedBrand && selectedModel) {
-      localStorage.setItem('farmer_garage', JSON.stringify({ brand: selectedBrand, model: selectedModel }));
-      setIsActive(true);
-      // Przekierowanie do dynamicznej kategorii
-      window.location.href = `/kategoria/wszystkie?marka=${selectedBrand}&model=${selectedModel}`;
+    if (tempBrand && tempModel) {
+      // Zapisujemy do globalnego stanu (Zustand sam zaktualizuje localStorage)
+      setVehicle(tempBrand, tempModel);
+      // Przekierowanie
+      window.location.href = `/kategoria/wszystkie?marka=${tempBrand}&model=${tempModel}`;
     }
   };
 
-  const clearGarage = () => {
-    localStorage.removeItem('farmer_garage');
-    setSelectedBrand('');
-    setSelectedModel('');
-    setIsActive(false);
-  };
-
-  // Widok aktywnego garażu (kiedy rolnik ma już wybraną maszynę)
+  // Widok aktywnego garażu
   if (isActive) {
     return (
       <div className="bg-slate-900 rounded-[40px] p-8 flex flex-col justify-between shadow-2xl shadow-red-900/20 h-full relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-32 h-32 bg-red-600 rounded-full blur-[80px] opacity-20 -mr-16 -mt-16 group-hover:opacity-40 transition-opacity"></div>
         
-        <div>
+        <div className="relative z-10">
           <div className="flex items-center gap-3 mb-6">
             <span className="text-3xl animate-bounce-slow">🚜</span>
             <span className="bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Twój Wybór</span>
           </div>
           
           <h3 className="text-white text-3xl font-black italic uppercase tracking-tighter leading-none mb-2">
-            {selectedBrand}
+            {activeBrand}
           </h3>
           <p className="text-red-500 text-5xl font-black italic uppercase tracking-tighter leading-none mb-6">
-            {selectedModel}
+            {activeModel}
           </p>
           
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
-              <span className="text-green-500">●</span> Filtr aktywny
+              <span className="text-green-500 animate-pulse">●</span> Filtr aktywny
             </div>
             <p className="text-slate-500 text-[10px] font-medium leading-relaxed">
               Wszystkie wyniki wyszukiwania są teraz filtrowane pod Twoją maszynę.
@@ -69,16 +63,20 @@ export default function VehicleGarage() {
           </div>
         </div>
 
-        <div className="mt-8 flex gap-2">
+        <div className="mt-8 flex gap-2 relative z-10">
           <button 
-            onClick={() => window.location.href = `/kategoria/wszystkie?marka=${selectedBrand}&model=${selectedModel}`}
-            className="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all"
+            onClick={() => window.location.href = `/kategoria/wszystkie?marka=${activeBrand}&model=${activeModel}`}
+            className="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg"
           >
             Pokaż części
           </button>
           <button 
-            onClick={clearGarage}
-            className="p-4 bg-slate-800 text-white rounded-2xl hover:bg-slate-700 transition-all"
+            onClick={() => {
+              clearGarage();
+              setTempBrand('');
+              setTempModel('');
+            }}
+            className="p-4 bg-slate-800 text-white rounded-2xl hover:bg-slate-700 transition-all border border-slate-700"
             title="Zmień maszynę"
           >
             🔄
@@ -88,7 +86,7 @@ export default function VehicleGarage() {
     );
   }
 
-  // Widok pustego garażu (standardowy wybór)
+  // Widok pustego garażu
   return (
     <div className="bg-white rounded-[40px] border-2 border-slate-100 p-8 flex flex-col justify-between shadow-sm h-full group hover:border-red-100 transition-all">
       <div>
@@ -107,8 +105,8 @@ export default function VehicleGarage() {
         <div className="space-y-4">
           <div className="relative">
             <select 
-              value={selectedBrand}
-              onChange={(e) => { setSelectedBrand(e.target.value); setSelectedModel(''); }}
+              value={tempBrand}
+              onChange={(e) => { setTempBrand(e.target.value); setTempModel(''); }}
               className="w-full bg-slate-50 border-2 border-transparent focus:border-red-600 py-4 px-6 rounded-2xl text-sm font-bold outline-none appearance-none cursor-pointer transition-all"
             >
               <option value="">Wybierz markę</option>
@@ -119,13 +117,13 @@ export default function VehicleGarage() {
 
           <div className="relative">
             <select 
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              disabled={!selectedBrand}
-              className={`w-full bg-slate-50 border-2 border-transparent focus:border-red-600 py-4 px-6 rounded-2xl text-sm font-bold outline-none appearance-none transition-all ${!selectedBrand ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+              value={tempModel}
+              onChange={(e) => setTempModel(e.target.value)}
+              disabled={!tempBrand}
+              className={`w-full bg-slate-50 border-2 border-transparent focus:border-red-600 py-4 px-6 rounded-2xl text-sm font-bold outline-none appearance-none transition-all ${!tempBrand ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               <option value="">Wybierz model</option>
-              {selectedBrand && models[selectedBrand]?.map(m => (
+              {tempBrand && modelsData[tempBrand]?.map(m => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
@@ -136,7 +134,7 @@ export default function VehicleGarage() {
 
       <button 
         onClick={handleSearch}
-        disabled={!selectedModel}
+        disabled={!tempModel}
         className="w-full bg-slate-900 text-white py-5 rounded-[20px] font-black text-sm uppercase tracking-widest mt-8 hover:bg-red-600 transition-all active:scale-95 disabled:opacity-10 shadow-xl shadow-slate-900/10"
       >
         Zatwierdź maszynę
