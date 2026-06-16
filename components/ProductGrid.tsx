@@ -9,18 +9,20 @@ interface ProductGridProps {
   totalCount?: number;
   fullPath?: any;
   loading?: boolean;
+  isListView?: boolean; // Dodane: wsparcie dla widoku listy
 }
 
 export default function ProductGrid({ 
   initialProducts, 
   totalCount = 0, 
   fullPath, 
-  loading = false 
+  loading = false,
+  isListView = false // Domyślnie ustawiamy na false (widok siatki)
 }: ProductGridProps) {
   
   const productsToDisplay = initialProducts || [];
 
-  // DATA LAYER: Wysłanie informacji do Google Ads/GA4, że klient widzi tę listę produktów (Odkrywanie)
+  // DATA LAYER: Wysłanie informacji do Google Ads/GA4, że klient widzi tę listę produktów
   useEffect(() => {
     if (productsToDisplay.length > 0 && !loading) {
       const ga4Items = productsToDisplay.map((product: any, index: number) => ({
@@ -56,12 +58,13 @@ export default function ProductGrid({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className={`grid gap-6 ${isListView ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
         {productsToDisplay.map((product: any, idx: number) => (
           <ProductCard 
             key={`${product.id || product.sku}-${idx}`} 
             product={product} 
             index={idx + 1} 
+            isListView={isListView} // Poprawka: Przekazujemy wymaganą wartość do karty produktu
           />
         ))}
       </div>
