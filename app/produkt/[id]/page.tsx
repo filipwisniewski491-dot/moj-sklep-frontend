@@ -11,7 +11,6 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import ProductGallery from './ProductGallery';
 import ProductBuyPanel from './ProductBuyPanel';
 
-// Włączamy z powrotem "ciężkie" moduły sprzedażowe!
 import ProductRecommendations from './ProductRecommendations';
 import StickyBottomBuy from './StickyBottomBuy';
 
@@ -61,7 +60,6 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
   const displayImages = cdnImages.length > 0 ? cdnImages : fallbackImages;
   const mainImageUrl = displayImages[0] || null;
 
-  // WŁĄCZAMY PRELOAD: Mówimy przeglądarce, by ssała zdjęcie natychmiast
   if (mainImageUrl?.includes('b-cdn.net')) {
     const cleanSrc = mainImageUrl.split('?')[0];
     preload(`${cleanSrc}?width=450&format=webp&quality=65`, { as: 'image', fetchPriority: 'high' });
@@ -164,7 +162,6 @@ export default async function ProductPage(props: { params: Promise<{ id: string 
           </div>
         </div>
 
-        {/* PRZYWRÓCONE WYSPY SPRZEDAŻOWE */}
         <ProductRecommendations product={product} mainImageUrl={mainImageUrl} />
         
       </main>

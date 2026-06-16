@@ -2,11 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCart } from '@/store/useCart';
+import { useGarage } from '@/store/useGarage'; // IMPORT GARAŻU
 import { getUserTier, CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
 import { trackViewItem, trackCopySku, trackSupportContact } from '@/lib/analytics'; 
 
 export default function ProductBuyPanel({ product, mainImageUrl, attributes }: { product: any, mainImageUrl: string | null, attributes: any }) {
   const { addItem, setIsOpen } = useCart();
+  const { isActive, brand, model } = useGarage(); // STAN GARAŻU
+  
+  const [mounted, setMounted] = useState(false);
   const [timeLeftStr, setTimeLeftStr] = useState('');
   const [isShippingToday, setIsShippingToday] = useState(true);
   const [skuCopied, setSkuCopied] = useState(false);
@@ -18,8 +22,8 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
   const [mainPrice, centsPrice] = priceAfterDiscount.toFixed(2).split('.');
   const hasCents = centsPrice !== '00';
 
-  // DATA LAYER: Rejestracja wyświetlenia produktu
   useEffect(() => {
+    setMounted(true);
     trackViewItem({
       item_id: product.sku || product.id,
       item_name: product.name,
@@ -61,12 +65,19 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
     if(product.sku) {
       navigator.clipboard.writeText(product.sku);
       setSkuCopied(true);
-      // DATA LAYER: Mikro-intencja (Kopiowanie SKU)
       trackCopySku(product.sku, product.name);
       setTimeout(() => setSkuCopied(false), 2000);
     }
   };
 
+  // Logika Wirtualnego Garażu
+  const checkGarageMatch = () => {
+    if (!isActive) return null;
+    const searchStr = `${product.name} ${product.category_text || ''} ${Object.values(attributes || {}).join(' ')}`.toLowerCase();
+    return searchStr.includes(brand.toLowerCase()) || searchStr.includes(model.toLowerCase());
+  };
+
+  // Logika domyślna (jeśli Garaż nie jest aktywny)
   const getCleanCompatibility = () => {
     const rawMatch = attributes['Pasuje do marki'] || attributes['Marka maszyny'] || attributes['Pasuje do'];
     const rawModel = attributes['Pasuje do modelu'] || attributes['Model maszyny'] || attributes['Model'];
@@ -79,6 +90,7 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
     return `${isMatchValid ? rawMatch : ''} ${isModelValid ? rawModel : ''}`.trim();
   };
 
+  const isGarageMatch = checkGarageMatch();
   const cleanCompatibility = getCleanCompatibility();
 
   return (
@@ -142,9 +154,32 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
         <span className="flex items-center gap-1.5">🔄 14 dni na zwrot</span>
       </div>
 
-      {cleanCompatibility && (
+      {/* DYNAMICZNY BLOK DOPASOWANIA GARAŻU */}
+      {mounted && isActive ? (
+        isGarageMatch ? (
+          <div className="mb-6 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4">
+             <div className="text-2xl mt-0.5">✅</div>
+             <div>
+                <p className="text-[10px] font-black uppercase text-emerald-800 tracking-widest mb-1">Pasuje do Twojej maszyny</p>
+                <p className="text-sm font-bold text-emerald-950 leading-snug">
+                  Ta część jest zgodna z Twoim wyborem w Garażu: <span className="font-black">{brand} {model}</span>
+                </p>
+             </div>
+          </div>
+        ) : (
+          <div className="mb-6 bg-red-50 border border-red-100 p-5 rounded-2xl flex items-start gap-4">
+             <div className="text-2xl mt-0.5">⚠️</div>
+             <div>
+                <p className="text-[10px] font-black uppercase text-red-800 tracking-widest mb-1">Ryzyko braku kompatybilności</p>
+                <p className="text-sm font-bold text-red-950 leading-snug">
+                  Część może nie pasować do: <span className="font-black">{brand} {model}</span>. Sprawdź specyfikację.
+                </p>
+             </div>
+          </div>
+        )
+      ) : cleanCompatibility ? (
         <div className="mb-6 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4">
-           <div className="text-2xl">✅</div>
+           <div className="text-2xl mt-0.5">✅</div>
            <div>
               <p className="text-[10px] font-black uppercase text-emerald-800 tracking-widest mb-1">Gwarancja dopasowania</p>
               <p className="text-sm font-bold text-emerald-950 leading-snug">
@@ -152,7 +187,7 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
               </p>
            </div>
         </div>
-      )}
+      ) : null}
 
       <div className="bg-slate-50 text-slate-800 p-5 rounded-2xl mb-4 border border-slate-200 flex items-start gap-4">
          <div className="text-2xl mt-0.5">📦</div>
