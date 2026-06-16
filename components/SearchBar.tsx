@@ -24,9 +24,6 @@ export default function SearchBar() {
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Zmienne PWA
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
   const { isActive, brand, model } = useGarage();
 
   const [placeholderText, setPlaceholderText] = useState('');
@@ -54,7 +51,6 @@ export default function SearchBar() {
 
     return () => clearTimeout(timeout);
   }, [placeholderText, isDeleting, phraseIndex, query.length]);
-
 
   const { items, setIsOpen: setCartOpen } = useCart() as any;
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
@@ -85,30 +81,6 @@ export default function SearchBar() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Nasłuchiwanie na event PWA
-  useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstallApp = async () => {
-    if (!deferredPrompt) {
-      alert("Twoja przeglądarka blokuje instalację. Aby zainstalować aplikację (np. na iPhonie), użyj opcji 'Udostępnij', a następnie 'Do ekranu początkowego'.");
-      return;
-    }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
-  };
-
 
   useEffect(() => {
     if (query.length < 2) {
@@ -166,17 +138,6 @@ export default function SearchBar() {
       </div>
 
       <div className="relative w-full z-50 group flex flex-col" ref={searchRef}>
-        
-        {/* --- NOWY PASEK ZACHĘCAJĄCY DO INSTALACJI APLIKACJI --- */}
-        <div className="flex justify-end mb-1">
-             <button 
-                onClick={handleInstallApp}
-                className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 transition-colors bg-white px-2 py-1 rounded shadow-sm border border-slate-100"
-              >
-               <span className="text-base leading-none">📲</span> Zainstaluj Aplikację
-             </button>
-        </div>
-
         <div className="relative flex items-center w-full">
           <input 
             type="text" 
