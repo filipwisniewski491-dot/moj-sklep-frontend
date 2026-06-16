@@ -8,6 +8,38 @@ import { useCart } from '@/store/useCart';
 import { calculateCartMath } from '@/lib/cashbackEngine';
 import { trackAddShippingInfo, trackAddPaymentInfo, trackPurchase, identifyUser, GA4Item } from '@/lib/analytics';
 
+// 1. IMPORTY DO PANCERNEJ WALIDACJI
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+// 2. SCHEMAT ZOD - Twarde reguły dla każdego pola
+const checkoutSchema = z.object({
+  orderType: z.enum(['company', 'person']),
+  email: z.string().email('Podaj poprawny adres e-mail (np. jan@kowalski.pl)'),
+  phone: z.string().regex(/^(?:\+48)?\s?(?:\d{3}[-\s]?){2}\d{3}$/, 'Podaj poprawny polski numer telefonu (9 cyfr)'),
+  companyName: z.string().min(3, 'To pole musi zawierać co najmniej 3 znaki'),
+  nip: z.string().optional(),
+  street: z.string().min(3, 'Podaj dokładną ulicę i numer domu'),
+  zip: z.string().regex(/^\d{2}-\d{3}$/, 'Format kodu pocztowego to XX-XXX'),
+  city: z.string().min(2, 'Podaj nazwę miejscowości'),
+  notes: z.string().optional(),
+}).superRefine((data, ctx) => {
+  // Warunkowa walidacja NIPu tylko, gdy wybrano "Firma"
+  if (data.orderType === 'company') {
+    const nipClean = data.nip?.replace(/[\s-]/g, '') || '';
+    if (!/^\d{10}$/.test(nipClean)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'NIP firmy musi składać się dokładnie z 10 cyfr',
+        path: ['nip'],
+      });
+    }
+  }
+});
+
+type CheckoutFormValues = z.infer<typeof checkoutSchema>;
+
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
@@ -19,7 +51,6 @@ export default function CheckoutPage() {
   const { items, clearCart } = useCart() as any;
   
   const [checkoutStep, setCheckoutStep] = useState<'login_wall' | 'form'>('login_wall');
-  const [orderType, setOrderType] = useState<'company' | 'person'>('company');
   const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'paczkomat'>('courier');
   const [paymentMethod, setPaymentMethod] = useState<'blik' | 'card' | 'pobranie'>('blik');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -27,14 +58,25 @@ export default function CheckoutPage() {
   const [showExitIntent, setShowExitIntent] = useState(false);
   const [exitDiscountApplied, setExitDiscountApplied] = useState(false);
   
-  // Przykładowe dane z bazy docelowego użytkownika
   const [userTotalSpent] = useState(105000); 
   const [availableCashback, setAvailableCashback] = useState(250.50);
   const [useCashback, setUseCashback] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    email: '', phone: '', nip: '', companyName: '', street: '', zip: '', city: '', notes: ''
+
+  // 3. INICJALIZACJA REACT HOOK FORM
+  const { 
+    register, 
+    handleSubmit, 
+    watch, 
+    setValue,
+    formState: { errors } 
+  } = useForm<CheckoutFormValues>({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      orderType: 'company', // Domyślnie na firmę
+    }
   });
+
+  const currentOrderType = watch('orderType');
 
   const ga4Items: GA4Item[] = items.map((item: any) => ({
     item_id: String(item.id),
@@ -80,11 +122,6 @@ export default function CheckoutPage() {
     localStorage.setItem('exit_intent_closed_at', new Date().getTime().toString());
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
   const totalBrutto = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
   let cartMath = calculateCartMath(totalBrutto, userTotalSpent, availableCashback, useCashback);
   
@@ -108,12 +145,10 @@ export default function CheckoutPage() {
     trackAddPaymentInfo(ga4Items, totalToPayWithDelivery, method);
   };
 
-  const handleFinishOrder = (e: React.FormEvent) => {
-    e.preventDefault();
+  // 4. NOWY HANDLER Z WALIDACJĄ
+  const onSubmitForm = (data: CheckoutFormValues) => {
     setIsProcessing(true);
 
-    // Identyfikacja klienta w warstwie danych na moment zakupu
-    // Zakładamy na sztywno, że klient kupujący z progiem 105k to VIP. W docelowej architekturze wpadnie to z sesji.
     identifyUser('usr-10293', cartMath.tierName, userTotalSpent + totalToPayWithDelivery);
 
     const transactionId = `CR-${Date.now()}`;
@@ -122,13 +157,12 @@ export default function CheckoutPage() {
     const estimatedProfit = netValue * 0.35; 
 
     let firstName, lastName;
-    if (orderType === 'person') {
-      const nameParts = formData.companyName.split(' ');
+    if (data.orderType === 'person') {
+      const nameParts = data.companyName.split(' ');
       firstName = nameParts[0];
       lastName = nameParts.slice(1).join(' ');
     }
 
-    // Określenie, czy to nowy klient dla algorytmów Google NCA
     const isNewCustomer = userTotalSpent === 0;
 
     trackPurchase(
@@ -138,12 +172,12 @@ export default function CheckoutPage() {
       tax,
       deliveryCost,
       {
-        email: formData.email,
-        phone: formData.phone,
+        email: data.email,
+        phone: data.phone,
         firstName: firstName,
         lastName: lastName,
-        city: formData.city,
-        zip: formData.zip
+        city: data.city,
+        zip: data.zip
       },
       estimatedProfit,
       isNewCustomer,
@@ -161,6 +195,7 @@ export default function CheckoutPage() {
 
   if (checkoutStep === 'login_wall') {
     return (
+        // Kod ekrany logowania pozostaje bez zmian wizualnych
       <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center p-4">
         <div className="max-w-4xl w-full">
           <div className="text-center mb-10">
@@ -230,24 +265,21 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
       
+      {/* Sekcja Exit Intent pozostaje bez zmian */}
       {showExitIntent && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeExitIntent}></div>
           <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-[40px] p-8 md:p-12 shadow-2xl relative z-10 overflow-hidden text-center transform animate-in zoom-in-95 duration-300">
              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-amber-600"></div>
-             
              <button onClick={closeExitIntent} className="absolute top-5 right-5 text-slate-500 hover:text-white text-xl">✕</button>
-             
              <span className="text-6xl mb-6 block animate-bounce">🎁</span>
              <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">Poczekaj! Nie zostawiaj maszyny w polu!</h3>
              <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                Zauważyliśmy, że chcesz przerwać zakupy. Zależy nam, abyś dokończył naprawę sprzętu. Dokładamy <strong className="text-amber-400 font-black">-3% DODATKOWEGO RABATU</strong> do koszyka, ważne przez 15 minut.
              </p>
-             
              <button onClick={applyExitDiscount} className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-black text-xs md:text-sm uppercase tracking-widest py-5 rounded-2xl transition-all shadow-lg shadow-amber-500/20 active:scale-95 mb-4">
                Odbieram -3% i zamawiam ➔
              </button>
-             
              <button onClick={closeExitIntent} className="text-[10px] text-slate-500 uppercase font-black tracking-widest hover:text-slate-300 transition-colors">
                Nie dziękuję, rezygnuję z naprawy
              </button>
@@ -267,7 +299,8 @@ export default function CheckoutPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 lg:py-12">
-        <form onSubmit={handleFinishOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Zmiana na RHF handleSubmit */}
+        <form onSubmit={handleSubmit(onSubmitForm)} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           <div className="lg:col-span-8 space-y-6">
             <section className="bg-white rounded-[32px] p-6 lg:p-10 shadow-sm border border-slate-100 relative overflow-hidden">
@@ -275,31 +308,60 @@ export default function CheckoutPage() {
                 <span className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-sm shadow-md">1</span>
                 <h2 className="text-xl font-black uppercase tracking-widest text-slate-900">Twoje dane</h2>
               </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input required type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="E-mail (do wysłania faktury)" className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-bold text-slate-900" />
-                <input required type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Numer telefonu (dla kuriera)" className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-bold text-slate-900" />
+                <div>
+                  <input {...register('email')} placeholder="E-mail (do wysłania faktury)" className={`w-full bg-slate-50 border rounded-xl px-5 py-4 outline-none transition-colors text-sm font-bold text-slate-900 ${errors.email ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-red-600'}`} />
+                  {errors.email && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-1.5 px-2">{errors.email.message}</p>}
+                </div>
+                <div>
+                  <input {...register('phone')} placeholder="Numer telefonu (dla kuriera)" className={`w-full bg-slate-50 border rounded-xl px-5 py-4 outline-none transition-colors text-sm font-bold text-slate-900 ${errors.phone ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-red-600'}`} />
+                  {errors.phone && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-1.5 px-2">{errors.phone.message}</p>}
+                </div>
               </div>
+
               <div className="mt-8 flex gap-4 border-b border-slate-100 pb-8">
-                 <button type="button" onClick={() => setOrderType('company')} className={`flex-1 py-4 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest border-2 transition-all ${orderType === 'company' ? 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'}`}>Firma / Rolnik (NIP)</button>
-                 <button type="button" onClick={() => setOrderType('person')} className={`flex-1 py-4 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest border-2 transition-all ${orderType === 'person' ? 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'}`}>Osoba prywatna</button>
+                 <button type="button" onClick={() => setValue('orderType', 'company')} className={`flex-1 py-4 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest border-2 transition-all ${currentOrderType === 'company' ? 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'}`}>Firma / Rolnik (NIP)</button>
+                 <button type="button" onClick={() => setValue('orderType', 'person')} className={`flex-1 py-4 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest border-2 transition-all ${currentOrderType === 'person' ? 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'}`}>Osoba prywatna</button>
               </div>
+
               <div className="mt-8 space-y-4">
-                {orderType === 'company' && (
-                  <div className="relative flex items-center">
-                    <input required type="text" name="nip" value={formData.nip} onChange={handleInputChange} placeholder="NIP (Pobierzemy dane z bazy GUS)" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-black tracking-widest text-slate-900 pr-36" />
-                    <button type="button" className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all shadow-md active:scale-95">Pobierz z GUS</button>
+                {currentOrderType === 'company' && (
+                  <div>
+                    <div className="relative flex items-center">
+                      <input {...register('nip')} placeholder="NIP (Pobierzemy dane z bazy GUS)" className={`w-full bg-slate-50 border rounded-xl px-5 py-4 outline-none transition-colors text-sm font-black tracking-widest text-slate-900 pr-36 ${errors.nip ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-red-600'}`} />
+                      <button type="button" className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all shadow-md active:scale-95">Pobierz z GUS</button>
+                    </div>
+                    {errors.nip && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-1.5 px-2">{errors.nip.message}</p>}
                   </div>
                 )}
-                <input required type="text" name="companyName" value={formData.companyName} onChange={handleInputChange} placeholder={orderType === 'company' ? "Pełna nazwa firmy / gospodarstwa" : "Imię i nazwisko"} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-bold text-slate-900" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <input required type="text" name="street" value={formData.street} onChange={handleInputChange} placeholder="Ulica i numer" className="md:col-span-2 bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-bold text-slate-900" />
-                  <input required type="text" name="zip" value={formData.zip} onChange={handleInputChange} placeholder="Kod pocztowy" className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-bold text-slate-900" />
+                
+                <div>
+                  <input {...register('companyName')} placeholder={currentOrderType === 'company' ? "Pełna nazwa firmy / gospodarstwa" : "Imię i nazwisko"} className={`w-full bg-slate-50 border rounded-xl px-5 py-4 outline-none transition-colors text-sm font-bold text-slate-900 ${errors.companyName ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-red-600'}`} />
+                  {errors.companyName && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-1.5 px-2">{errors.companyName.message}</p>}
                 </div>
-                <input required type="text" name="city" value={formData.city} onChange={handleInputChange} placeholder="Miejscowość" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-bold text-slate-900" />
-                <textarea name="notes" value={formData.notes} onChange={handleInputChange} placeholder="Uwagi do zamówienia / dla kuriera..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-medium min-h-[100px] resize-y mt-2"></textarea>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <input {...register('street')} placeholder="Ulica i numer" className={`w-full bg-slate-50 border rounded-xl px-5 py-4 outline-none transition-colors text-sm font-bold text-slate-900 ${errors.street ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-red-600'}`} />
+                    {errors.street && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-1.5 px-2">{errors.street.message}</p>}
+                  </div>
+                  <div>
+                    <input {...register('zip')} placeholder="Kod pocztowy (XX-XXX)" className={`w-full bg-slate-50 border rounded-xl px-5 py-4 outline-none transition-colors text-sm font-bold text-slate-900 ${errors.zip ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-red-600'}`} />
+                    {errors.zip && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-1.5 px-2">{errors.zip.message}</p>}
+                  </div>
+                </div>
+                
+                <div>
+                  <input {...register('city')} placeholder="Miejscowość" className={`w-full bg-slate-50 border rounded-xl px-5 py-4 outline-none transition-colors text-sm font-bold text-slate-900 ${errors.city ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-red-600'}`} />
+                  {errors.city && <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-1.5 px-2">{errors.city.message}</p>}
+                </div>
+
+                <textarea {...register('notes')} placeholder="Uwagi do zamówienia / dla kuriera..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 outline-none focus:border-red-600 transition-colors text-sm font-medium min-h-[100px] resize-y mt-2"></textarea>
               </div>
             </section>
 
+            {/* SEKCJA DOSTAWY I PŁATNOŚCI - Kod identyczny z pierwotnym pod kątem UI */}
             <section className="bg-white rounded-[32px] p-6 lg:p-10 shadow-sm border border-slate-100">
               <div className="flex items-center gap-4 mb-8">
                 <span className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-sm shadow-md">2</span>
