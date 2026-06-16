@@ -10,7 +10,6 @@ export default function InstallPWA() {
   useEffect(() => {
     setIsMounted(true);
     
-    // Sprawdzamy czy klient już kiedyś zamknął baner
     if (localStorage.getItem('pwa_banner_dismissed')) {
       setIsDismissed(true);
     }
@@ -26,7 +25,9 @@ export default function InstallPWA() {
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
-      alert("Aby zainstalować aplikację na tym urządzeniu (np. iPhone), kliknij ikonę 'Udostępnij' i wybierz 'Do ekranu początkowego'.");
+      // Skoro nie wrzuciłeś obrazków, Chrome zablokuje natywne okienko. 
+      // Zamiast tego rolnik zobaczy tę instrukcję zastępczą:
+      alert("Aby zainstalować aplikację na tym urządzeniu, kliknij w przeglądarce ikonę 'Udostępnij' (lub menu z trzema kropkami) i wybierz 'Dodaj do ekranu głównego / ekranu początkowego'.");
       return;
     }
     deferredPrompt.prompt();
@@ -41,8 +42,8 @@ export default function InstallPWA() {
     localStorage.setItem('pwa_banner_dismissed', 'true');
   };
 
-  // Jeśli nie jesteśmy gotowi, albo klient zamknął baner, albo przeglądarka nie jest gotowa na PWA:
-  if (!isMounted || isDismissed || !deferredPrompt) return null;
+  // ZMIANA: Usunięto !deferredPrompt. Teraz baner pokaże się zawsze po załadowaniu strony.
+  if (!isMounted || isDismissed) return null;
 
   return (
     <div className="bg-slate-100 border-b border-slate-200 w-full px-4 py-2.5 flex items-center justify-between z-50">
