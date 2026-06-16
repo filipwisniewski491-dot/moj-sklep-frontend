@@ -47,7 +47,7 @@ export default function RootLayout({
           {children}
         </main>
         <CartDrawer />
-        <InstallPWA /> {/* Dodany komponent instalacji aplikacji */}
+        <InstallPWA /> {/* Komponent instalacji aplikacji */}
       </body>
     </html>
   );

@@ -4,13 +4,13 @@ import React, { useEffect, useState } from 'react';
 
 export default function InstallPWA() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setIsVisible(true);
+      setIsReady(true);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -18,28 +18,25 @@ export default function InstallPWA() {
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      alert("Twoja przeglądarka nie wspiera automatycznej instalacji. Dodaj stronę do ekranu głównego ręcznie w ustawieniach przeglądarki (ikona Udostępnij/Trzy kropki).");
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
-      setIsVisible(false);
+      setIsReady(false);
     }
   };
 
-  if (!isVisible) return null;
-
+  // Jeśli przeglądarka nie pozwala na instalację (np. iOS), 
+  // pokażemy instrukcję zamiast błędu.
   return (
-    <div className="fixed bottom-24 left-4 right-4 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-[100] border border-slate-700 animate-in slide-in-from-bottom-10">
-      <div className="flex items-center gap-4">
-        <div className="bg-red-600 p-2 rounded-lg text-xl">🚜</div>
-        <div className="flex-1">
-          <p className="font-black text-xs uppercase tracking-widest leading-none mb-1">Zainstaluj aplikację</p>
-          <p className="text-[10px] text-slate-400">Płynniejsze zakupy i dostęp offline.</p>
-        </div>
-        <button onClick={handleInstall} className="bg-white text-slate-900 font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-lg">
-          Instaluj
-        </button>
-      </div>
-    </div>
+    <button 
+      onClick={handleInstall}
+      className="flex items-center gap-3 bg-red-600 text-white font-black text-[11px] uppercase tracking-widest p-4 rounded-xl shadow-lg hover:bg-red-700 transition-all active:scale-95"
+    >
+      <span className="text-lg">📲</span> Zainstaluj aplikację
+    </button>
   );
 }
