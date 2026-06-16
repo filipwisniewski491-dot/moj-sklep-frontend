@@ -17,7 +17,7 @@ const registerSchema = z.object({
   name: z.string().min(3, 'Podaj imię i nazwisko lub nazwę firmy'),
   email: z.string().email('Podaj poprawny adres e-mail'),
   password: z.string().min(6, 'Hasło musi mieć minimum 6 znaków'),
-  isCompany: z.boolean().default(false),
+  isCompany: z.boolean().optional(), // ROZWIĄZANIE BŁĘDU: .optional() zamiast .default()
   nip: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.isCompany) {
