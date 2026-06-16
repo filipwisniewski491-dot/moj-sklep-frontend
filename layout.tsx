@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
+import InstallPWA from "@/components/InstallPWA";
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
+  maximumScale: 1, // Ustawione na 1 dla poprawnego działania PWA i uniknięcia zoomowania klawiatury
+  userScalable: false, // Dodane dla pełnego doświadczenia aplikacji
   themeColor: '#0f172a',
 };
 
@@ -13,6 +15,12 @@ export const metadata: Metadata = {
   title: "CentrumRolnictwa.pl - Części i akcesoria do maszyn rolniczych",
   description: "Największy internetowy katalog części zamiennych. Szybka wysyłka, gwarancja dopasowania i wsparcie ekspertów.",
   metadataBase: new URL('https://centrumrolnictwa.pl'),
+  manifest: '/manifest.json', // Dodane dla PWA
+  appleWebApp: { // Dodane dla wsparcia iOS
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'CentrumRolnictwa',
+  },
 };
 
 export default function RootLayout({
@@ -39,6 +47,7 @@ export default function RootLayout({
           {children}
         </main>
         <CartDrawer />
+        <InstallPWA /> {/* Dodany komponent instalacji aplikacji */}
       </body>
     </html>
   );
