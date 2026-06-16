@@ -14,6 +14,9 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // ROZWIĄZANIE BŁĘDU: Uciszenie konfliktu Webpack vs Turbopack w Next.js 16
+  turbopack: {},
+
   images: {
     loader: 'custom',
     loaderFile: './lib/bunnyLoader.ts',
