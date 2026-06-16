@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/store/useCart';
 import { trackViewSearchResults } from '@/lib/analytics'; 
-import { useGarage } from '@/store/useGarage'; // 1. IMPORT STANU GARAŻU
+import { useGarage } from '@/store/useGarage'; 
 
 const PHRASES = [
   "Wpisz numer OEM części...",
@@ -24,10 +24,11 @@ export default function SearchBar() {
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  // 2. POBIERAMY STAN GARAŻU
+  // Zmienne PWA
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
   const { isActive, brand, model } = useGarage();
 
-  // --- 1. INTELIGENTNY PLACEHOLDER (Animacja pisania) ---
   const [placeholderText, setPlaceholderText] = useState('');
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,7 +56,6 @@ export default function SearchBar() {
   }, [placeholderText, isDeleting, phraseIndex, query.length]);
 
 
-  // --- 2. MECHANIZM "WELCOME BACK" (Odzyskiwanie koszyka) ---
   const { items, setIsOpen: setCartOpen } = useCart() as any;
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
 
@@ -76,8 +76,6 @@ export default function SearchBar() {
     }
   }, [items?.length]);
 
-
-  // Zamykanie wyników przy kliknięciu poza wyszukiwarką
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -88,7 +86,30 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // --- 3. LOGIKA WYSZUKIWANIA (MeiliSearch / API) z obsługą Garażu ---
+  // Nasłuchiwanie na event PWA
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      alert("Twoja przeglądarka blokuje instalację. Aby zainstalować aplikację (np. na iPhonie), użyj opcji 'Udostępnij', a następnie 'Do ekranu początkowego'.");
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
+
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
@@ -99,7 +120,6 @@ export default function SearchBar() {
     const delayDebounceFn = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // MAGIA GARAŻU: Ciche doklejenie maszyny do wyszukiwania
         const searchQuery = isActive ? `${query} ${brand} ${model}` : query;
         
         const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
@@ -114,16 +134,14 @@ export default function SearchBar() {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [query, isActive, brand, model]); // Zależność od garażu
+  }, [query, isActive, brand, model]);
 
-  // DATA LAYER: Obsługa intencji wyszukiwania
   const handleSearchSubmit = () => {
     if (query.length >= 2) {
       const searchQuery = isActive ? `${query} ${brand} ${model}` : query;
       trackViewSearchResults(searchQuery);
       setIsOpen(false);
       
-      // Przekazanie parametrów garażu do URL pełnej strony wyników
       const url = new URL(`/kategorie`, window.location.origin);
       url.searchParams.set('q', query);
       if (isActive) {
@@ -147,8 +165,19 @@ export default function SearchBar() {
         </div>
       </div>
 
-      <div className="relative w-full z-50 group" ref={searchRef}>
-        <div className="relative flex items-center">
+      <div className="relative w-full z-50 group flex flex-col" ref={searchRef}>
+        
+        {/* --- NOWY PASEK ZACHĘCAJĄCY DO INSTALACJI APLIKACJI --- */}
+        <div className="flex justify-end mb-1">
+             <button 
+                onClick={handleInstallApp}
+                className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 transition-colors bg-white px-2 py-1 rounded shadow-sm border border-slate-100"
+              >
+               <span className="text-base leading-none">📲</span> Zainstaluj Aplikację
+             </button>
+        </div>
+
+        <div className="relative flex items-center w-full">
           <input 
             type="text" 
             placeholder={placeholderText + (query.length === 0 && !isDeleting ? '|' : '')} 
