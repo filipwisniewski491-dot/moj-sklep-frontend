@@ -6,8 +6,8 @@ import InstallPWA from "@/components/InstallPWA";
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1, // Ustawione na 1 dla poprawnego działania PWA i uniknięcia zoomowania klawiatury
-  userScalable: false, // Dodane dla pełnego doświadczenia aplikacji
+  maximumScale: 1, 
+  userScalable: false, 
   themeColor: '#0f172a',
 };
 
@@ -15,8 +15,8 @@ export const metadata: Metadata = {
   title: "CentrumRolnictwa.pl - Części i akcesoria do maszyn rolniczych",
   description: "Największy internetowy katalog części zamiennych. Szybka wysyłka, gwarancja dopasowania i wsparcie ekspertów.",
   metadataBase: new URL('https://centrumrolnictwa.pl'),
-  manifest: '/manifest.json', // Dodane dla PWA
-  appleWebApp: { // Dodane dla wsparcia iOS
+  manifest: '/manifest.json', 
+  appleWebApp: { 
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'CentrumRolnictwa',
@@ -43,11 +43,14 @@ export default function RootLayout({
         className="min-h-full flex flex-col bg-slate-50 text-slate-900 selection:bg-red-100 selection:text-red-900"
         style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}
       >
+        {/* BANER PWA NA SAMEJ GÓRZE EKRANU */}
+        <InstallPWA /> 
+        
         <main className="flex-1 flex flex-col">
           {children}
         </main>
+        
         <CartDrawer />
-        <InstallPWA /> {/* Komponent instalacji aplikacji */}
       </body>
     </html>
   );
