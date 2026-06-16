@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
 import ConsentBanner from "@/components/ConsentBanner"; 
+import InstallPWA from "@/components/InstallPWA";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +17,6 @@ const geistMono = Geist_Mono({
   display: 'swap',
 });
 
-// 1. ZAKTUALIZOWANY VIEWPORT DLA PWA (Blokada zoomu)
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -25,12 +25,11 @@ export const viewport: Viewport = {
   themeColor: '#0f172a',
 };
 
-// 2. ZAKTUALIZOWANE METADATA DLA PWA (Obsługa manifestu i iOS)
+// USUNIĘTO: manifest: '/manifest.json' - Next.js sam to teraz obsłuży
 export const metadata: Metadata = {
   title: "CentrumRolnictwa.pl - Części i akcesoria do maszyn rolniczych",
   description: "Największy internetowy katalog części zamiennych. Szybka wysyłka, gwarancja dopasowania i wsparcie ekspertów.",
   metadataBase: new URL('https://centrumrolnictwa.pl'),
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -56,14 +55,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
         
-        {/* INICJALIZACJA DATA LAYER & CONSENT MODE v2 */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               
-              // Google Consent Mode v2 - Stan domyślny
               gtag('consent', 'default', {
                 'ad_storage': 'denied',
                 'ad_user_data': 'denied',
@@ -77,13 +74,14 @@ export default function RootLayout({
       </head>
       
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
+        {/* BANER PWA DODANY Z POWROTEM */}
+        <InstallPWA />
+        
         <main className="flex-1 flex flex-col">
           {children}
         </main>
         
         <CartDrawer />
-        
-        {/* WSTRZYKNIĘCIE BANERA NA SAM DÓŁ */}
         <ConsentBanner />
       </body>
     </html>
