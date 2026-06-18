@@ -15,8 +15,8 @@ export default function ThankYouContent() {
   const cashbackEarned = 25.50; 
 
   useEffect(() => {
-    // Tutaj w przyszłości wpinasz logikę sprawdzania statusu płatności w Medusa.js
-    console.log(`Zamówienie ${orderId} przetworzone. Gotowe do wysyłki analityki.`);
+    // Brak analityki GTM tutaj! Całość została wysłana na etapie Checkoutu.
+    console.log(`Zamówienie ${orderId} wylądowało pomyślnie.`);
   }, [orderId]);
 
   const handleCreateAccount = (e: React.FormEvent) => {
@@ -93,7 +93,6 @@ export default function ThankYouContent() {
               </div>
             )}
             
-            {/* Reszta stopki... */}
             <div className="mt-12">
               <Link href="/" className="inline-block bg-slate-100 hover:bg-slate-200 text-slate-800 font-black uppercase tracking-widest text-xs px-8 py-4 rounded-xl transition-colors">
                 Wróć na stronę główną

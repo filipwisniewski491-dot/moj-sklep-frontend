@@ -145,7 +145,7 @@ export default function CheckoutPage() {
     trackAddPaymentInfo(ga4Items, totalToPayWithDelivery, method);
   };
 
-  // 4. NOWY HANDLER Z WALIDACJĄ
+  // 4. NOWY HANDLER Z WALIDACJĄ I WYSYŁKĄ GTM
   const onSubmitForm = (data: CheckoutFormValues) => {
     setIsProcessing(true);
 
@@ -156,11 +156,11 @@ export default function CheckoutPage() {
     const netValue = finalToPayBeforeDelivery / 1.23;
     const estimatedProfit = netValue * 0.35; 
 
-    let firstName, lastName;
+    let firstName = "", lastName = "";
     if (data.orderType === 'person') {
       const nameParts = data.companyName.split(' ');
-      firstName = nameParts[0];
-      lastName = nameParts.slice(1).join(' ');
+      firstName = nameParts[0] || "";
+      lastName = nameParts.slice(1).join(' ') || "";
     }
 
     const isNewCustomer = userTotalSpent === 0;
@@ -174,8 +174,8 @@ export default function CheckoutPage() {
       {
         email: data.email,
         phone: data.phone,
-        firstName: firstName,
-        lastName: lastName,
+        firstName: firstName || "",
+        lastName: lastName || "",
         city: data.city,
         zip: data.zip
       },
@@ -185,17 +185,17 @@ export default function CheckoutPage() {
       exitDiscountApplied ? exitDiscountValue : 0
     );
 
+    // ZMIANA: Przekazanie zmiennych w URL i skrócenie czasu do 1.5s
     setTimeout(() => {
       clearCart();
-      router.push('/podziekowanie-za-zakup');
-    }, 2500);
+      router.push(`/podziekowanie-za-zakup?orderId=${transactionId}&email=${data.email}`);
+    }, 1500);
   };
 
   if (items.length === 0 && !isProcessing) return null;
 
   if (checkoutStep === 'login_wall') {
     return (
-        // Kod ekrany logowania pozostaje bez zmian wizualnych
       <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center p-4">
         <div className="max-w-4xl w-full">
           <div className="text-center mb-10">
@@ -265,7 +265,6 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
       
-      {/* Sekcja Exit Intent pozostaje bez zmian */}
       {showExitIntent && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeExitIntent}></div>
@@ -299,7 +298,6 @@ export default function CheckoutPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 lg:py-12">
-        {/* Zmiana na RHF handleSubmit */}
         <form onSubmit={handleSubmit(onSubmitForm)} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           <div className="lg:col-span-8 space-y-6">
@@ -361,7 +359,6 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            {/* SEKCJA DOSTAWY I PŁATNOŚCI - Kod identyczny z pierwotnym pod kątem UI */}
             <section className="bg-white rounded-[32px] p-6 lg:p-10 shadow-sm border border-slate-100">
               <div className="flex items-center gap-4 mb-8">
                 <span className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-sm shadow-md">2</span>

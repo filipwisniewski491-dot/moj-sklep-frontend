@@ -30,31 +30,19 @@ export interface GA4Item {
 
 export const trackViewItem = (item: GA4Item, value: number) => {
   pushToDataLayer('view_item', {
-    ecommerce: {
-      currency: 'PLN',
-      value: value,
-      items: [item],
-    },
+    ecommerce: { currency: 'PLN', value: value, items: [item] },
   });
 };
 
 export const trackAddToCart = (item: GA4Item, value: number) => {
   pushToDataLayer('add_to_cart', {
-    ecommerce: {
-      currency: 'PLN',
-      value: value,
-      items: [item],
-    },
+    ecommerce: { currency: 'PLN', value: value, items: [item] },
   });
 };
 
 export const trackRemoveFromCart = (item: GA4Item, value: number) => {
   pushToDataLayer('remove_from_cart', {
-    ecommerce: {
-      currency: 'PLN',
-      value: value,
-      items: [item],
-    },
+    ecommerce: { currency: 'PLN', value: value, items: [item] },
   });
 };
 
@@ -74,17 +62,12 @@ export const trackViewItemList = (items: GA4Item[], listId: string, listName: st
 
 export const trackSelectItem = (item: GA4Item, listName: string, index: number) => {
   pushToDataLayer('select_item', {
-    ecommerce: {
-      item_list_name: listName,
-      items: [{ ...item, index }],
-    },
+    ecommerce: { item_list_name: listName, items: [{ ...item, index }] },
   });
 };
 
 export const trackViewSearchResults = (searchTerm: string) => {
-  pushToDataLayer('view_search_results', {
-    search_term: searchTerm
-  });
+  pushToDataLayer('view_search_results', { search_term: searchTerm });
 };
 
 // ==========================================
@@ -93,21 +76,13 @@ export const trackViewSearchResults = (searchTerm: string) => {
 
 export const trackViewCart = (items: GA4Item[], value: number) => {
   pushToDataLayer('view_cart', {
-    ecommerce: {
-      currency: 'PLN',
-      value: value,
-      items: items,
-    },
+    ecommerce: { currency: 'PLN', value: value, items: items },
   });
 };
 
 export const trackBeginCheckout = (items: GA4Item[], value: number) => {
   pushToDataLayer('begin_checkout', {
-    ecommerce: {
-      currency: 'PLN',
-      value: value,
-      items: items,
-    },
+    ecommerce: { currency: 'PLN', value: value, items: items },
   });
 };
 
@@ -118,36 +93,23 @@ export const trackBeginCheckout = (items: GA4Item[], value: number) => {
 export const identifyUser = (userId: string, userTier: string, lifetimeValue: number) => {
   pushToDataLayer('set_user_properties', {
     user_id: userId,
-    user_properties: {
-      customer_tier: userTier,
-      ltv: lifetimeValue
-    }
+    user_properties: { customer_tier: userTier, ltv: lifetimeValue }
   });
 };
 
 // ==========================================
-// 5. KASA, PŁATNOŚCI I FINALIZACJA (VBB, NCA & FIRST-PARTY DATA)
+// 5. KASA, PŁATNOŚCI I FINALIZACJA (PRO TOP 1)
 // ==========================================
 
 export const trackAddShippingInfo = (items: GA4Item[], value: number, shippingTier: string) => {
   pushToDataLayer('add_shipping_info', {
-    ecommerce: {
-      currency: 'PLN',
-      value: value,
-      shipping_tier: shippingTier,
-      items: items,
-    },
+    ecommerce: { currency: 'PLN', value: value, shipping_tier: shippingTier, items: items },
   });
 };
 
 export const trackAddPaymentInfo = (items: GA4Item[], value: number, paymentType: string) => {
   pushToDataLayer('add_payment_info', {
-    ecommerce: {
-      currency: 'PLN',
-      value: value,
-      payment_type: paymentType,
-      items: items,
-    },
+    ecommerce: { currency: 'PLN', value: value, payment_type: paymentType, items: items },
   });
 };
 
@@ -166,43 +128,40 @@ export const trackPurchase = (
   pushToDataLayer('purchase', {
     ecommerce: {
       transaction_id: transactionId,
-      value: value,
-      tax: tax,
-      shipping: shipping,
+      value: Number(value.toFixed(2)),
+      tax: Number(tax.toFixed(2)),
+      shipping: Number(shipping.toFixed(2)),
       currency: 'PLN',
-      coupon: coupon,
-      discount: discount,
+      coupon: coupon || "",
+      discount: discount ? Number(discount.toFixed(2)) : 0,
       items: items,
     },
+    // Tarcza Anty-Adblock (Enhanced Conversions)
     user_data: {
-      email_address: userData.email,
-      phone_number: userData.phone,
+      email_address: userData.email || "",
+      phone_number: userData.phone || "",
       address: {
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        city: userData.city,
-        postal_code: userData.zip,
+        first_name: userData.firstName || "",
+        last_name: userData.lastName || "",
+        city: userData.city || "",
+        postal_code: userData.zip || "",
         country: 'PL', 
       }
     },
-    profit_margin: profitMargin,
-    new_customer: isNewCustomer 
+    // Parametry PRO dla serwera sGTM
+    profit_margin: Number(profitMargin.toFixed(2)),
+    new_customer: isNewCustomer ? "true" : "false"
   });
 };
 
 // ==========================================
-// 6. MIKRO-INTENCJE (PALIWO DLA ALGORYTMÓW)
+// 6. MIKRO-INTENCJE
 // ==========================================
 
 export const trackCopySku = (sku: string, productName: string) => {
-  pushToDataLayer('copy_sku', {
-    item_id: sku,
-    item_name: productName,
-  });
+  pushToDataLayer('copy_sku', { item_id: sku, item_name: productName });
 };
 
 export const trackSupportContact = (contactMethod: 'phone' | 'email') => {
-  pushToDataLayer('interact_with_support', {
-    contact_method: contactMethod,
-  });
+  pushToDataLayer('interact_with_support', { contact_method: contactMethod });
 };
