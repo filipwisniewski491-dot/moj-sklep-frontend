@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script"; // <-- IMPORT OPTYMALIZATORA SKRYPTÓW
+import Script from "next/script";
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
 import ConsentBanner from "@/components/ConsentBanner"; 
@@ -58,9 +58,19 @@ export default function RootLayout({
       
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         
+        {/* 3. Ramka zapasowa dla GTM (Gdy ktoś ma wyłączony JavaScript) */}
+        <noscript>
+          <iframe 
+            src="https://www.googletagmanager.com/ns.html?id=GTM-NKJ6VB9"
+            height="0" 
+            width="0" 
+            style={{ display: 'none', visibility: 'hidden' }}
+          />
+        </noscript>
+
         {/* --- BLOK ANALITYKI NEXT.JS (ZOPTYMALIZOWANY) --- */}
         
-        {/* 1. Consent Mode: Musi załadować się natychmiast, żeby blokować ciastka przed wyborem użytkownika */}
+        {/* 1. Consent Mode: Musi załadować się natychmiast */}
         <Script
           id="google-consent"
           strategy="beforeInteractive"
@@ -80,23 +90,17 @@ export default function RootLayout({
           }}
         />
 
-        {/* 2. Skrypt Google: Ładuje się dopiero po wyświetleniu strony (afterInteractive) */}
-        <Script 
-          src="https://www.googletagmanager.com/gtag/js?id=G-TWÓJ_KOD_TUTAJ" 
-          strategy="afterInteractive" 
-        />
-        
-        {/* 3. Inicjalizacja Analytics: Działa asynchronicznie */}
+        {/* 2. Google Tag Manager (Właściwy kod ładujący kontener webowy) */}
         <Script
-          id="google-analytics"
+          id="gtm-init"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              
-              gtag('config', 'G-TWÓJ_KOD_TUTAJ');
+              (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+              new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+              j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+              'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+              })(window,document,'script','dataLayer','GTM-NKJ6VB9');
             `,
           }}
         />
