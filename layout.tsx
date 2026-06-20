@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GoogleTagManager } from '@next/third-parties/google';
+import Script from "next/script";
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
 import ConsentBanner from "@/components/ConsentBanner"; 
@@ -53,27 +55,15 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
-      </head>
-      
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         
-        {/* Ramka zapasowa dla GTM */}
-        <noscript>
-          <iframe 
-            src="https://www.googletagmanager.com/ns.html?id=GTM-NKJ6VB9"
-            height="0" 
-            width="0" 
-            style={{ display: 'none', visibility: 'hidden' }}
-          />
-        </noscript>
-        
-        {/* 1. Consent Mode: Musi załadować się natychmiast */}
-        <script
+        {/* Consent Mode: Konfiguracja zgód musi załadować się natychmiast */}
+        <Script
+          id="google-consent"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
-              
               gtag('consent', 'default', {
                 'ad_storage': 'denied',
                 'ad_user_data': 'denied',
@@ -84,21 +74,13 @@ export default function RootLayout({
             `,
           }}
         />
-
-        {/* 2. Google Tag Manager (Właściwy kod ładujący kontener webowy) */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-              new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-              j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-              'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-              })(window,document,'script','dataLayer','GTM-NKJ6VB9');
-            `,
-          }}
-        />
-
-        {/* BANER PWA */}
+      </head>
+      
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
+        
+        {/* Oficjalny komponent GTM od Next.js - automatycznie zarządza skryptem i ramką noscript */}
+        <GoogleTagManager gtmId="GTM-NKJ6VB9" />
+        
         <InstallPWA />
         
         <main className="flex-1 flex flex-col">
