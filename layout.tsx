@@ -58,7 +58,7 @@ export default function RootLayout({
       
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         
-        {/* 3. Ramka zapasowa dla GTM (Gdy ktoś ma wyłączony JavaScript) */}
+        {/* Ramka zapasowa dla GTM */}
         <noscript>
           <iframe 
             src="https://www.googletagmanager.com/ns.html?id=GTM-NKJ6VB9"
@@ -67,8 +67,6 @@ export default function RootLayout({
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
-
-        {/* --- BLOK ANALITYKI NEXT.JS (ZOPTYMALIZOWANY) --- */}
         
         {/* 1. Consent Mode: Musi załadować się natychmiast */}
         <Script
@@ -90,7 +88,7 @@ export default function RootLayout({
           }}
         />
 
-        {/* 2. Google Tag Manager (Właściwy kod ładujący kontener webowy) */}
+        {/* 2. Google Tag Manager */}
         <Script
           id="gtm-init"
           strategy="afterInteractive"
@@ -104,7 +102,6 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* --- KONIEC BLOKU ANALITYKI --- */}
 
         {/* BANER PWA */}
         <InstallPWA />
