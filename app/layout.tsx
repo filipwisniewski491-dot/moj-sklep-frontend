@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GoogleTagManager } from '@next/third-parties/google';
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
 import ConsentBanner from "@/components/ConsentBanner"; 
@@ -25,7 +26,6 @@ export const viewport: Viewport = {
   themeColor: '#0f172a',
 };
 
-// USUNIĘTO: manifest: '/manifest.json' - Next.js sam to teraz obsłuży
 export const metadata: Metadata = {
   title: "CentrumRolnictwa.pl - Części i akcesoria do maszyn rolniczych",
   description: "Największy internetowy katalog części zamiennych. Szybka wysyłka, gwarancja dopasowania i wsparcie ekspertów.",
@@ -55,6 +55,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
         
+        {/* Consent Mode */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -74,7 +75,10 @@ export default function RootLayout({
       </head>
       
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
-        {/* BANER PWA DODANY Z POWROTEM */}
+        
+        {/* OFICJALNY KOMPONENT Z NOWYM KODEM GTM */}
+        <GoogleTagManager gtmId="GTM-NBWX4LWC" />
+
         <InstallPWA />
         
         <main className="flex-1 flex flex-col">
