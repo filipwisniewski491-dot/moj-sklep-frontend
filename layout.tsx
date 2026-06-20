@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
 import ConsentBanner from "@/components/ConsentBanner"; 
@@ -69,9 +68,7 @@ export default function RootLayout({
         </noscript>
         
         {/* 1. Consent Mode: Musi załadować się natychmiast */}
-        <Script
-          id="google-consent"
-          strategy="beforeInteractive"
+        <script
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -88,10 +85,8 @@ export default function RootLayout({
           }}
         />
 
-        {/* 2. Google Tag Manager */}
-        <Script
-          id="gtm-init"
-          strategy="afterInteractive"
+        {/* 2. Google Tag Manager (Właściwy kod ładujący kontener webowy) */}
+        <script
           dangerouslySetInnerHTML={{
             __html: `
               (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
