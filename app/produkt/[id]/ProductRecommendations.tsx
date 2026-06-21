@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
@@ -56,10 +56,39 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
   const { addItem, setIsOpen } = useCart();
   const { currentTier } = getUserTier(105000);
 
-  const [relatedProducts] = useState<any[]>([
-    { id: "bundle-1", sku: "OEM-TEST-4", name: "Filtr Oleju Silnikowego PP-8.4", price: 24.99, image: "https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" },
-    { id: "bundle-2", sku: "OEM-TEST-3", name: "Siedzenie Dwuczęściowe do Ciągnika", price: 340.00, image: "https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg" }
-  ]);
+  // --- ZMIANA: Dynamiczne pobieranie danych zamiast sztywnych mocków ---
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCrossSells() {
+      // Wyciągamy tablicę SKU produktów zaleconych (cross-sell) z metadanych Medusy
+      const crossSellSkus = product?.crossSell || [];
+
+      if (crossSellSkus.length === 0) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Strzał do Twojego zaktualizowanego API pobierającego dane z Medusy
+        const res = await fetch(`/api/cross-sell?skus=${crossSellSkus.join(',')}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRelatedProducts(data.products || []);
+        }
+      } catch (error) {
+        console.error("Błąd pobierania rekomendacji:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchCrossSells();
+  }, [product]);
+
+  // Jeśli się ładuje lub brakuje rekomendacji, nie wyświetlamy sekcji z błędami
+  if (isLoading || relatedProducts.length === 0) return null;
 
   const bundleProduct = relatedProducts[0];
   const othersViewedProducts = relatedProducts;
@@ -80,8 +109,6 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
       if (setIsOpen) setIsOpen(true);
     }
   };
-
-  if (!bundleProduct) return null;
 
   return (
     <>

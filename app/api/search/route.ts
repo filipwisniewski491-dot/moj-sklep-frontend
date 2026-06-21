@@ -1,14 +1,16 @@
+// app/api/search/route.ts
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
+// Ponieważ to API wyszukiwarki/filtrów, musi być dynamiczne, ale zoptymalizowane pod Medusę.
 export const dynamic = 'force-dynamic'; 
-export const revalidate = 0; 
 
-const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://49.12.69.146:9000";
+const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
 const corsHeaders = {
-  'Cache-Control': 'no-store, max-age=0',
+  // Optymalny Cache dla endpointu filtrującego (stale validuje, ale pomaga uniknąć mikro-spamowania z wyszukiwarki)
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
   'Content-Type': 'application/json'
 };
 
@@ -23,16 +25,17 @@ export async function GET(request: Request) {
   const maxPrice = activeFilters.maxPrice ? parseFloat(activeFilters.maxPrice) : null;
   const searchQ = activeFilters.q || "";
 
+  // Czyścimy parametry systemowe, by zostawić tylko atrybuty do filtrowania (np. Producent=Hylmet)
   ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q'].forEach(k => delete activeFilters[k]);
 
-  if (!fullPath) return NextResponse.json({ error: "Brak ścieżki" }, { status: 400 });
+  if (!fullPath) return NextResponse.json({ error: "Brak ścieżki (fullPath)" }, { status: 400 });
 
   const segments = fullPath.split('/').filter(Boolean);
-  const currentSlug = segments[segments.length - 1]; 
+  const currentHandle = segments[segments.length - 1]; 
 
   let dbCategoryData = { 
-    h1_dynamic: currentSlug.toUpperCase().replace(/-/g, ' '), 
-    name: currentSlug.replace(/-/g, ' '), 
+    h1_dynamic: currentHandle.toUpperCase().replace(/-/g, ' '), 
+    name: currentHandle.replace(/-/g, ' '), 
     top_seo_text: "", 
     bottom_seo_text: "", 
     faqs: [] 
@@ -40,118 +43,79 @@ export async function GET(request: Request) {
   
   let breadcrumbs: any[] = [];
   let directSubcategories: string[] = [];
-  let allCategoryIdsForProducts: string[] = [];
 
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    let allCategories: any[] = [];
-    let offset = 0;
-    const fetchLimit = 250;
-    let hasMore = true;
+    // 1. Zamiast ciągnąć wszystkie 500 kategorii z bazy, odpytujemy TYLKO tą jedną, której szukamy.
+    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, cache: 'no-store' });
+    const currentCategoryJson = await currentCategoryRes.json();
+    const currentCategory = currentCategoryJson.product_categories?.[0];
 
-    // Pobieramy całą listę kategorii paczka po paczce
-    while (hasMore) {
-      const allCatsRes = await fetch(`${MEDUSA_URL}/store/product-categories?limit=${fetchLimit}&offset=${offset}&fields=id,name,handle,parent_category_id,metadata`, { 
-        headers, cache: 'no-store' 
-      });
-      
-      if (!allCatsRes.ok) break;
-
-      const allCatsJson = await allCatsRes.json();
-      const batch = allCatsJson.product_categories || [];
-      allCategories = allCategories.concat(batch);
-
-      if (batch.length < fetchLimit) {
-        hasMore = false;
-      } else {
-        offset += fetchLimit;
-      }
-    }
-
-    const currentCategory = allCategories.find((c: any) => c.handle === currentSlug);
+    let categoryIdQuery = "";
 
     if (currentCategory) {
-      allCategoryIdsForProducts.push(currentCategory.id);
+      // Pobieramy ID tej i tylko tej kategorii
+      categoryIdQuery = `&category_id[]=${currentCategory.id}`;
       
       const meta = currentCategory.metadata || {};
       dbCategoryData.name = currentCategory.name;
       dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
-      dbCategoryData.top_seo_text = meta.top_seo_text || "";
+      dbCategoryData.top_seo_text = meta.top_seo_text || currentCategory.description || "";
       dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
       dbCategoryData.faqs = meta.faqs || meta.faq || [];
 
-      // === NOWA, KULOODPORNA LOGIKA BUDOWY DRZEWA (OMINIE BŁĄD Z BAZY MEDUSY) ===
-      const currentMetaPath = meta.category_path;
-      
-      if (currentMetaPath) {
-        const currentPathLevel = currentMetaPath.split('/').length;
-
-        allCategories.forEach((c: any) => {
-          const childMetaPath = c.metadata?.category_path;
-          
-          // Jeśli kategoria ma ścieżkę zaczynającą się od obecnej ścieżki + "/" (np. a/b -> a/b/c)
-          if (childMetaPath && childMetaPath.startsWith(currentMetaPath + '/')) {
-            // Zbieramy ID absolutnie wszystkich potomków (dzieci, wnuki, prawnuki) dla produktów na listingu
-            allCategoryIdsForProducts.push(c.id);
-
-            // Jeśli to bezpośrednie dziecko (tylko 1 poziom niżej), dodajemy na kafelki podkategorii
-            const childPathLevel = childMetaPath.split('/').length;
-            if (childPathLevel === currentPathLevel + 1) {
-               directSubcategories.push(c.name);
-            }
-          }
-        });
-        
-        // Sortujemy alfabetycznie przyciski L3
-        directSubcategories.sort();
+      // Dzieci kategorii (subcategories na stronie) pobieramy z relacji (szybciej!)
+      if (currentCategory.category_children && currentCategory.category_children.length > 0) {
+        directSubcategories = currentCategory.category_children.map((child: any) => child.name).sort();
       }
     }
 
+    // Ścieżka nawigacyjna (Breadcrumbs)
     let tempPath = "";
     breadcrumbs = segments.map(s => {
       tempPath = tempPath ? `${tempPath}/${s}` : s;
       return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
     });
 
-    let productsEndpoint = `${MEDUSA_URL}/store/products?limit=250&fields=*variants,*categories,+metadata,+images`;
+    // 2. Budujemy zapytanie o produkty - oddelegowanie pracy do Postgresa!
+    // Używamy limitu z żądania + zapytania o konkretną kategorię.
+    let productsEndpoint = `${MEDUSA_URL}/store/products?limit=${currentLimit}&fields=*variants,*categories,+metadata,+images${categoryIdQuery}`;
     
-    if (allCategoryIdsForProducts.length > 0) {
-      // Usuwamy duplikaty ID i bierzemy max 100 by URL nie pękł
-      const uniqueIds = Array.from(new Set(allCategoryIdsForProducts));
-      const safeIds = uniqueIds.slice(0, 100);
-      safeIds.forEach(id => {
-        productsEndpoint += `&category_id[]=${id}`;
-      });
+    // Jeśli użytkownik użył szukajki lub wyszukiwania tekstowego w adresie URL
+    if (searchQ) {
+       productsEndpoint += `&q=${encodeURIComponent(searchQ)}`;
     }
-    
-    if (searchQ) productsEndpoint += `&q=${encodeURIComponent(searchQ)}`;
 
     const prodRes = await fetch(productsEndpoint, { headers, cache: 'no-store' });
-    
-    if (!prodRes.ok) throw new Error(`Medusa Products Error: ${prodRes.status}`);
+    if (!prodRes.ok) throw new Error(`Błąd pobierania produktów z Medusy: Kod ${prodRes.status}`);
 
     const prodJson = await prodRes.json();
-    const allProducts = prodJson.products || [];
+    let filteredProducts = prodJson.products || [];
 
+    // 3. Płytkie filtrowanie w JS, tylko na pobranej paczce (Medusa obecnie wspiera atrybuty dynamiczne średnio - np. `?metadata.Producent=Hylmet`, co bywa niestabilne, więc ostateczne cięcie na cenie/atrybutach robimy tutaj dla paczki wyników).
     const globalFilters: Record<string, Record<string, number>> = {};
     const narrowedFilters: Record<string, Record<string, number>> = {};
 
-    let filteredProducts = allProducts.filter((p: any) => {
+    filteredProducts = filteredProducts.filter((p: any) => {
       const specs = p.metadata?.technical_specs || p.metadata?.attributes || {};
       const mainVariant = p.variants?.[0];
-      const price = mainVariant?.calculated_price?.calculated_amount || 0; 
+      // Cena w backendzie (Medusa) zazwyczaj przechowywana jest w groszach
+      const price = mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0; 
       
+      // Zliczanie globalnych filtrów (ile produktów w widoku pasuje do jakiego filtru)
       Object.entries(specs).forEach(([key, val]) => {
         const strVal = String(val);
         if (!globalFilters[key]) globalFilters[key] = {};
         globalFilters[key][strVal] = (globalFilters[key][strVal] || 0) + 1;
       });
 
+      // Filtrowanie z URL (Cena)
       if (minPrice !== null && price < minPrice) return false;
       if (maxPrice !== null && price > maxPrice) return false;
 
+      // Filtrowanie z URL (Atrybuty np. Wymiary, Producent itp.)
       let matchesAllSpecs = true;
       for (const [activeKey, activeVal] of Object.entries(activeFilters)) {
         if (String(specs[activeKey]) !== String(activeVal)) {
@@ -171,14 +135,13 @@ export async function GET(request: Request) {
       return matchesAllSpecs;
     });
 
+    // Sortowanie (Jeśli parametry nie istnieją w Medusie Store API, nadpisujemy w pamięci)
     if (sort === 'price_asc') filteredProducts.sort((a: any, b: any) => (a.variants?.[0]?.calculated_price?.calculated_amount || 0) - (b.variants?.[0]?.calculated_price?.calculated_amount || 0));
     if (sort === 'price_desc') filteredProducts.sort((a: any, b: any) => (b.variants?.[0]?.calculated_price?.calculated_amount || 0) - (a.variants?.[0]?.calculated_price?.calculated_amount || 0));
     if (sort === 'name_asc') filteredProducts.sort((a: any, b: any) => a.title.localeCompare(b.title));
 
-    const totalCount = filteredProducts.length;
-    const paginatedProducts = filteredProducts.slice(0, currentLimit);
-
-    const mappedProducts = paginatedProducts.map((p: any) => {
+    // Mapowanie gotowych danych dla klienta (Redukcja wielkości paczki JSON wysyłanej do przeglądarki)
+    const mappedProducts = filteredProducts.map((p: any) => {
       const meta = p.metadata || {};
       const mainVariant = p.variants?.[0];
       
@@ -190,8 +153,8 @@ export async function GET(request: Request) {
       return {
         id: p.id,
         sku: mainVariant?.sku || meta.sku || 'BRAK',
-        name: p.title || 'Produkt',
-        price: mainVariant?.calculated_price?.calculated_amount || 0,
+        name: p.title || 'Produkt Nienazwany',
+        price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0,
         slug: p.handle,
         external_images: externalImages,
         images: finalImages
@@ -206,15 +169,15 @@ export async function GET(request: Request) {
       narrowedFilters,
       depth: breadcrumbs.length, 
       products: mappedProducts,
-      totalCount: totalCount, 
+      totalCount: prodJson.count || filteredProducts.length, 
       faqs: dbCategoryData.faqs
     }, { headers: corsHeaders });
 
   } catch (error: any) {
-    console.error("[Search Route Error]:", error);
+    console.error("[Search Route Error API Medusa]:", error);
     return NextResponse.json({ 
-      category: { h1_dynamic: `BŁĄD POŁĄCZENIA: ${error.message}`, name: "ERROR" }, 
+      category: { h1_dynamic: `BŁĄD POŁĄCZENIA Z BAZĄ`, name: "Błąd serwera" }, 
       products: [], breadcrumbs, subcategories: [], filters: {}, narrowedFilters: {}, totalCount: 0, faqs: [] 
-    }, { headers: corsHeaders }); 
+    }, { status: 500, headers: corsHeaders }); 
   }
 }

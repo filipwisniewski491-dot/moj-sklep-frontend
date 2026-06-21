@@ -50,7 +50,8 @@ export async function getProductData(identifier: string) {
       sku: mainVariant?.sku || meta.sku || null,
       slug: product.handle,
       name: product.title || 'Produkt',
-      price: mainVariant?.calculated_price?.calculated_amount || 0, 
+      // POPRAWKA: Dzielenie przez 100, bo Medusa wysyła grosze!
+      price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0, 
       description: product.description || '',
       category_text: product.categories?.[0]?.name || meta.category || '',
       category_path: product.categories?.[0]?.metadata?.category_path || meta.category_path || null,
@@ -104,7 +105,8 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
             id: p.id,
             sku: mainVariant?.sku || meta.sku || null,
             name: p.title,
-            price: mainVariant?.calculated_price?.calculated_amount || 0,
+            // POPRAWKA: Dzielenie przez 100, bo Medusa wysyła grosze!
+            price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0,
             slug: p.handle,
             external_images: meta.external_images || [],
             images: p.images || []

@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation'; // <-- DODANO obsługę błędu 404
 import { getCategoryData } from '@/lib/api';
 
 import Header from '@/components/Header';
@@ -10,7 +11,7 @@ import ProductGrid from '@/components/ProductGrid';
 import FaqSection from '@/components/FaqSection';
 import SeoSection from '@/components/SeoSection';
 
-export const revalidate = 3600;
+export const revalidate = 3600; // ISR: Odświeżanie pamięci podręcznej co godzinę
 
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
   const resolvedParams = await params;
@@ -55,9 +56,15 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedSearchParams = await searchParams;
   const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
   
-  // BŁYSKAWICZNE POBRANIE DANYCH (Teraz 0ms dzięki Mock API)
-  // Brak Suspense oznacza, że cała struktura HTML wyląduje u klienta za jednym zamachem!
-  const { searchData, filtersData } = await getCategoryData(fullPath, resolvedSearchParams);
+  // Błyskawiczne pobranie prawdziwych danych z serwera Medusy (Hetzner)
+  const data = await getCategoryData(fullPath, resolvedSearchParams);
+  
+  // ZABEZPIECZENIE: Jeśli kategoria nie istnieje w bazie, pokaż 404
+  if (!data) {
+    notFound();
+  }
+
+  const { searchData, filtersData } = data;
   
   const totalCount = searchData?.totalCount || 0;
   const products = searchData?.products || [];
