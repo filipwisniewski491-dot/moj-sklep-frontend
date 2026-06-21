@@ -110,7 +110,9 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     const categoryIds = extractCategoryIds(category);
 
     // 3. Zbuduj zapytanie pobierające produkty ze wszystkich zebranych ID
-    let productsQueryUrl = `${MEDUSA_URL}/store/products?`;
+    // DODANO: fields=*variants,*images,+metadata
+    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&`;
+    
     categoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
