@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { GoogleTagManager } from '@next/third-parties/google';
+import Script from 'next/script'; // <-- DODANO IMPORT
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
 import ConsentBanner from "@/components/ConsentBanner"; 
@@ -54,9 +55,14 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
+      </head>
+      
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         
-        {/* Consent Mode */}
-        <script
+        {/* Consent Mode - PRZENIESIONY TUTAJ I ZOPTYMALIZOWANY */}
+        <Script
+          id="google-consent-mode"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -72,9 +78,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         
         {/* OFICJALNY KOMPONENT Z NOWYM KODEM GTM */}
         <GoogleTagManager gtmId="GTM-NBWX4LWC" />
