@@ -1,11 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { GoogleTagManager } from '@next/third-parties/google';
-import Script from "next/script";
+import Script from 'next/script';
+import dynamic from 'next/dynamic';
 import "./globals.css";
 import CartDrawer from "@/components/CartDrawer";
-import ConsentBanner from "@/components/ConsentBanner"; 
 import InstallPWA from "@/components/InstallPWA";
+
+// Leniwe ładowanie baneru cookies - nie blokuje renderowania LCP i odciąża DOM na starcie
+const DynamicConsentBanner = dynamic(() => import("@/components/ConsentBanner"), {
+  ssr: false,
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,15 +60,19 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
+      </head>
+      
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         
-        {/* Consent Mode: Konfiguracja zgód musi załadować się natychmiast */}
+        {/* Bezpieczny Consent Mode - odpala się przed interakcją, ale nie blokuje rysowania drzewa DOM */}
         <Script
-          id="google-consent"
+          id="google-consent-mode"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
+              
               gtag('consent', 'default', {
                 'ad_storage': 'denied',
                 'ad_user_data': 'denied',
@@ -74,13 +83,10 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         
-        {/* Oficjalny komponent GTM od Next.js - automatycznie zarządza skryptem i ramką noscript */}
-        <GoogleTagManager gtmId="GTM-NKJ6VB9" />
-        
+        {/* Oficjalny, zoptymalizowany moduł GTM */}
+        <GoogleTagManager gtmId="GTM-NBWX4LWC" />
+
         <InstallPWA />
         
         <main className="flex-1 flex flex-col">
@@ -88,7 +94,7 @@ export default function RootLayout({
         </main>
         
         <CartDrawer />
-        <ConsentBanner />
+        <DynamicConsentBanner />
       </body>
     </html>
   );

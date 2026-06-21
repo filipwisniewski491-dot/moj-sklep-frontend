@@ -3,8 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SearchBar from '@/components/SearchBar';
-import MegaMenu from '@/components/MegaMenu';
+import dynamic from 'next/dynamic'; // <-- 1. Import funkcji do leniwego ładowania
 import { useCart } from '@/store/useCart';
+
+// 2. Odcinamy MegaMenu od serwera. Załaduje się tylko w samej przeglądarce (klient)
+const DynamicMegaMenu = dynamic(() => import('@/components/MegaMenu'), { 
+  ssr: false 
+});
 
 export default function Header() {
   const { items, setIsOpen: setCartOpen } = useCart() as any;
@@ -16,9 +21,11 @@ export default function Header() {
 
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isMounted, setIsMounted] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false); // <-- 3. Stan decydujący o renderowaniu menu
 
   useEffect(() => {
     setIsMounted(true);
+    
     const calculateTimeLeft = () => {
       const now = new Date();
       const cutoff = new Date();
@@ -33,7 +40,18 @@ export default function Header() {
     };
     calculateTimeLeft();
     const timer = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(timer);
+
+    // 4. Sprawdzamy szerokość okna. Jeśli to mobile (<768px), MegaMenu się nie wyrenderuje!
+    const checkScreenSize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    checkScreenSize(); // Sprawdzenie przy pierwszym załadowaniu
+    window.addEventListener('resize', checkScreenSize);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('resize', checkScreenSize);
+    };
   }, []);
 
   const isShippingToday = isMounted && new Date().getHours() < 15;
@@ -121,7 +139,9 @@ export default function Header() {
           </nav>
         </div>
       </header>
-      <MegaMenu />
+      
+      {/* 5. Renderujemy MegaMenu TYLKO, gdy upewnimy się, że to ekran komputera */}
+      {isDesktop && <DynamicMegaMenu />}
     </>
   );
 }
