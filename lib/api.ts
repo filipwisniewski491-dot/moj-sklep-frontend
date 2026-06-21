@@ -5,6 +5,19 @@ const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
 // =========================================================================
+// FUNKCJA POMOCNICZA: REKURENCYJNE POBIERANIE ID KATEGORII I JEJ DZIECI
+// =========================================================================
+function extractCategoryIds(category: any): string[] {
+  let ids = [category.id];
+  if (category.category_children && category.category_children.length > 0) {
+    category.category_children.forEach((child: any) => {
+      ids = [...ids, ...extractCategoryIds(child)];
+    });
+  }
+  return ids;
+}
+
+// =========================================================================
 // POBIERANIE POJEDYNCZEGO PRODUKTU Z MEDUSY
 // =========================================================================
 export async function getProductData(identifier: string) {
@@ -70,7 +83,7 @@ export async function getProductData(identifier: string) {
 }
 
 // =========================================================================
-// POBIERANIE KATEGORII I LISTY PRODUKTÓW Z MEDUSY
+// POBIERANIE KATEGORII I LISTY PRODUKTÓW Z MEDUSY (Z UWZGLĘDNIENIEM PODKATEGORII)
 // =========================================================================
 export async function getCategoryData(fullPath: string, searchParams: any) {
   try {
@@ -81,8 +94,11 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
 
     const options: RequestInit = { headers: headers, cache: 'no-store' };
     
-    // 1. Znajdź kategorię po 'handle' (ścieżce)
-    const categoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}`, options);
+    // 1. Znajdź kategorię po 'handle' i pobierz jej całe drzewo dzieci (include_descendants_tree)
+    const categoryRes = await fetch(
+      `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`, 
+      options
+    );
     const categoryJson = await categoryRes.json();
     const category = categoryJson.product_categories?.[0];
 
@@ -90,11 +106,21 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         return null;
     }
 
-    // 2. Pobierz produkty przypisane do tej kategorii
-    const productsRes = await fetch(`${MEDUSA_URL}/store/products?category_id[]=${category.id}`, options);
+    // 2. Wyciągnij ID kategorii głównej oraz wszystkich jej dzieci
+    const categoryIds = extractCategoryIds(category);
+
+    // 3. Zbuduj zapytanie pobierające produkty ze wszystkich zebranych ID
+    let productsQueryUrl = `${MEDUSA_URL}/store/products?`;
+    categoryIds.forEach(id => {
+      productsQueryUrl += `category_id[]=${id}&`;
+    });
+    // Opcjonalnie: Medusa domyślnie zwraca mało produktów, możesz wymusić więcej np. &limit=50
+    productsQueryUrl += `limit=50`;
+
+    const productsRes = await fetch(productsQueryUrl, options);
     const productsJson = await productsRes.json();
 
-    // 3. Formatowanie zgodne z Twoim frontendem
+    // 4. Formatowanie zgodne z Twoim frontendem
     return {
       searchData: {
         totalCount: productsJson.count || productsJson.products?.length || 0,

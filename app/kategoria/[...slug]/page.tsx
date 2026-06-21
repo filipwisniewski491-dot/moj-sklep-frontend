@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation'; // <-- DODANO obsługę błędu 404
-import { getCategoryData } from '@/lib/api';
+import { notFound } from 'next/navigation';
+import { getCategoryData } from '@/lib/api'; // <-- Ta funkcja wykona teraz nową magię
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -11,7 +11,7 @@ import ProductGrid from '@/components/ProductGrid';
 import FaqSection from '@/components/FaqSection';
 import SeoSection from '@/components/SeoSection';
 
-export const revalidate = 3600; // ISR: Odświeżanie pamięci podręcznej co godzinę
+export const revalidate = 3600;
 
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
   const resolvedParams = await params;
@@ -56,10 +56,9 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedSearchParams = await searchParams;
   const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
   
-  // Błyskawiczne pobranie prawdziwych danych z serwera Medusy (Hetzner)
+  // Pobieranie danych. Jeśli zaktualizujesz api.ts, ta zmienna otrzyma produkty z całej gałęzi!
   const data = await getCategoryData(fullPath, resolvedSearchParams);
   
-  // ZABEZPIECZENIE: Jeśli kategoria nie istnieje w bazie, pokaż 404
   if (!data) {
     notFound();
   }
