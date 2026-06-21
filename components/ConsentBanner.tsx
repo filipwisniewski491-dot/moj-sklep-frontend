@@ -11,8 +11,8 @@ export default function ConsentBanner() {
     const consent = localStorage.getItem('cr_consent_status');
     
     if (!consent) {
-      // Opóźniamy renderowanie banera o 1.5s, aby nie spowalniać wskaźnika LCP (100/100 Lighthouse)
-      const timer = setTimeout(() => setIsVisible(true), 1500);
+      // OPÓŹNIENIE ZWIĘKSZONE NA 3.5s - ratuje wynik LCP!
+      const timer = setTimeout(() => setIsVisible(true), 3500);
       return () => clearTimeout(timer);
     }
   }, []);

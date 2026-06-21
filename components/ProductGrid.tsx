@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import ProductCard from './ProductCard';
 import { trackViewItemList } from '@/lib/analytics';
-import { useGarage } from '@/store/useGarage'; // 1. IMPORT STANU GARAŻU
+import { useGarage } from '@/store/useGarage'; 
 
 interface ProductGridProps {
   initialProducts: any[];
@@ -21,19 +21,13 @@ export default function ProductGrid({
   isListView = false 
 }: ProductGridProps) {
   
-  // 2. POBIERAMY STAN GARAŻU
   const { isActive, brand, model, clearGarage } = useGarage();
 
-  // 3. FRONTENDOWE FILTROWANIE GARAŻOWE
-  // Jeśli backend dostarczy już przefiltrowane dane (najlepsza opcja dla Next.js), 
-  // ten fragment kodu po prostu przepuści wszystko bez zmian. 
-  // Jeśli backend zwróci wszystko, siatka sama usunie niepasujące produkty.
   const productsToDisplay = isActive && initialProducts
     ? initialProducts.filter((p: any) => {
         const name = p.name?.toLowerCase() || '';
         const lowerBrand = brand.toLowerCase();
         const lowerModel = model.toLowerCase();
-        // Sprawdzamy czy nazwa lub kategoria zawiera markę lub model
         return name.includes(lowerBrand) || name.includes(lowerModel) || 
                p.category_text?.toLowerCase().includes(lowerBrand) ||
                p.category_text?.toLowerCase().includes(lowerModel);
@@ -123,6 +117,7 @@ export default function ProductGrid({
                 product={product} 
                 index={idx + 1} 
                 isListView={isListView} 
+                priority={idx < 4} // <-- TUTAJ: Priorytet ładowania dla pierwszych 4 produktów
               />
             ))}
           </div>

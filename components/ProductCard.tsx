@@ -14,7 +14,8 @@ const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   return `${cleanSrc}?width=${width}&format=webp&quality=${quality}&sharpen=false`;
 };
 
-const ProductCard = React.memo(({ product, isListView, index }: { product: any, isListView: boolean, index: number }) => {
+// Dodano opcjonalny parametr "priority"
+const ProductCard = React.memo(({ product, isListView, index, priority = false }: { product: any, isListView: boolean, index: number, priority?: boolean }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
 
@@ -83,7 +84,7 @@ const ProductCard = React.memo(({ product, isListView, index }: { product: any, 
               alt={product.name || 'Zdjęcie produktu'} 
               fill 
               sizes="(max-width: 640px) 150px, (max-width: 1024px) 250px, 300px" 
-              loading="lazy"
+              priority={priority} // <-- TUTAJ: Zastąpiono loading="lazy" parametrem priorytetu
               className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
             />
           </div>
