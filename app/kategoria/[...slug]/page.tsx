@@ -1,15 +1,19 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCategoryData } from '@/lib/api'; // <-- Ta funkcja wykona teraz nową magię
+import { getCategoryData } from '@/lib/api'; 
+import dynamic from 'next/dynamic';
 
 import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import CategoryHeader from '@/components/CategoryHeader';
 import CategoryFilters from '@/components/CategoryFilters';
 import ProductGrid from '@/components/ProductGrid';
-import FaqSection from '@/components/FaqSection';
-import SeoSection from '@/components/SeoSection';
+
+// 🚀 EKSTREMALNE LENIWE ŁADOWANIE (Below The Fold)
+// Te komponenty nie blokują już pobierania HTML ani wskaźnika LCP
+const DynamicFooter = dynamic(() => import('@/components/Footer'), { ssr: false });
+const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'), { ssr: false });
+const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'), { ssr: false });
 
 export const revalidate = 3600;
 
@@ -56,7 +60,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedSearchParams = await searchParams;
   const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
   
-  // Pobieranie danych. Jeśli zaktualizujesz api.ts, ta zmienna otrzyma produkty z całej gałęzi!
   const data = await getCategoryData(fullPath, resolvedSearchParams);
   
   if (!data) {
@@ -81,13 +84,17 @@ export default async function CategoryPage({ params, searchParams }: any) {
         </aside>
         <div className="flex-1 flex flex-col min-h-[500px]">
           <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
-          <SeoSection text={categoryData?.bottom_seo_text} />
-          <FaqSection faqs={faqs} />
+          
+          {/* Leniwe ładowanie sekcji tekstowych SEO i FAQ */}
+          <DynamicSeoSection text={categoryData?.bottom_seo_text} />
+          {faqs && faqs.length > 0 && <DynamicFaqSection faqs={faqs} />}
         </div>
       </main>
 
       <MobileBottomNav />
-      <Footer />
+      
+      {/* Leniwe ładowanie potężnej stopki */}
+      <DynamicFooter />
     </div>
   );
 }

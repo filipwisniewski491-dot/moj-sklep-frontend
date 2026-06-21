@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
-// === KOMPONENT POMOCNICZY: Inteligentny Select z wyszukiwaniem ===
 const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
   const [isOpen, setIsOpen] = useState(false); 
   const [searchTerm, setSearchTerm] = useState(''); 
@@ -51,15 +50,17 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-// === GŁÓWNY KOMPONENT FILTRÓW ===
 export default function CategoryFilters({ initialFilters = {}, initialTotalCount = 0 }: { initialFilters?: any, initialTotalCount?: number }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname(); // Pobieramy fullPath dynamicznie
+  const pathname = usePathname(); 
   
   const [activeFiltersData, setActiveFiltersData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  
+  // 🚀 Zabezpieczenie przed przeładowaniem DOM na telefonach:
+  const [isDesktop, setIsDesktop] = useState(false);
   
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
@@ -72,19 +73,24 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const isFirstRender = useRef(true);
   const searchParamsString = searchParams.toString();
 
-  // Dane do wyświetlenia
   const filtersToDisplay = activeFiltersData?.filters || initialFilters || {};
   const narrowedToDisplay = activeFiltersData?.narrowedFilters || {};
   const totalCount = activeFiltersData?.totalCount || initialTotalCount;
 
-  // Obsługa scrolla na mobile
+  // Montowanie na kliencie (sprawdzanie ekranu)
+  useEffect(() => {
+    const checkScreenSize = () => setIsDesktop(window.innerWidth >= 1024);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
   useEffect(() => {
     if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  // Pobieranie garażu z local storage
   useEffect(() => {
     const garage = localStorage.getItem('centrum_rolnictwa_garage');
     if (garage) {
@@ -99,7 +105,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     }
   }, [pathname, searchParams, router]);
 
-  // Asynchroniczne dociąganie dostępności filtrów przy zmianie URL
   useEffect(() => {
     if (isFirstRender.current) { 
       isFirstRender.current = false; 
@@ -111,7 +116,7 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
       try {
         const queryStr = new URLSearchParams(searchParamsString);
         queryStr.set('fullPath', pathname.replace('/kategoria/', ''));
-        queryStr.set('limit', '0'); // Chcemy tylko filtry, bez produktów (produkty ładuje główna strona)
+        queryStr.set('limit', '0'); 
 
         const res = await fetch(`/api/search?${queryStr.toString()}`);
         const json = await res.json();
@@ -140,7 +145,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     setIsMobileFiltersOpen(false);
   };
 
-  // Przygotowanie opcji
   const garageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka maszyny'] || filtersToDisplay['marka maszyny'] || {};
   const garageModel = filtersToDisplay['Pasuje do modelu'] || {};
 
@@ -265,7 +269,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
 
   return (
     <>
-      {/* Przycisk Mobile (pojawia się tylko na małych ekranach) */}
       <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
          <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
            <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
@@ -273,7 +276,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
          </button>
       </div>
 
-      {/* Pop-up Mobile */}
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
@@ -289,10 +291,12 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         </div>
       )}
 
-      {/* Widok Desktop */}
-      <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
-        <FilterContent />
-      </div>
+      {/* 🚀 FINAŁOWY CIOS W DOM: Renderujemy desktopowe filtry TYLKO na desktopie */}
+      {isDesktop && (
+        <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
+          <FilterContent />
+        </div>
+      )}
     </>
   );
 }
