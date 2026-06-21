@@ -4,13 +4,30 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
-import { trackSelectItem, GA4Item } from '@/lib/analytics'; // 1. Dodajemy import
+import { trackSelectItem, GA4Item } from '@/lib/analytics';
+
+// Własny loader do wymuszania WebP/AVIF z BunnyCDN
+const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
+  if (!src.includes('b-cdn.net')) return src;
+  const cleanSrc = src.split('?')[0]; 
+  const quality = width < 300 ? 50 : 65; 
+  return `${cleanSrc}?width=${width}&format=webp&quality=${quality}&sharpen=false`;
+};
 
 const ProductCard = React.memo(({ product, isListView, index }: { product: any, isListView: boolean, index: number }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
 
-  const imageUrl = product.external_images?.[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
+  // BEZPIECZNE PARSOWANIE ZDJĘĆ Z METADANYCH
+  let parsedExternalImages: string[] = [];
+  if (Array.isArray(product.external_images)) {
+    parsedExternalImages = product.external_images;
+  } else if (typeof product.external_images === 'string') {
+    try { parsedExternalImages = JSON.parse(product.external_images); } catch(e) {}
+  }
+
+  const imageUrl = parsedExternalImages[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
+  
   const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const netPrice = price / 1.23; 
   const sku = product.sku || "BRAK SKU";
@@ -20,7 +37,6 @@ const ProductCard = React.memo(({ product, isListView, index }: { product: any, 
   const rating = "4.8"; 
   const reviewsCount = 12 + (hash % 10); 
 
-  // --- ANALTICS: Przygotowujemy obiekt dla GA4 ---
   const itemToTrack: GA4Item = {
     item_id: String(product.id || sku),
     item_name: product.name,
@@ -36,14 +52,12 @@ const ProductCard = React.memo(({ product, isListView, index }: { product: any, 
   };
 
   const handleProductClick = () => {
-    // 2. Raportujemy wybór konkretnego produktu
     trackSelectItem(itemToTrack, 'Listing Kategorii', index + 1);
   };
 
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
       
-      {/* 3. Podpinamy raportowanie pod Link (kliknięcie w kartę) */}
       <Link 
         href={`/produkt/${product.slug || sku}`} 
         aria-label={`Przejdź do: ${product.name} (SKU: ${sku})`} 
@@ -52,18 +66,19 @@ const ProductCard = React.memo(({ product, isListView, index }: { product: any, 
       ></Link>
 
       <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
-        {isShippingToday ? (
+        {isShippingToday && (
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Wysyłka dziś</span>
           </div>
-        ) : null}
+        )}
       </div>
 
       <div className={`bg-slate-50 rounded-[24px] lg:rounded-[32px] overflow-hidden relative flex items-center justify-center border border-slate-50 shadow-inner shrink-0 pointer-events-none ${isListView ? 'w-28 h-28 lg:w-36 lg:h-36 p-4' : 'aspect-square mb-3 lg:mb-4 p-4 lg:p-8 w-full'}`}>
         {imageUrl ? (
           <div className="relative w-full h-full">
             <Image 
+              loader={bunnyLoader}
               src={imageUrl} 
               alt={product.name || 'Zdjęcie produktu'} 
               fill 
@@ -93,13 +108,14 @@ const ProductCard = React.memo(({ product, isListView, index }: { product: any, 
           </div>
           
           <div className={`flex items-center gap-1.5 ${isListView ? 'w-[200px]' : 'w-full'}`}>
-            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-1 flex-1 min-h-[48px]">
-              <button aria-label="Zmniejsz ilość" onClick={(e) => { e.preventDefault(); setQty(Math.max(1, qty - 1)); }} className="min-w-[48px] min-h-[48px] flex-1 font-black text-slate-500 hover:text-red-600 flex items-center justify-center cursor-pointer">-</button>
-              <input aria-label="Ilość" type="number" value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-full text-center bg-transparent text-[11px] lg:text-xs font-black text-slate-900 outline-none appearance-none p-0 m-0 min-h-[48px] min-w-[48px]" />
-              <button aria-label="Zwiększ ilość" onClick={(e) => { e.preventDefault(); setQty(qty + 1); }} className="min-w-[48px] min-h-[48px] flex-1 font-black text-slate-500 hover:text-emerald-600 flex items-center justify-center cursor-pointer">+</button>
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-1 flex-1 h-[44px]">
+              <button aria-label="Zmniejsz" onClick={(e) => { e.preventDefault(); setQty(Math.max(1, qty - 1)); }} className="w-8 h-full flex-shrink-0 font-black text-slate-500 hover:text-red-600 flex items-center justify-center cursor-pointer">-</button>
+              <input aria-label="Ilość" type="number" value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-full min-w-0 text-center bg-transparent text-[11px] lg:text-xs font-black text-slate-900 outline-none appearance-none p-0 m-0 h-full" />
+              <button aria-label="Zwiększ" onClick={(e) => { e.preventDefault(); setQty(qty + 1); }} className="w-8 h-full flex-shrink-0 font-black text-slate-500 hover:text-emerald-600 flex items-center justify-center cursor-pointer">+</button>
             </div>
-            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="bg-slate-900 text-white px-3 lg:px-4 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer relative z-50 min-h-[48px] min-w-[48px]">
-              <span className="text-sm">🛒</span><span className="ml-1.5 hidden min-[360px]:inline">Dodaj</span>
+            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="flex-1 max-w-[50%] bg-slate-900 text-white px-2 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 active:scale-95 transition-all shadow-md cursor-pointer relative z-50 h-[44px] truncate">
+              <span className="text-sm shrink-0">🛒</span>
+              <span className="ml-1.5 hidden 2xl:inline truncate">Dodaj</span>
             </button>
           </div>
         </div>
