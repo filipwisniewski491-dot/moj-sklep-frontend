@@ -33,13 +33,12 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
     <div className="bg-white border-b pt-8 pb-6 px-6 relative z-20">
       <div className="max-w-7xl mx-auto">
         {breadcrumbs.length > 0 && (
-          {/* 🚀 ZMIANA CLS: Dodano min-h-[32px] aby uchronić LCP przed mikroskokami okruszków */}
           <nav className="flex text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2 items-center flex-wrap min-h-[32px]" aria-label="Breadcrumb">
-            <Link href="/" className="hover:text-red-600 transition-colors p-2 flex items-center">Start</Link>
+            <Link href="/" className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">Start</Link>
             {breadcrumbs.map((crumb: any, idx: number) => (
               <React.Fragment key={idx}>
                 <span className="text-slate-500">/</span>
-                <Link href={`/kategoria/${crumb.path}`} className="hover:text-red-600 transition-colors p-2 flex items-center">{crumb.name}</Link>
+                <Link href={`/kategoria/${crumb.path}`} className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">{crumb.name}</Link>
               </React.Fragment>
             ))}
           </nav>
