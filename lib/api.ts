@@ -1,12 +1,8 @@
 // lib/api.ts
 
-// Domyślny fallback ustawiony na Twój nowy serwer Hetzner (178.104.130.90)
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
-// =========================================================================
-// FUNKCJA POMOCNICZA: REKURENCYJNE POBIERANIE ID KATEGORII I JEJ DZIECI
-// =========================================================================
 function extractCategoryIds(category: any): string[] {
   let ids = [category.id];
   if (category.category_children && category.category_children.length > 0) {
@@ -17,9 +13,6 @@ function extractCategoryIds(category: any): string[] {
   return ids;
 }
 
-// =========================================================================
-// POBIERANIE POJEDYNCZEGO PRODUKTU Z MEDUSY
-// =========================================================================
 export async function getProductData(identifier: string) {
   try {
     const headers: Record<string, string> = {
@@ -27,15 +20,13 @@ export async function getProductData(identifier: string) {
     };
     if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
-    // 🚀 OSTATECZNA ZMIANA: Zmiana 'no-store' na 'revalidate: 3600'.
-    // Vercel od teraz używa pamięci podręcznej, redukując czas odpowiedzi z ~1200ms do ~10ms!
+    // 🚀 PRZYWRÓCONA OPTYMALIZACJA CACHE
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
     const queryFields = "fields=*variants,*categories,+metadata,+images";
 
     let res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}`, options);
     let json = await res.json();
 
-    // Fallback: próba szukania po skróconym handle (jeśli zawiera np. ID na końcu)
     if (!json.products || json.products.length === 0) {
       const slugParts = identifier.split('-');
       if (slugParts.length > 1) {
@@ -46,7 +37,6 @@ export async function getProductData(identifier: string) {
       }
     }
 
-    // Fallback: wyszukiwanie ogólne po zapytaniu (q)
     if (!json.products || json.products.length === 0) {
       res = await fetch(`${MEDUSA_URL}/store/products?q=${encodeURIComponent(identifier)}&${queryFields}`, options);
       json = await res.json();
@@ -83,9 +73,6 @@ export async function getProductData(identifier: string) {
   }
 }
 
-// =========================================================================
-// POBIERANIE KATEGORII I LISTY PRODUKTÓW Z MEDUSY (Z UWZGLĘDNIENIEM PODKATEGORII)
-// =========================================================================
 export async function getCategoryData(fullPath: string, searchParams: any) {
   try {
     const headers: Record<string, string> = {
@@ -93,10 +80,9 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     };
     if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
-    // 🚀 OSTATECZNA ZMIANA: Zmiana 'no-store' na 'revalidate: 3600'.
+    // 🚀 PRZYWRÓCONA OPTYMALIZACJA CACHE
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
     
-    // 1. Znajdź kategorię po 'handle' i pobierz jej całe drzewo dzieci
     const categoryRes = await fetch(
       `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`, 
       options
@@ -108,23 +94,19 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         return null;
     }
 
-    // 2. Wyciągnij ID kategorii głównej oraz wszystkich jej dzieci
     const categoryIds = extractCategoryIds(category);
 
-    // 3. Zbuduj zapytanie pobierające produkty ze wszystkich zebranych ID
     let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&`;
     
     categoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
     
-    // TBT OPTYMALIZACJA: Pobieramy 24 produkty zamiast 50, odciążając wątek główny
     productsQueryUrl += `limit=24`;
 
     const productsRes = await fetch(productsQueryUrl, options);
     const productsJson = await productsRes.json();
 
-    // 4. Formatowanie zgodne z Twoim frontendem
     return {
       searchData: {
         totalCount: productsJson.count || productsJson.products?.length || 0,
