@@ -24,7 +24,6 @@ export default function SearchBar() {
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   
-  // Opóźnienie startu ciężkich animacji Reactowych na czas początkowego renderu
   const [canStartAnimation, setCanStartAnimation] = useState(false);
 
   const { isActive, brand, model } = useGarage();
@@ -33,7 +32,6 @@ export default function SearchBar() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // TBT OPTYMALIZACJA: Czekamy aż strona zostanie załadowana (Above the Fold) przed włączeniem animacji
   useEffect(() => {
     const startTimer = setTimeout(() => {
       setCanStartAnimation(true);
@@ -73,7 +71,7 @@ export default function SearchBar() {
       const timer = setTimeout(() => {
         setShowWelcomeBack(true);
         sessionStorage.setItem('centrumrolnictwa_welcome_shown', 'true');
-      }, 4000); // Opóźnione do 4s by uniknąć kolizji z LCP
+      }, 4000); 
 
       const hideTimer = setTimeout(() => {
         setShowWelcomeBack(false);
@@ -150,7 +148,9 @@ export default function SearchBar() {
 
       <div className="relative w-full z-50 group flex flex-col" ref={searchRef}>
         <div className="relative flex items-center w-full">
+          {/* 🚀 ZMIANA: Dodano aria-label aby odblokować 100 punktów Accessibility i Agentów AI */}
           <input 
+            aria-label="Szukaj produktów w sklepie"
             type="text" 
             placeholder={placeholderText + (query.length === 0 && (!isDeleting && canStartAnimation) ? '|' : '')} 
             value={query}
@@ -160,6 +160,7 @@ export default function SearchBar() {
             className="w-full bg-slate-50 border-2 border-slate-200 focus:border-red-600 focus:bg-white rounded-2xl py-3.5 px-6 pr-14 outline-none transition-all text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium shadow-inner"
           />
           <button 
+            aria-label="Szukaj"
             onClick={handleSearchSubmit} 
             className="absolute right-2 bg-slate-900 text-white w-10 h-10 rounded-xl hover:bg-red-600 transition-colors flex items-center justify-center shadow-md active:scale-95 cursor-pointer"
           >
