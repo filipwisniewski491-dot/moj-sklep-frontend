@@ -87,7 +87,7 @@ export default function Header() {
           <div className="flex-shrink-0 flex items-center min-h-[48px]">
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
               <img 
-                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=200&format=webp&quality=65" 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=150&format=webp&quality=65" 
                 alt="" 
                 width="150"
                 height="121"
