@@ -10,7 +10,12 @@ const capitalizeWords = (str: string) => {
 export default function CategoryHeader({ initialData, searchParams, fullPath }: { initialData: any, searchParams: any, fullPath: string }) {
   const categoryData = initialData?.category || null;
   const breadcrumbs = initialData?.breadcrumbs || [];
-  const subcategories = initialData?.subcategories || [];
+  
+  // 🚀 ZMIANA 1: Pobieranie dzieci dla kategorii na głębokich poziomach (L2, L3, L4)
+  let subcategories = initialData?.subcategories || [];
+  if (subcategories.length === 0 && categoryData?.category_children?.length > 0) {
+    subcategories = categoryData.category_children;
+  }
 
   const rawBrandLabel = searchParams?.['Pasuje do marki'];
   const rawModelLabel = searchParams?.['Pasuje do modelu'];
@@ -21,8 +26,8 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
   if (!displayH1) displayH1 = "Kategoria";
   
-  // 🚀 ZMIANA: Szukamy tekstu SEO w metadata (gdzie Medusa trzyma custom fields)
-  let displayTopSeo = categoryData?.metadata?.top_seo_text || categoryData?.top_seo_text || "";
+  // 🚀 ZMIANA 2: Gwarantowane wyciąganie tekstu z metadata, gdzie Medusa trzyma Custom Fields
+  let displayTopSeo = categoryData?.top_seo_text || categoryData?.metadata?.top_seo_text || categoryData?.description || "";
 
   if (brandLabel) {
     if (!displayH1.toLowerCase().includes(brandLabel.toLowerCase())) {
@@ -50,7 +55,7 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
           {displayH1}
         </h1>
         
-        {/* 🚀 ZMIANA: Bezpieczne renderowanie HTML dla pogrubień i znaków nowych linii z Medusy */}
+        {/* Renderowanie tekstu SEO (jeśli został znaleziony w Medusie) */}
         {displayTopSeo && (
           <div 
             className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium prose prose-slate"

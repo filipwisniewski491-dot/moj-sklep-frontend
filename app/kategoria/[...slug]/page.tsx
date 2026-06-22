@@ -58,13 +58,14 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   
-  // 🚀 ZMIANA: Bezpieczne pobieranie pełnej ścieżki i ostatniego sluga (do zapytania API)
   const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
-  const fullPath = slugArray.join('/');
-  const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
   
-  // 🚀 ZMIANA: Przekazujemy currentSlug zamiast fullPath do API Medusy, ponieważ Medusa filtruje kategorie po ich finalnym "handle"
-  const data = await getCategoryData(currentSlug, resolvedSearchParams);
+  // 🚀 REWOLUCJA: Z powrotem generujemy pełną ścieżkę strukturalną (np. czesci-do-ciagnikow/silnik/weze)
+  const fullPath = slugArray.join('/');
+  
+  // 🚀 NAPRAWA: Przekazujemy pełny fullPath do API. 
+  // Dzięki temu backend bezbłędnie wyciągnie wszystkich rodziców i zbuduje pełną tablicę breadcrumbs (L1 / L2 / L3)
+  const data = await getCategoryData(fullPath, resolvedSearchParams);
   
   if (!data) {
     notFound();
@@ -76,6 +77,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const products = searchData?.products || [];
   const categoryData = searchData?.category || null;
   const faqs = categoryData?.faqs || [];
+  
+  const bottomSeoText = categoryData?.bottom_seo_text || categoryData?.metadata?.bottom_seo_text || '';
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
@@ -89,7 +92,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
         <div className="flex-1 flex flex-col min-h-[500px]">
           <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
           
-          <DynamicSeoSection text={categoryData?.bottom_seo_text} />
+          {bottomSeoText && <DynamicSeoSection text={bottomSeoText} />}
           {faqs && faqs.length > 0 && <DynamicFaqSection faqs={faqs} />}
         </div>
       </main>
