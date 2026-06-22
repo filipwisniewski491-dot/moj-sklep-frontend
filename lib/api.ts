@@ -20,7 +20,6 @@ export async function getProductData(identifier: string) {
     };
     if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
-    // 🚀 PRZYWRÓCONA OPTYMALIZACJA CACHE
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
     const queryFields = "fields=*variants,*categories,+metadata,+images";
 
@@ -80,7 +79,6 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     };
     if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
-    // 🚀 PRZYWRÓCONA OPTYMALIZACJA CACHE
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
     
     const categoryRes = await fetch(
@@ -124,8 +122,9 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
           };
         }) || [],
         category: {
+          ...category, // 🚀 ROZWIĄZANIE: Przekazujemy wszystkie surowe dane w tym ukryte metadata!
           h1_dynamic: category.name,
-          top_seo_text: category.description || "",
+          top_seo_text: category.metadata?.top_seo_text || category.description || "",
           bottom_seo_text: category.metadata?.bottom_seo_text || "",
           faqs: category.metadata?.faqs || []
         },
