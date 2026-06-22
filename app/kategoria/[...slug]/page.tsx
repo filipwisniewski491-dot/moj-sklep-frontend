@@ -62,7 +62,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const fullPath = slugArray.join('/');
   const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
   
-  // 🚀 REWOLUCYJNA NAPRAWA 404: Pyta backend tylko o ostatni wycinek URL (czyli handle w MedusaJS)
   const data = await getCategoryData(currentSlug, resolvedSearchParams);
   
   if (!data) {
@@ -76,14 +75,31 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const categoryData = searchData?.category || null;
   const faqs = categoryData?.faqs || [];
   
-  // Bezpieczne pobranie opisu SEO na dół strony
-  const bottomSeoText = categoryData?.bottom_seo_text || categoryData?.metadata?.bottom_seo_text || '';
+  // 🚀 OSTATECZNE ROZWIĄZANIE: Pancerne wyciąganie tekstów z metadata z upewnieniem się, że typ danych się zgadza
+  let topSeoText = categoryData?.top_seo_text || '';
+  let bottomSeoText = categoryData?.bottom_seo_text || '';
+
+  if (categoryData?.metadata) {
+    const meta = typeof categoryData.metadata === 'string' 
+      ? JSON.parse(categoryData.metadata) 
+      : categoryData.metadata;
+      
+    topSeoText = meta.top_seo_text || topSeoText;
+    bottomSeoText = meta.bottom_seo_text || bottomSeoText;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       
-      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} /> 
+      {/* 🚀 ZMIANA: Przekazujemy topSeoText jawnie prosto do nagłówka */}
+      <CategoryHeader 
+        initialData={searchData} 
+        searchParams={resolvedSearchParams} 
+        fullPath={fullPath} 
+        topSeoText={topSeoText} 
+      /> 
+      
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         <aside className="w-full lg:w-80 flex-shrink-0">
           <CategoryFilters initialFilters={filtersData} initialTotalCount={totalCount} />
@@ -91,6 +107,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
         <div className="flex-1 flex flex-col min-h-[500px]">
           <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
           
+          {/* Tekst na samym dole */}
           {bottomSeoText && <DynamicSeoSection text={bottomSeoText} />}
           {faqs && faqs.length > 0 && <DynamicFaqSection faqs={faqs} />}
         </div>

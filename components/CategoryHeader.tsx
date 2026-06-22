@@ -7,11 +7,20 @@ const capitalizeWords = (str: string) => {
   return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 };
 
-export default function CategoryHeader({ initialData, searchParams, fullPath }: { initialData: any, searchParams: any, fullPath: string }) {
+// Funkcja parsująca Markdown (taka sama jak w SeoSection), aby pogrubienia działały pod H1
+const parseMarkdown = (text: string) => {
+  if (!text) return '';
+  let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-4 mb-2 text-slate-900">$1</h2>');
+  html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" class="text-red-600 hover:underline font-bold">$1</a>');
+  html = html.replace(/\n\n/gim, '<br /><br />');
+  return html;
+};
+
+// Zwróć uwagę na dodany prop: topSeoText
+export default function CategoryHeader({ initialData, searchParams, fullPath, topSeoText }: { initialData: any, searchParams: any, fullPath: string, topSeoText?: string }) {
   const categoryData = initialData?.category || null;
   
-  // 🚀 NAPRAWA L3: Bezpieczne sprawdzanie długości tablicy. 
-  // Jeśli pierwsza lista jest pusta, bezwzględnie sięgamy po "dzieci" z bazy Medusy.
   let subcategories = initialData?.subcategories;
   if (!subcategories || subcategories.length === 0) {
     subcategories = categoryData?.category_children || categoryData?.children || [];
@@ -20,7 +29,6 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
   const slugArray = fullPath ? fullPath.split('/') : [];
   let breadcrumbs = initialData?.breadcrumbs || [];
   
-  // Odtwarzanie ścieżki (Breadcrumbs)
   if ((!breadcrumbs || breadcrumbs.length <= 1) && slugArray.length > 1) {
     breadcrumbs = slugArray.map((slugPart: string, index: number) => {
       const cumulativePath = slugArray.slice(0, index + 1).join('/');
@@ -45,22 +53,6 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
   if (!displayH1) displayH1 = "Kategoria";
   
-  // 🚀 NAPRAWA SEO: Pancerne wyciąganie tekstu z Medusy. 
-  // Uwzględnia zaszyfrowane metadata (stringified JSON) oraz standardowe pole description.
-  let displayTopSeo = "";
-  if (categoryData) {
-    let meta = categoryData.metadata;
-    if (typeof meta === 'string') {
-       try { meta = JSON.parse(meta); } catch(e) { meta = {}; }
-    }
-    displayTopSeo = 
-      categoryData.top_seo_text || 
-      meta?.top_seo_text || 
-      meta?.topSeoText ||
-      categoryData.description || 
-      "";
-  }
-
   if (brandLabel) {
     if (!displayH1.toLowerCase().includes(brandLabel.toLowerCase())) {
       displayH1 += ` DO ${brandLabel.toUpperCase()}`;
@@ -87,11 +79,11 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
           {displayH1}
         </h1>
         
-        {/* Renderowanie opisu SEO z poprawną obsługą znaczników HTML */}
-        {displayTopSeo && (
+        {/* 🚀 OSTATECZNE WYŚWIETLENIE TEKSTU POD H1 */}
+        {topSeoText && (
           <div 
-            className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium prose prose-slate"
-            dangerouslySetInnerHTML={{ __html: displayTopSeo }}
+            className="text-sm md:text-base text-slate-600 max-w-4xl mb-6 mt-4 leading-relaxed prose prose-slate"
+            dangerouslySetInnerHTML={{ __html: parseMarkdown(topSeoText) }}
           />
         )}
 
