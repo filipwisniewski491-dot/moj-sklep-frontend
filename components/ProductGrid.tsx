@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import ProductCard from './ProductCard';
 import { trackViewItemList } from '@/lib/analytics';
 import { useGarage } from '@/store/useGarage'; 
@@ -22,6 +22,8 @@ export default function ProductGrid({
 }: ProductGridProps) {
   
   const { isActive, brand, model, clearGarage } = useGarage();
+  // 🚀 ZMIANA: Stan ładujący określoną liczbę produktów na widok
+  const [visibleLimit, setVisibleLimit] = useState(24);
 
   const productsToDisplay = isActive && initialProducts
     ? initialProducts.filter((p: any) => {
@@ -34,9 +36,12 @@ export default function ProductGrid({
       })
     : (initialProducts || []);
 
+  const currentlyVisibleProducts = productsToDisplay.slice(0, visibleLimit);
+  const actualTotalCount = isActive ? productsToDisplay.length : Math.max(totalCount, productsToDisplay.length);
+
   useEffect(() => {
-    if (productsToDisplay.length > 0 && !loading) {
-      const ga4Items = productsToDisplay.map((product: any, index: number) => ({
+    if (currentlyVisibleProducts.length > 0 && !loading) {
+      const ga4Items = currentlyVisibleProducts.map((product: any, index: number) => ({
         item_id: String(product.id || product.sku),
         item_name: product.name,
         price: typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0,
@@ -49,7 +54,11 @@ export default function ProductGrid({
       
       trackViewItemList(ga4Items, "category_list", listName);
     }
-  }, [productsToDisplay, loading, fullPath, isActive, brand, model]);
+  }, [currentlyVisibleProducts, loading, fullPath, isActive, brand, model]);
+
+  const handleShowMore = () => {
+    setVisibleLimit(prev => prev + 24);
+  };
 
   if (loading) {
     return (
@@ -110,7 +119,7 @@ export default function ProductGrid({
       ) : (
         <>
           <div className={`grid gap-6 ${isListView ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3'}`}>
-            {productsToDisplay.map((product: any, idx: number) => (
+            {currentlyVisibleProducts.map((product: any, idx: number) => (
               <ProductCard 
                 key={`${product.id || product.sku}-${idx}`} 
                 product={product} 
@@ -121,12 +130,26 @@ export default function ProductGrid({
             ))}
           </div>
           
-          {totalCount > productsToDisplay.length && !isActive && (
-            <div className="text-center mt-8">
-              {/* Poprawa kontrastu - zmieniono text-slate-400 na text-slate-500 */}
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                Wyświetlono {productsToDisplay.length} z {totalCount} produktów
+          {/* 🚀 ZMIANA: Efektowny licznik, pasek postępu i przycisk "Pokaż więcej" */}
+          {visibleLimit < actualTotalCount && (
+            <div className="mt-12 flex flex-col items-center w-full max-w-md mx-auto">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                Widoczne {currentlyVisibleProducts.length} z {actualTotalCount}
               </p>
+              
+              <div className="w-full h-1 bg-slate-200 rounded-full mb-6 overflow-hidden">
+                <div 
+                  className="h-full bg-red-600 transition-all duration-700 ease-out"
+                  style={{ width: `${(currentlyVisibleProducts.length / actualTotalCount) * 100}%` }}
+                />
+              </div>
+
+              <button 
+                onClick={handleShowMore}
+                className="w-full sm:w-auto px-8 py-3.5 bg-white border-2 border-slate-900 text-slate-900 font-black uppercase text-xs tracking-widest hover:bg-slate-900 hover:text-white transition-colors rounded-xl shadow-sm"
+              >
+                Pokaż więcej produktów
+              </button>
             </div>
           )}
         </>

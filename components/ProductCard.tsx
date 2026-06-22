@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
@@ -16,6 +16,22 @@ const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
 const ProductCard = React.memo(({ product, isListView, index, priority = false }: { product: any, isListView: boolean, index: number, priority?: boolean }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
+  const [shippingTag, setShippingTag] = useState<{text: string, style: string, pulse: boolean} | null>(null);
+
+  // 🚀 ZMIANA: Inteligentna etykieta dostawy liczona po zamontowaniu (aby uniknąć błędu hydratacji)
+  useEffect(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+
+    if (day === 0 || day === 6 || (day === 5 && hour >= 8)) {
+      setShippingTag({ text: "Wysyłka w poniedziałek", style: "bg-slate-100 text-slate-600 border-slate-200", pulse: false });
+    } else if (hour < 8) {
+      setShippingTag({ text: "Wysyłka dziś", style: "bg-emerald-50 text-emerald-700 border-emerald-100", pulse: true });
+    } else {
+      setShippingTag({ text: "Wysyłka w 24h", style: "bg-blue-50 text-blue-700 border-blue-100", pulse: false });
+    }
+  }, []);
 
   let parsedExternalImages: string[] = [];
   if (Array.isArray(product.external_images)) {
@@ -25,15 +41,14 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
   }
 
   const imageUrl = parsedExternalImages[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
-  
   const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const netPrice = price / 1.23; 
-  const sku = product.sku || "BRAK SKU";
+  const sku = product.sku || product.id || "BRAK SKU";
   
-  const isShippingToday = true; 
-  const hash = sku.charCodeAt(0) || 0;
-  const rating = "4.8"; 
-  const reviewsCount = 12 + (hash % 10); 
+  // 🚀 ZMIANA: Haszowanie opinii na podstawie SKU. Wynik zawsze będzie taki sam dla tego samego produktu.
+  const hash = sku.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+  const reviewsCount = (hash % 50) + 1; // Generuje od 1 do 50
+  const rating = (4.4 + (hash % 6) / 10).toFixed(1); // Generuje od 4.4 do 4.9
 
   const itemToTrack: GA4Item = {
     item_id: String(product.id || sku),
@@ -55,8 +70,6 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
 
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
-      
-      {/* 🚀 ZMIANA: Dodano prefetch={false}, aby uratować łącze internetowe przed pobieraniem kilkudziesięciu kart naraz */}
       <Link 
         href={`/produkt/${product.slug || sku}`} 
         prefetch={false}
@@ -66,10 +79,10 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
       ></Link>
 
       <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
-        {isShippingToday && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Wysyłka dziś</span>
+        {shippingTag && (
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border shadow-sm ${shippingTag.style}`}>
+            {shippingTag.pulse && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
+            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">{shippingTag.text}</span>
           </div>
         )}
       </div>
@@ -96,7 +109,7 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
       
       <div className={`flex flex-col pt-1 w-full pointer-events-none ${isListView ? 'justify-center pr-3 lg:pr-4' : 'px-3 pb-4 lg:px-6 lg:pb-5 flex-1'}`}>
         <div className="flex justify-between items-center mb-1.5">
-          <div className="flex items-center gap-1 text-[10px] lg:text-[11px] text-amber-400 font-black">★ {rating} <span className="text-slate-500 font-medium text-[9px] lg:text-[10px]">({reviewsCount})</span></div>
+          <div className="flex items-center gap-1 text-[10px] lg:text-[11px] text-amber-400 font-black">★ {rating} <span className="text-slate-500 font-medium text-[9px] lg:text-[10px]">({reviewsCount} opinii)</span></div>
         </div>
 
         <h2 className="font-black text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs lg:text-sm tracking-normal">{product.name}</h2>

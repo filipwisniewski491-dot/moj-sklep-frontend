@@ -2,12 +2,21 @@ import React from 'react';
 import Link from 'next/link';
 import SubcategoryNav from './SubcategoryNav';
 
+// 🚀 Słownik polskich nazw dla okruszków (Breadcrumbs)
+const BREADCRUMB_DICTIONARY: Record<string, string> = {
+  'czesci-do-ciagnikow': 'Części do ciągników',
+  'uklad-chlodzenia': 'Układ chłodzenia',
+  'wentylatory': 'Wentylatory',
+  'narzedzia-reczne': 'Narzędzia ręczne',
+  'pasy-klinowe': 'Pasy klinowe',
+  'czesci-uniwersalne': 'Części uniwersalne'
+};
+
 const capitalizeWords = (str: string) => {
   if (!str) return '';
   return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 };
 
-// Funkcja parsująca Markdown (taka sama jak w SeoSection), aby pogrubienia działały pod H1
 const parseMarkdown = (text: string) => {
   if (!text) return '';
   let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-4 mb-2 text-slate-900">$1</h2>');
@@ -17,7 +26,6 @@ const parseMarkdown = (text: string) => {
   return html;
 };
 
-// Zwróć uwagę na dodany prop: topSeoText
 export default function CategoryHeader({ initialData, searchParams, fullPath, topSeoText }: { initialData: any, searchParams: any, fullPath: string, topSeoText?: string }) {
   const categoryData = initialData?.category || null;
   
@@ -32,11 +40,14 @@ export default function CategoryHeader({ initialData, searchParams, fullPath, to
   if ((!breadcrumbs || breadcrumbs.length <= 1) && slugArray.length > 1) {
     breadcrumbs = slugArray.map((slugPart: string, index: number) => {
       const cumulativePath = slugArray.slice(0, index + 1).join('/');
-      const prettyName = slugPart
+      
+      // 🚀 ZMIANA: Tłumaczenie przez słownik z fallbackiem do standardowej kapitalizacji
+      const prettyName = BREADCRUMB_DICTIONARY[slugPart.toLowerCase()] || slugPart
         .replace(/-/g, ' ')
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+        
       return {
         name: prettyName,
         path: cumulativePath
@@ -79,7 +90,6 @@ export default function CategoryHeader({ initialData, searchParams, fullPath, to
           {displayH1}
         </h1>
         
-        {/* 🚀 OSTATECZNE WYŚWIETLENIE TEKSTU POD H1 */}
         {topSeoText && (
           <div 
             className="text-sm md:text-base text-slate-600 max-w-4xl mb-6 mt-4 leading-relaxed prose prose-slate"
