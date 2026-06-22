@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { useCart } from '@/store/useCart';
 import { trackSelectItem, GA4Item } from '@/lib/analytics';
 
-// Własny loader do wymuszania WebP/AVIF z BunnyCDN
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
   const cleanSrc = src.split('?')[0]; 
@@ -14,12 +13,10 @@ const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   return `${cleanSrc}?width=${width}&format=webp&quality=${quality}&sharpen=false`;
 };
 
-// Dodano opcjonalny parametr "priority"
 const ProductCard = React.memo(({ product, isListView, index, priority = false }: { product: any, isListView: boolean, index: number, priority?: boolean }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
 
-  // BEZPIECZNE PARSOWANIE ZDJĘĆ Z METADANYCH
   let parsedExternalImages: string[] = [];
   if (Array.isArray(product.external_images)) {
     parsedExternalImages = product.external_images;
@@ -84,7 +81,7 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
               alt={product.name || 'Zdjęcie produktu'} 
               fill 
               sizes="(max-width: 640px) 150px, (max-width: 1024px) 250px, 300px" 
-              priority={priority} // <-- TUTAJ: Zastąpiono loading="lazy" parametrem priorytetu
+              priority={priority}
               className="object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" 
             />
           </div>
@@ -105,6 +102,7 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
         <div className={`flex ${isListView ? 'flex-row items-center justify-between gap-6' : 'flex-col gap-3'} pt-3 lg:pt-4 border-t border-slate-50 w-full pointer-events-auto z-10 ${isListView ? 'mt-0' : 'mt-auto'}`}>
           <div className="flex flex-col">
             <span className="text-[8px] lg:text-[9px] font-black text-slate-500 mb-0.5 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(netPrice)} zł netto</span>
+            {/* Poprawa kontrastu dla znaku "zł" (z slate-400 na slate-500) */}
             <span className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)} <span className="text-[9px] lg:text-xs font-bold text-slate-500">zł</span></span>
           </div>
           

@@ -37,16 +37,16 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
             <Link href="/" className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">Start</Link>
             {breadcrumbs.map((crumb: any, idx: number) => (
               <React.Fragment key={idx}>
-                <span className="text-slate-400">/</span>
+                <span className="text-slate-500">/</span>
                 <Link href={`/kategoria/${crumb.path}`} className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">{crumb.name}</Link>
               </React.Fragment>
             ))}
           </nav>
         )}
         
-        {/* LCP OPTYMALIZACJA: fetchPriority="high" zmusza przeglądarkę do natychmiastowego renderowania */}
+        {/* Usunięto klasę 'italic' - natychmiastowe odblokowanie malowania LCP */}
         <h1 
-          className="text-3xl md:text-5xl lg:text-6xl font-black uppercase italic text-slate-900 mb-2 max-w-4xl leading-tight"
+          className="text-3xl md:text-5xl lg:text-6xl font-black uppercase text-slate-900 mb-2 max-w-4xl leading-tight"
           fetchPriority="high"
         >
           {displayH1}

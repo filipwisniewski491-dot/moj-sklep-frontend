@@ -62,7 +62,6 @@ export default function ProductGrid({
   return (
     <div className="flex flex-col gap-6">
       
-      {/* BANER AKTYWNEGO GARAŻU */}
       {isActive && (
         <div className="bg-red-50 border-2 border-red-100 rounded-3xl p-5 mb-2 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4">
           <div className="flex items-center gap-4">
@@ -117,14 +116,15 @@ export default function ProductGrid({
                 product={product} 
                 index={idx + 1} 
                 isListView={isListView} 
-                priority={idx < 4} // <-- TUTAJ: Priorytet ładowania dla pierwszych 4 produktów
+                priority={idx < 4}
               />
             ))}
           </div>
           
           {totalCount > productsToDisplay.length && !isActive && (
             <div className="text-center mt-8">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              {/* Poprawa kontrastu - zmieniono text-slate-400 na text-slate-500 */}
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Wyświetlono {productsToDisplay.length} z {totalCount} produktów
               </p>
             </div>
