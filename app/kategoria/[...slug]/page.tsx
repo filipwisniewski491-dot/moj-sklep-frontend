@@ -15,7 +15,7 @@ const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
 // Wymuszenie czyszczenia starego cache (z 50 produktami) z serwerów Vercela
-export const revalidate = 3601;
+export const revalidate = 3602;
 
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
   const resolvedParams = await params;
