@@ -66,3 +66,21 @@ h2, h3 {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ==============================================================
+   🚀 3. ŻELAZNA BLOKADA CLS DLA NAGŁÓWKA I MAIN
+   ============================================================== */
+header.bg-white {
+  min-height: 72px;
+  contain: layout style;
+}
+
+@media (min-width: 768px) {
+  header.bg-white {
+    min-height: 96px;
+  }
+}
+
+main {
+  contain: layout;
+}
