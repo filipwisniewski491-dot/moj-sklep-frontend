@@ -51,7 +51,6 @@ export default function Header() {
 
   return (
     <>
-      {/* 🚀 ZMIANA CLS: h-[37px] sm:h-[49px] zapobiega skakaniu strony! */}
       <div className="bg-slate-900 sm:bg-slate-50 text-white sm:text-slate-600 font-bold relative z-[60] border-b border-slate-800 sm:border-slate-200 h-[37px] sm:h-[49px] flex flex-col justify-center overflow-hidden">
         
         <div className="sm:hidden flex justify-center items-center text-[10px] uppercase tracking-widest text-center px-2">
@@ -89,10 +88,11 @@ export default function Header() {
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
               <img 
                 src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=200&format=webp&quality=65" 
-                alt="" /* 🚀 ZMIANA: Pusty tag alt dla ikony dekoracyjnej */
+                alt=""
                 width="150"
                 height="121"
-                className="w-24 sm:w-28 md:w-36 h-auto object-contain mb-0.5" 
+                {/* 🚀 ZMIANA CLS: Wyrzucono 'h-auto', wstawiono twarde 'aspect-[150/121]'. To cementuje sekcję! */}
+                className="w-24 sm:w-28 md:w-36 aspect-[150/121] object-contain mb-0.5" 
               />
               <span className="font-black text-[11px] sm:text-xs md:text-sm tracking-tighter text-slate-900 leading-none uppercase mt-1">
                 CentrumRolnictwa<span className="text-red-600">.pl</span>
