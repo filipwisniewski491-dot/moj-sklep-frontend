@@ -6,13 +6,12 @@ import Link from 'next/link';
 const generateSlug = (text: string) => {
   if (!text) return '';
   return text.toLowerCase()
-    .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
-    .replace(/ł/g, 'l').replace(/ń/g, 'n').replace(/ó/g, 'o')
-    .replace(/ś/g, 's').replace(/ź/g, 'z').replace(/ż/g, 'z')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
+    .replace(/[ą]/g, 'a').replace(/[ć]/g, 'c').replace(/[ę]/g, 'e')
+    .replace(/[ł]/g, 'l').replace(/[ń]/g, 'n').replace(/[ó]/g, 'o')
+    .replace(/[ś]/g, 's').replace(/[źż]/g, 'z')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 };
 
 const MEGA_MENU_DATA = [
@@ -76,7 +75,8 @@ export default function MegaMenu() {
                   <div className="grid grid-cols-4 gap-8">
                     {cat.columns.map(col => (
                       <div key={col.slug}>
-                        <Link href={`/kategoria/${cat.slug}/${col.slug}`} prefetch={false} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
+                        {/* 🚀 ZMIANA: Spłaszczono linki kolumn i podkategorii */}
+                        <Link href={`/kategoria/${col.slug}`} prefetch={false} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
                           {col.title}
                         </Link>
                         <ul className="space-y-2.5">
@@ -84,7 +84,7 @@ export default function MegaMenu() {
                             const linkSlug = generateSlug(link);
                             return (
                               <li key={linkSlug}>
-                                <Link href={`/kategoria/${cat.slug}/${col.slug}/${linkSlug}`} prefetch={false} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
+                                <Link href={`/kategoria/${linkSlug}`} prefetch={false} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
                                   {link}
                                 </Link>
                               </li>

@@ -9,9 +9,7 @@ const generateSlug = (text: string) => {
     .replace(/[ł]/g, 'l').replace(/[ń]/g, 'n').replace(/[ó]/g, 'o')
     .replace(/[ś]/g, 's').replace(/[źż]/g, 'z')
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
+    .replace(/[^a-z0-9]+/g, '-') // 🚀 Wyłapuje spacje, przecinki i znaki specjalne zmieniając je w myślnik
     .replace(/^-|-$/g, '');
 };
 
@@ -26,7 +24,7 @@ export default function SubcategoryNav({ subcategories, fullPath }: { subcategor
             <Link 
               aria-label={`Przejdź do podkategorii ${sub}`} 
               key={sub} 
-              href={`/kategoria/${fullPath}/${generateSlug(sub)}`} 
+              href={`/kategoria/${generateSlug(sub)}`}  // 🚀 ZMIANA: Płaski URL zgodny z Next.js
               prefetch={false}
               className="px-5 py-3.5 bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm min-h-[48px] flex items-center justify-center"
             >
