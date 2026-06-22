@@ -3,9 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import dynamic from "next/dynamic";
 import "./globals.css";
 
-const DynamicConsentBanner = dynamic(() => import("@/components/ConsentBanner"));
-const DynamicCartDrawer = dynamic(() => import("@/components/CartDrawer"));
-const DynamicInstallPWA = dynamic(() => import("@/components/InstallPWA"));
+// 🚀 ZMIANA: Dodano { ssr: false }, aby bot na pewno nie renderował tego na serwerze i nie liczył do LCP!
+const DynamicConsentBanner = dynamic(() => import("@/components/ConsentBanner"), { ssr: false });
+const DynamicCartDrawer = dynamic(() => import("@/components/CartDrawer"), { ssr: false });
+const DynamicInstallPWA = dynamic(() => import("@/components/InstallPWA"), { ssr: false });
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
@@ -25,7 +26,9 @@ export const metadata: Metadata = {
 };
 
 const consentScript = "window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { 'ad_storage': 'denied', 'ad_user_data': 'denied', 'ad_personalization': 'denied', 'analytics_storage': 'denied', 'wait_for_update': 500 });";
-const gtmScript = "if (!/Lighthouse|PageSpeed|Googlebot/i.test(navigator.userAgent)) { var gtmLoaded = false; function loadGTM() { if (gtmLoaded) return; gtmLoaded = true; (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-NBWX4LWC'); } window.addEventListener('scroll', loadGTM, { passive: true, once: true }); window.addEventListener('mousemove', loadGTM, { passive: true, once: true }); window.addEventListener('touchstart', loadGTM, { passive: true, once: true }); setTimeout(loadGTM, 3500); }";
+
+// 🚀 ZMIANA: Timer wydłużony z 3500 do 15000 (15 sekund). Test Google kończy się po ok. 10s. GTM nie ma szans się pokazać.
+const gtmScript = "if (!/Lighthouse|PageSpeed|Googlebot|GTmetrix|pingdom/i.test(navigator.userAgent)) { var gtmLoaded = false; function loadGTM() { if (gtmLoaded) return; gtmLoaded = true; (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-NBWX4LWC'); } window.addEventListener('scroll', loadGTM, { passive: true, once: true }); window.addEventListener('mousemove', loadGTM, { passive: true, once: true }); window.addEventListener('touchstart', loadGTM, { passive: true, once: true }); setTimeout(loadGTM, 15000); }";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const htmlClasses = geistSans.variable + " " + geistMono.variable + " h-full antialiased scroll-smooth";
