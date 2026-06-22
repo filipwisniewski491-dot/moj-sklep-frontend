@@ -62,7 +62,17 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const fullPath = slugArray.join('/');
   const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
   
-  const data = await getCategoryData(currentSlug, resolvedSearchParams);
+  // 🚀 KROK 1: Próba pobrania danych po końcowym slugu (dla L2/L3)
+  let data = await getCategoryData(currentSlug, resolvedSearchParams);
+  
+  // 🚀 KROK 2: PANCERNY FALLBACK DLA L1 
+  // Jeśli pierwsza próba zwróciła pusty wynik (błąd 404), ponawiamy zapytanie po pełnej ścieżce
+  if (!data || !data.searchData?.category) {
+    const fallbackData = await getCategoryData(fullPath, resolvedSearchParams);
+    if (fallbackData && fallbackData.searchData?.category) {
+      data = fallbackData;
+    }
+  }
   
   if (!data) {
     notFound();
@@ -75,24 +85,39 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const categoryData = searchData?.category || null;
   const faqs = categoryData?.faqs || [];
   
-  // 🚀 OSTATECZNE ROZWIĄZANIE: Pancerne wyciąganie tekstów z metadata z upewnieniem się, że typ danych się zgadza
-  let topSeoText = categoryData?.top_seo_text || '';
-  let bottomSeoText = categoryData?.bottom_seo_text || '';
+  let topSeoText = '';
+  let bottomSeoText = '';
 
-  if (categoryData?.metadata) {
-    const meta = typeof categoryData.metadata === 'string' 
-      ? JSON.parse(categoryData.metadata) 
-      : categoryData.metadata;
-      
-    topSeoText = meta.top_seo_text || topSeoText;
-    bottomSeoText = meta.bottom_seo_text || bottomSeoText;
+  // 🚀 KROK 3: Ekstrakcja danych i automatyczny system diagnostyczny w terminalu
+  if (categoryData) {
+    console.log("=== DIAGNOSTYKA STRONY KATEGORII ===");
+    console.log("Aktualny Slug:", currentSlug);
+    console.log("Pobrane klucze obiektu kategorii:", Object.keys(categoryData));
+    if (categoryData.metadata) {
+      console.log("Zawartość obiektu metadata:", categoryData.metadata);
+    }
+    console.log("====================================");
+
+    // Szukanie top_seo_text w korzeniu lub w zagnieżdżonym metadata
+    topSeoText = categoryData.top_seo_text || '';
+    if (!topSeoText && categoryData.metadata) {
+      const meta = typeof categoryData.metadata === 'string' ? JSON.parse(categoryData.metadata) : categoryData.metadata;
+      topSeoText = meta.top_seo_text || meta.topSeoText || '';
+    }
+
+    // Szukanie bottom_seo_text w korzeniu lub w zagnieżdżonym metadata
+    bottomSeoText = categoryData.bottom_seo_text || '';
+    if (!bottomSeoText && categoryData.metadata) {
+      const meta = typeof categoryData.metadata === 'string' ? JSON.parse(categoryData.metadata) : categoryData.metadata;
+      bottomSeoText = meta.bottom_seo_text || meta.bottomSeoText || '';
+    }
   }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       
-      {/* 🚀 ZMIANA: Przekazujemy topSeoText jawnie prosto do nagłówka */}
+      {/* Przekazujemy przefiltrowany tekst bezpośrednio do nagłówka komponentu */}
       <CategoryHeader 
         initialData={searchData} 
         searchParams={resolvedSearchParams} 
@@ -107,7 +132,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
         <div className="flex-1 flex flex-col min-h-[500px]">
           <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
           
-          {/* Tekst na samym dole */}
           {bottomSeoText && <DynamicSeoSection text={bottomSeoText} />}
           {faqs && faqs.length > 0 && <DynamicFaqSection faqs={faqs} />}
         </div>
