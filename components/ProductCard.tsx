@@ -18,23 +18,33 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
   const [qty, setQty] = useState(1);
   const [shippingTag, setShippingTag] = useState<{text: string, style: string, pulse: boolean} | null>(null);
 
-  // 🚀 POPRAWKA LOGIKI MARKETINGOWEJ: Do 12:00 wysyłka w 24h, po 12:00 prestiżowy tag "Bestseller"
+  const sku = product.sku || product.id || "BRAK SKU";
+
+  // 🚀 ZMIANA: Haszowanie opinii (4-49 opinii) i wyliczanie, czy produkt jest Bestsellerem (15% szans)
+  const hash = sku.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) + index;
+  const reviewsCount = (hash % 45) + 4; 
+  const rating = (4.4 + (hash % 6) / 10).toFixed(1); 
+  const isBestseller = (hash % 100) < 18; // 18% produktów otrzyma złotą etykietę
+
+  // 🚀 POPRAWKA LOGIKI MARKETINGOWEJ (Złota proporcja UX)
   useEffect(() => {
     const now = new Date();
     const day = now.getDay(); 
     const hour = now.getHours();
 
-    // Weekend (Sobota, Niedziela) lub Piątek po 12:00
-    if (day === 0 || day === 6 || (day === 5 && hour >= 12)) {
-      setShippingTag({ text: "Bestseller", style: "bg-amber-50 text-amber-800 border-amber-200 font-bold", pulse: false });
-    } else if (hour < 12) {
-      // Dni robocze przed 12:00
-      setShippingTag({ text: "Wysyłka w 24h", style: "bg-emerald-50 text-emerald-700 border-emerald-100", pulse: true });
+    // Po 12:00 lub w weekendy
+    if (day === 0 || day === 6 || (day === 5 && hour >= 12) || hour >= 12) {
+      if (isBestseller) {
+        // Tylko 15-18% kart dostaje etykietę! Reszta jest czysta.
+        setShippingTag({ text: "Hit Sprzedaży", style: "bg-gradient-to-r from-amber-100 to-amber-50 text-amber-800 border-amber-200 font-black shadow-[0_2px_10px_rgba(251,191,36,0.2)]", pulse: false });
+      } else {
+        setShippingTag(null);
+      }
     } else {
-      // Dni robocze po 12:00 - zamiast pisać wolne "48h", dajemy mocny tag sprzedażowy
-      setShippingTag({ text: "Top Wybór", style: "bg-blue-50 text-blue-700 border-blue-100 font-bold", pulse: false });
+      // Przed 12:00 (każdy produkt ma motywator czasowy)
+      setShippingTag({ text: "Wysyłka w 24h", style: "bg-emerald-50 text-emerald-700 border-emerald-100", pulse: true });
     }
-  }, []);
+  }, [isBestseller]);
 
   let parsedExternalImages: string[] = [];
   if (Array.isArray(product.external_images)) {
@@ -46,12 +56,6 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
   const imageUrl = parsedExternalImages[0] || product.images?.[0]?.url_standard || product.images?.[0]?.url || product.images?.[0]?.src || null;
   const price = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
   const netPrice = price / 1.23; 
-  const sku = product.sku || product.id || "BRAK SKU";
-  
-  // 🚀 POPRAWKA GWIAZDEK: Całkowicie przemieszane i unikalne opinie (zakres 4-49 opinii) dla każdego produktu
-  const hash = sku.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) + index;
-  const reviewsCount = (hash % 45) + 4; 
-  const rating = (4.4 + (hash % 6) / 10).toFixed(1); 
 
   const itemToTrack: GA4Item = {
     item_id: String(product.id || sku),
@@ -83,9 +87,9 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
 
       <div className={`absolute top-3 right-3 lg:top-4 lg:right-4 z-10 flex flex-col gap-1 items-end`}>
         {shippingTag && (
-          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border shadow-sm ${shippingTag.style}`}>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${shippingTag.style}`}>
             {shippingTag.pulse && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
-            <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest whitespace-nowrap">{shippingTag.text}</span>
+            <span className="text-[8px] lg:text-[9px] uppercase tracking-widest whitespace-nowrap">{shippingTag.text}</span>
           </div>
         )}
       </div>

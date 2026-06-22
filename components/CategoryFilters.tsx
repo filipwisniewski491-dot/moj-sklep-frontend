@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useGarage } from '@/store/useGarage'; // 🚀 IMPORT ZUSTAND
 
 const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
   const [isOpen, setIsOpen] = useState(false); 
@@ -55,11 +56,12 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const router = useRouter();
   const pathname = usePathname(); 
   
+  // 🚀 Czerpiemy dane o Garażu prosto z globalnego store'a (bezpieczne i błyskawiczne)
+  const { isActive: isGarageActive, brand: garageBrand, model: garageModel } = useGarage();
+  
   const [activeFiltersData, setActiveFiltersData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  
-  // 🚀 Zabezpieczenie przed przeładowaniem DOM na telefonach:
   const [isDesktop, setIsDesktop] = useState(false);
   
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
@@ -68,7 +70,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   
   const [filterSearchQuery, setFilterSearchQuery] = useState<Record<string, string>>({});
   const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({});
-  const [savedGarage, setSavedGarage] = useState<{ make: string; model: string } | null>(null);
   
   const isFirstRender = useRef(true);
   const searchParamsString = searchParams.toString();
@@ -77,7 +78,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const narrowedToDisplay = activeFiltersData?.narrowedFilters || {};
   const totalCount = activeFiltersData?.totalCount || initialTotalCount;
 
-  // Montowanie na kliencie (sprawdzanie ekranu)
   useEffect(() => {
     const checkScreenSize = () => setIsDesktop(window.innerWidth >= 1024);
     checkScreenSize();
@@ -91,19 +91,18 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
+  // 🚀 ZMIANA: Popychanie włączonego garażu do URL, co wyzwala filtrowanie na serwerze!
   useEffect(() => {
-    const garage = localStorage.getItem('centrum_rolnictwa_garage');
-    if (garage) {
-      const parsed = JSON.parse(garage);
-      setSavedGarage(parsed);
-      if (!searchParams.get('Pasuje do marki') && !searchParams.get('Pasuje do modelu')) {
+    if (isGarageActive && garageBrand) {
+      if (searchParams.get('Pasuje do marki') !== garageBrand || searchParams.get('Pasuje do modelu') !== garageModel) {
         const currentParams = new URLSearchParams(searchParams.toString());
-        currentParams.set('Pasuje do marki', parsed.make);
-        currentParams.set('Pasuje do modelu', parsed.model);
+        currentParams.set('Pasuje do marki', garageBrand);
+        if (garageModel) currentParams.set('Pasuje do modelu', garageModel);
+        
         router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
       }
     }
-  }, [pathname, searchParams, router]);
+  }, [isGarageActive, garageBrand, garageModel, pathname, searchParams, router]);
 
   useEffect(() => {
     if (isFirstRender.current) { 
@@ -145,8 +144,8 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     setIsMobileFiltersOpen(false);
   };
 
-  const garageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka maszyny'] || filtersToDisplay['marka maszyny'] || {};
-  const garageModel = filtersToDisplay['Pasuje do modelu'] || {};
+  const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka maszyny'] || filtersToDisplay['marka maszyny'] || {};
+  const formatedGarageModel = filtersToDisplay['Pasuje do modelu'] || {};
 
   let techFilters = { ...filtersToDisplay };
   const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu'];
@@ -246,8 +245,8 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
         <div className="space-y-3">
-          <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={garageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
-          <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={garageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
+          <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
+          <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
         </div>
       </div>
 
@@ -291,7 +290,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         </div>
       )}
 
-      {/* 🚀 FINAŁOWY CIOS W DOM: Renderujemy desktopowe filtry TYLKO na desktopie */}
       {isDesktop && (
         <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
           <FilterContent />
