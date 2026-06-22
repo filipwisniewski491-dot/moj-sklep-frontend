@@ -9,12 +9,12 @@ import CategoryHeader from '@/components/CategoryHeader';
 import CategoryFilters from '@/components/CategoryFilters';
 import ProductGrid from '@/components/ProductGrid';
 
-// 🚀 EKSTREMALNE LENIWE ŁADOWANIE (Below The Fold)
-// Te komponenty nie blokują już pobierania HTML ani wskaźnika LCP
-const DynamicFooter = dynamic(() => import('@/components/Footer'), { ssr: false });
-const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'), { ssr: false });
-const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'), { ssr: false });
+// USUNIĘTO { ssr: false } - komponenty będą poprawnie kompilowane na serwerze, ale ich JS doładuje się później
+const DynamicFooter = dynamic(() => import('@/components/Footer'));
+const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
+const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
+// Wymuszenie czyszczenia starego cache (z 50 produktami) z serwerów Vercela
 export const revalidate = 3601;
 
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
@@ -85,15 +85,12 @@ export default async function CategoryPage({ params, searchParams }: any) {
         <div className="flex-1 flex flex-col min-h-[500px]">
           <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
           
-          {/* Leniwe ładowanie sekcji tekstowych SEO i FAQ */}
           <DynamicSeoSection text={categoryData?.bottom_seo_text} />
           {faqs && faqs.length > 0 && <DynamicFaqSection faqs={faqs} />}
         </div>
       </main>
 
       <MobileBottomNav />
-      
-      {/* Leniwe ładowanie potężnej stopki */}
       <DynamicFooter />
     </div>
   );

@@ -5,14 +5,14 @@ import Script from 'next/script';
 import dynamic from 'next/dynamic';
 import "./globals.css";
 
-const DynamicConsentBanner = dynamic(() => import("@/components/ConsentBanner"), { ssr: false });
-const DynamicCartDrawer = dynamic(() => import("@/components/CartDrawer"), { ssr: false });
-const DynamicInstallPWA = dynamic(() => import("@/components/InstallPWA"), { ssr: false });
+// USUNIĘTO { ssr: false } - Next.js i tak załaduje ich JS asynchronicznie
+const DynamicConsentBanner = dynamic(() => import("@/components/ConsentBanner"));
+const DynamicCartDrawer = dynamic(() => import("@/components/CartDrawer"));
+const DynamicInstallPWA = dynamic(() => import("@/components/InstallPWA"));
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: 'swap' });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: 'swap' });
 
-// 🚀 ZMIANA: Zezwalamy na zoom, co daje +9 pkt w Accessibility (100/100)
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
