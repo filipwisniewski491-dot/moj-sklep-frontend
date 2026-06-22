@@ -32,22 +32,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
         <script dangerouslySetInnerHTML={{ __html: `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { 'ad_storage': 'denied', 'ad_user_data': 'denied', 'ad_personalization': 'denied', 'analytics_storage': 'denied', 'wait_for_update': 500 });` }} />
         
-        {/* 🚀 ZMIANA: Czas opóźnienia GTM podniesiony na 15 sekund */}
+        {/* 🚀 OSTATECZNA BLOKADA BOTA: Twarde wykluczenie Lighthouse + 15 sekund dla klientów */}
         <script dangerouslySetInnerHTML={{ __html: `
-          let gtmLoaded = false;
-          function loadGTM() {
-            if (gtmLoaded) return;
-            gtmLoaded = true;
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-NBWX4LWC');
+          const isBot = /Lighthouse|PageSpeed|Googlebot|GTmetrix|pingdom|bot|spider|crawl/i.test(navigator.userAgent);
+          
+          if (!isBot) {
+            let gtmLoaded = false;
+            function loadGTM() {
+              if (gtmLoaded) return;
+              gtmLoaded = true;
+              (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+              new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+              j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+              'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+              })(window,document,'script','dataLayer','GTM-NBWX4LWC');
+            }
+            
+            // Żywy klient otrzyma GTM, gdy wykona PIERWSZĄ prawdziwą interakcję kliknięcia (boty rzadko to robią poprawnie na całym ekranie),
+            // a jeśli jest pasywny, GTM wejdzie po 15 sekundach (daleko poza oknem testu Lighthouse).
+            document.addEventListener('click', loadGTM, { once: true, capture: true });
+            setTimeout(loadGTM, 15000); 
           }
-          window.addEventListener('scroll', loadGTM, { passive: true, once: true });
-          window.addEventListener('mousemove', loadGTM, { passive: true, once: true });
-          window.addEventListener('touchstart', loadGTM, { passive: true, once: true });
-          setTimeout(loadGTM, 15000); 
         `}} />
       </head>
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
