@@ -24,12 +24,10 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
-// 🚀 Wyciągnięte bezpieczne skrypty (bez ryzykownych znaków dla Vercela)
 const consentScript = "window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { 'ad_storage': 'denied', 'ad_user_data': 'denied', 'ad_personalization': 'denied', 'analytics_storage': 'denied', 'wait_for_update': 500 });";
 const gtmScript = "if (!/Lighthouse|PageSpeed|Googlebot/i.test(navigator.userAgent)) { var gtmLoaded = false; function loadGTM() { if (gtmLoaded) return; gtmLoaded = true; (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0], j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src= 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f); })(window,document,'script','dataLayer','GTM-NBWX4LWC'); } window.addEventListener('scroll', loadGTM, { passive: true, once: true }); window.addEventListener('mousemove', loadGTM, { passive: true, once: true }); window.addEventListener('touchstart', loadGTM, { passive: true, once: true }); setTimeout(loadGTM, 3500); }";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Klasy połączone w najprostszy możliwy sposób
   const htmlClasses = geistSans.variable + " " + geistMono.variable + " h-full antialiased scroll-smooth";
 
   return (
@@ -42,7 +40,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         <main className="flex-1 flex flex-col">{children}</main>
-        
         <DynamicInstallPWA />
         <DynamicCartDrawer />
         <DynamicConsentBanner />
