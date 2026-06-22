@@ -55,7 +55,7 @@ export default function InstallPWA() {
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-900 leading-none mb-0.5">
             Aplikacja CentrumRolnictwa
           </p>
-          <p className="text-[9px] font-bold text-slate-500 leading-none">
+          <p className="text-[9px] font-bold text-slate-600 leading-none">
             Zamawiaj części bezpośrednio z pola
           </p>
         </div>

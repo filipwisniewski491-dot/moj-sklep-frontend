@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { GoogleTagManager } from '@next/third-parties/google';
-import Script from 'next/script';
 import dynamic from 'next/dynamic';
 import "./globals.css";
 
-// USUNIĘTO { ssr: false } - Next.js i tak załaduje ich JS asynchronicznie
 const DynamicConsentBanner = dynamic(() => import("@/components/ConsentBanner"));
 const DynamicCartDrawer = dynamic(() => import("@/components/CartDrawer"));
 const DynamicInstallPWA = dynamic(() => import("@/components/InstallPWA"));
@@ -13,11 +11,10 @@ const DynamicInstallPWA = dynamic(() => import("@/components/InstallPWA"));
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: 'swap' });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: 'swap' });
 
+// 🚀 ZMIANA: Całkowicie usunięto userScalable i maximumScale, aby uwolnić 100/100 Accessibility
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5, 
-  userScalable: true, 
   themeColor: '#0f172a',
 };
 
@@ -35,9 +32,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
+        
+        {/* 🚀 ZMIANA: Natywny skrypt synchroniczny zdejmuje blokadę z LCP i wątku głównego */}
+        <script dangerouslySetInnerHTML={{ __html: `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { 'ad_storage': 'denied', 'ad_user_data': 'denied', 'ad_personalization': 'denied', 'analytics_storage': 'denied', 'wait_for_update': 500 });` }} />
       </head>
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
-        <Script id="google-consent-mode" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { 'ad_storage': 'denied', 'ad_user_data': 'denied', 'ad_personalization': 'denied', 'analytics_storage': 'denied', 'wait_for_update': 500 });` }} />
         <GoogleTagManager gtmId="GTM-NBWX4LWC" />
         <DynamicInstallPWA />
         <main className="flex-1 flex flex-col">{children}</main>

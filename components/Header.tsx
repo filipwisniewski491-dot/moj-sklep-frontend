@@ -51,10 +51,10 @@ export default function Header() {
 
   return (
     <>
-      <div className="bg-slate-900 sm:bg-slate-50 text-white sm:text-slate-600 px-2 sm:px-4 font-bold relative z-[60] border-b border-slate-800 sm:border-slate-200">
+      {/* 🚀 ZMIANA CLS: h-[37px] sm:h-[49px] zapobiega skakaniu strony! */}
+      <div className="bg-slate-900 sm:bg-slate-50 text-white sm:text-slate-600 font-bold relative z-[60] border-b border-slate-800 sm:border-slate-200 h-[37px] sm:h-[49px] flex flex-col justify-center overflow-hidden">
         
-        {/* 🚀 ZMIANA CLS: Sztywne h-[36px] i overflow-hidden blokują rozszerzanie się paska! */}
-        <div className="sm:hidden flex justify-center items-center text-[10px] uppercase tracking-widest text-center h-[36px] overflow-hidden whitespace-nowrap">
+        <div className="sm:hidden flex justify-center items-center text-[10px] uppercase tracking-widest text-center px-2">
            <span className="text-amber-400 mr-1.5 text-[12px] shrink-0">⏳</span>
            <span className="truncate">{isShippingToday ? 'ZAMÓW TERAZ = WYSYŁKA DZIŚ' : 'WYSYŁKA JUTRO RANO'}</span>
            <span className="mx-1.5 text-slate-500 shrink-0">|</span>
@@ -62,7 +62,7 @@ export default function Header() {
            <span className="truncate">DARMOWA OD 500 ZŁ</span>
         </div>
 
-        <div className="hidden sm:flex max-w-7xl mx-auto flex-row justify-between items-center text-center gap-3 h-[48px]">
+        <div className="hidden sm:flex max-w-7xl mx-auto flex-row justify-between items-center text-center w-full px-4 gap-3">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
             <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
               <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
@@ -71,7 +71,7 @@ export default function Header() {
               <span className="text-emerald-500 font-black">✓</span> Ekspercki Dobór Części
             </span>
           </div>
-          <div className="flex items-center gap-2 bg-red-50 px-4 py-1.5 rounded-full border border-red-100 text-red-800">
+          <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
             <span className="text-[10px] uppercase tracking-widest hidden md:inline font-black">
               {isShippingToday ? 'Wysyłamy dzisiaj. Zamów w:' : 'Wysyłka jutro rano. Zamów w:'}
             </span>
@@ -89,7 +89,7 @@ export default function Header() {
             <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
               <img 
                 src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=200&format=webp&quality=65" 
-                alt="CentrumRolnictwa.pl" 
+                alt="" /* 🚀 ZMIANA: Pusty tag alt dla ikony dekoracyjnej */
                 width="150"
                 height="121"
                 className="w-24 sm:w-28 md:w-36 h-auto object-contain mb-0.5" 

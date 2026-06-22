@@ -34,7 +34,7 @@ export default function MobileBottomNav() {
            <div className="bg-white w-12 h-12 rounded-full overflow-hidden flex items-center justify-center border border-slate-200 relative">
              <Image 
                 src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png?width=56&format=webp&quality=60" 
-                alt="Start" 
+                alt="" /* 🚀 ZMIANA: Pusty tag alt dla czytników (bo pod spodem jest słowo 'Start') */
                 width={56} 
                 height={45}
                 className="object-contain"
