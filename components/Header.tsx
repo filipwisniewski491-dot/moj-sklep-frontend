@@ -63,20 +63,18 @@ export default function Header() {
 
         <div className="hidden sm:flex max-w-7xl mx-auto flex-row justify-between items-center text-center w-full px-4 gap-3">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
-            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-700 transition-colors group text-slate-900">
+            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
               <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
             </a>
-            <span className="hidden md:flex items-center gap-2 text-slate-700">
+            <span className="hidden md:flex items-center gap-2 text-slate-600">
               <span className="text-emerald-500 font-black">✓</span> Ekspercki Dobór Części
             </span>
           </div>
-          {/* 🚀 ZMIANA: Zwiększony kontrast: tekst bazowy to text-red-900 */}
-          <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-900">
+          <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
             <span className="text-[10px] uppercase tracking-widest hidden md:inline font-black">
               {isShippingToday ? 'Wysyłamy dzisiaj. Zamów w:' : 'Wysyłka jutro rano. Zamów w:'}
             </span>
-            {/* 🚀 ZMIANA: Czas zmieniony z text-red-600 na text-red-700, by przejść test kontrastu WCAG */}
-            <span suppressHydrationWarning className="text-red-700 font-black tabular-nums text-sm tracking-widest min-w-[75px] inline-block text-right">
+            <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest min-w-[75px] inline-block text-right">
               ⏳ {isMounted ? `${String(timeLeft.hours).padStart(2, '0')}:${String(timeLeft.minutes).padStart(2, '0')}:${String(timeLeft.seconds).padStart(2, '0')}` : '00:00:00'}
             </span>
           </div>
@@ -107,7 +105,7 @@ export default function Header() {
           <nav className="hidden md:flex items-center space-x-6 text-slate-800">
             <div className="hidden xl:block text-right mr-4">
                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest mb-1">
-                 Do darmowej: <span className="text-red-700 font-black">{Math.max(0, freeShippingThreshold - cartValue).toFixed(2)} zł</span>
+                 Do darmowej: <span className="text-red-600 font-black">{Math.max(0, freeShippingThreshold - cartValue).toFixed(2)} zł</span>
                </p>
                <div className="w-40 h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
                  <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
@@ -116,15 +114,15 @@ export default function Header() {
             
             <Link href="/konto" prefetch={false} aria-label="Twoje Konto" className="flex flex-col items-center justify-center cursor-pointer hover:text-red-600 transition-all group min-w-[48px] min-h-[48px]">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
-                 <svg className="w-5 h-5 transition-transform text-slate-700 group-hover:text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               </div>
-              <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-700 group-hover:text-slate-900">Konto</span>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-600 group-hover:text-slate-900">Konto</span>
             </Link>
 
             <button onClick={() => setCartOpen(true)} aria-label="Twój Koszyk" className="flex flex-col items-center justify-center cursor-pointer hover:text-red-600 transition-all relative group min-w-[48px] min-h-[48px]">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors relative border border-slate-200">
                  {cartTotalItems > 0 && <div className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white animate-bounce">{cartTotalItems}</div>}
-                 <svg className="w-5 h-5 transition-transform text-slate-700 group-hover:text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
+                 <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 014 0z"></path></svg>
               </div>
               <span className="text-[10px] font-black mt-1.5 uppercase tracking-widest text-slate-800">
                 {cartTotalItems > 0 ? `${cartValue.toFixed(2)} zł` : '0.00 zł'}
