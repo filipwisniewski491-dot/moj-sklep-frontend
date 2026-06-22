@@ -56,8 +56,10 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
   return (
     <div className={`group bg-white border border-slate-100 rounded-[32px] lg:rounded-[40px] p-2 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] transition-all duration-300 flex relative ${isListView ? 'flex-row gap-4 lg:gap-6 items-center w-full' : 'flex-col h-full'}`}>
       
+      {/* 🚀 ZMIANA: Dodano prefetch={false}, aby uratować łącze internetowe przed pobieraniem kilkudziesięciu kart naraz */}
       <Link 
         href={`/produkt/${product.slug || sku}`} 
+        prefetch={false}
         aria-label={`Przejdź do: ${product.name} (SKU: ${sku})`} 
         onClick={handleProductClick}
         className="absolute inset-0 z-0"
@@ -102,7 +104,6 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
         <div className={`flex ${isListView ? 'flex-row items-center justify-between gap-6' : 'flex-col gap-3'} pt-3 lg:pt-4 border-t border-slate-50 w-full pointer-events-auto z-10 ${isListView ? 'mt-0' : 'mt-auto'}`}>
           <div className="flex flex-col">
             <span className="text-[8px] lg:text-[9px] font-black text-slate-500 mb-0.5 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(netPrice)} zł netto</span>
-            {/* Poprawa kontrastu dla znaku "zł" (z slate-400 na slate-500) */}
             <span className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)} <span className="text-[9px] lg:text-xs font-bold text-slate-500">zł</span></span>
           </div>
           

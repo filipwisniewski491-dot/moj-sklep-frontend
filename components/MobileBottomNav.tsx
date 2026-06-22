@@ -24,17 +24,17 @@ export default function MobileBottomNav() {
         <span className="text-[9px] font-black uppercase tracking-widest">Kontakt</span>
       </a>
 
-      <Link href="/kategorie" aria-label="Działy" className="flex flex-col items-center justify-center flex-1 min-h-[64px] text-slate-600 hover:text-red-600 transition-colors">
+      <Link href="/kategorie" prefetch={false} aria-label="Działy" className="flex flex-col items-center justify-center flex-1 min-h-[64px] text-slate-600 hover:text-red-600 transition-colors">
         <span className="text-xl mb-0.5">☰</span>
         <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
       </Link>
       
-      <Link href="/" aria-label="Strona Główna" className="flex flex-col items-center justify-center flex-1 relative -top-4 z-50">
+      <Link href="/" prefetch={false} aria-label="Strona Główna" className="flex flex-col items-center justify-center flex-1 relative -top-4 z-50">
         <div className="bg-white p-1 rounded-full shadow-lg border border-slate-100 flex items-center justify-center transition-transform hover:scale-105">
            <div className="bg-white w-12 h-12 rounded-full overflow-hidden flex items-center justify-center border border-slate-200 relative">
              <Image 
                 src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png?width=56&format=webp&quality=60" 
-                alt="" /* 🚀 ZMIANA: Pusty tag alt dla czytników (bo pod spodem jest słowo 'Start') */
+                alt="" 
                 width={56} 
                 height={45}
                 className="object-contain"
@@ -45,7 +45,7 @@ export default function MobileBottomNav() {
         <span className="text-[9px] font-black uppercase tracking-widest text-slate-900 mt-1">Start</span>
       </Link>
       
-      <Link href="/konto" aria-label="Twoje konto" className="flex flex-col items-center justify-center flex-1 min-h-[64px] text-slate-600 hover:text-red-600 transition-colors">
+      <Link href="/konto" prefetch={false} aria-label="Twoje konto" className="flex flex-col items-center justify-center flex-1 min-h-[64px] text-slate-600 hover:text-red-600 transition-colors">
         <svg className="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
         </svg>

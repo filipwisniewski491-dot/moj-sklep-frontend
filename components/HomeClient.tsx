@@ -36,7 +36,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
 
   const [liveSale, setLiveSale] = useState<{text: string, id: number} | null>(null);
 
-  // Symulacja powiadomień o zakupach (Social Proof)
   useEffect(() => {
     const sales = [
       "Jan (woj. lubelskie) kupił: Filtry do Ursus C-360",
@@ -77,7 +76,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* Powiadomienie Live Sale */}
       <div className={`fixed bottom-24 md:bottom-8 left-4 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-[100] border-l-4 border-red-600 transition-all duration-500 ease-out transform ${liveSale ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -86,12 +84,10 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
         <p className="text-xs font-bold pr-4 leading-tight">{liveSale?.text}</p>
       </div>
 
-      {/* Globalny Nagłówek (Zastępuje zduplikowany kod) */}
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* Sekcja Hero z Garażem */}
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
           <article className="lg:col-span-3 bg-slate-900 rounded-[32px] md:rounded-[48px] p-8 md:p-14 flex flex-col justify-center items-start text-white relative overflow-hidden shadow-xl border border-slate-800">
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600 rounded-full blur-[140px] opacity-20 -mr-20 -mt-20"></div>
@@ -102,7 +98,8 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
             <p className="text-slate-400 mb-10 max-w-lg relative z-10 text-sm md:text-base font-medium leading-relaxed">
               Zapewnij ciągłość pracy swojemu gospodarstwu. Zamów oryginalne części i sprawdzone zamienniki OEM z najszybszą dostawą kurierską.
             </p>
-            <Link href="/kategorie" className="bg-red-600 text-white px-8 py-5 rounded-2xl font-black uppercase text-[11px] lg:text-xs tracking-widest hover:bg-red-700 transition-all relative z-10 shadow-lg shadow-red-600/30 flex items-center gap-3 w-full sm:w-auto justify-center">
+            {/* 🚀 ZMIANA: Zablokowano pobieranie w tle strony wszystkich kategorii */}
+            <Link href="/kategorie" prefetch={false} className="bg-red-600 text-white px-8 py-5 rounded-2xl font-black uppercase text-[11px] lg:text-xs tracking-widest hover:bg-red-700 transition-all relative z-10 shadow-lg shadow-red-600/30 flex items-center gap-3 w-full sm:w-auto justify-center">
               Przeglądaj Katalog Części <span className="text-lg">➔</span>
             </Link>
           </article>
@@ -113,12 +110,12 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
           </aside>
         </section>
 
-        {/* Główne Kategorie */}
         <section className="mb-24">
            <h2 className="sr-only">Kategorie Główne Sklepu Rolniczego</h2>
            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 lg:gap-8">
              {QUICK_SILOS.map((silo, index) => (
-                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} className={`bg-white border border-slate-100 p-8 lg:p-10 rounded-[40px] flex flex-col items-center justify-center text-center gap-5 hover:border-red-600 hover:shadow-2xl hover:shadow-red-600/10 transition-all duration-300 group`}>
+                // 🚀 ZMIANA: Zablokowano pobieranie w tle linków z kafelków 
+                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} prefetch={false} className={`bg-white border border-slate-100 p-8 lg:p-10 rounded-[40px] flex flex-col items-center justify-center text-center gap-5 hover:border-red-600 hover:shadow-2xl hover:shadow-red-600/10 transition-all duration-300 group`}>
                   <span className="text-5xl lg:text-6xl group-hover:scale-110 transition-transform">{silo.img}</span>
                   <span className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] group-hover:text-red-600 leading-tight max-w-[120px]">{silo.name}</span>
                 </Link>
@@ -126,7 +123,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
            </div>
         </section>
 
-        {/* Sekcja Bestsellery (Dane ze Strapi via ISR) */}
         <section className="mb-24">
           <div className="flex justify-between items-end mb-8 border-b-2 border-slate-100 pb-6">
             <div>
@@ -154,7 +150,8 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
 
                 return (
                   <article key={product.id} className="group flex flex-col bg-white border border-slate-100 rounded-[24px] md:rounded-[32px] p-3 md:p-5 hover:shadow-xl hover:border-red-200 transition-all duration-300 relative h-full">
-                    <Link href={`/produkt/${product.slug || product.sku || product.id}`} className="absolute inset-0 z-10" aria-label={`Przejdź do ${product.name}`}></Link>
+                    {/* 🚀 ZMIANA: Zablokowano pobieranie detali produktów w tle */}
+                    <Link href={`/produkt/${product.slug || product.sku || product.id}`} prefetch={false} className="absolute inset-0 z-10" aria-label={`Przejdź do ${product.name}`}></Link>
                     
                     <div className="aspect-square bg-slate-50 rounded-[16px] md:rounded-2xl mb-3 md:mb-4 flex items-center justify-center overflow-hidden relative border border-slate-100 p-3 md:p-6">
                       {imageUrl ? (
@@ -216,8 +213,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
       </main>
 
       <MobileBottomNav />
-      
-      {/* Globalna Stopka (Zastępuje zduplikowany kod) */}
       <Footer />
 
     </div>

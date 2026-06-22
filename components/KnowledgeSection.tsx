@@ -57,8 +57,6 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
       return;
     }
 
-    // TWARDA BLOKADA FETCH - Ukrywamy sieć na czas wyłączonego backendu
-    // Zapobiega to karom od Lighthouse za błędy logowane w konsoli Chrome
     setArticles([]);
     
   }, [currentMarka, initialArticles, isMounted]);
@@ -72,7 +70,8 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
             Porady dla <span className="text-red-600">{currentMarka === 'Wszystkie' ? 'Twojego gospodarstwa' : currentMarka}</span>
           </h2>
         </div>
-        <Link href="/wiedza" className="text-slate-400 font-bold text-sm hover:text-red-600 transition-colors uppercase tracking-widest shrink-0">
+        {/* 🚀 ZMIANA: Zablokowano prefetch */}
+        <Link href="/wiedza" prefetch={false} className="text-slate-400 font-bold text-sm hover:text-red-600 transition-colors uppercase tracking-widest shrink-0">
           Zobacz wszystkie artykuły ➔
         </Link>
       </div>
@@ -84,7 +83,8 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {articles.map((article: Article) => (
-            <Link href={`/wiedza/${article.slug}`} key={article.id} className="group flex flex-col h-full">
+            {/* 🚀 ZMIANA: Zablokowano prefetch */}
+            <Link href={`/wiedza/${article.slug}`} key={article.id} prefetch={false} className="group flex flex-col h-full">
               <div className="h-64 rounded-[40px] overflow-hidden mb-6 relative border border-slate-100 bg-slate-50">
                 {article.image ? (
                   <Image 

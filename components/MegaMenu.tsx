@@ -60,14 +60,14 @@ export default function MegaMenu() {
   return (
     <div className="hidden lg:block bg-white border-b border-slate-200 shadow-sm relative z-40">
       <div className="max-w-7xl mx-auto px-4 flex items-center relative"> 
-        <Link href="/kategorie" className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-20">
+        <Link href="/kategorie" prefetch={false} className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-20">
           <span>☰</span> Pełny Katalog 2026
         </Link>
         
         <ul className="flex flex-1 items-center justify-between px-4 divide-x divide-slate-100">
           {MEGA_MENU_DATA.map((cat) => (
             <li key={cat.slug} className="group text-center py-5 flex-1">
-              <Link href={`/kategoria/${cat.slug}`} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap">
+              <Link href={`/kategoria/${cat.slug}`} prefetch={false} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap">
                 <span className="mr-1.5 text-base align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
               </Link>
 
@@ -76,7 +76,7 @@ export default function MegaMenu() {
                   <div className="grid grid-cols-4 gap-8">
                     {cat.columns.map(col => (
                       <div key={col.slug}>
-                        <Link href={`/kategoria/${cat.slug}/${col.slug}`} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
+                        <Link href={`/kategoria/${cat.slug}/${col.slug}`} prefetch={false} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
                           {col.title}
                         </Link>
                         <ul className="space-y-2.5">
@@ -84,7 +84,7 @@ export default function MegaMenu() {
                             const linkSlug = generateSlug(link);
                             return (
                               <li key={linkSlug}>
-                                <Link href={`/kategoria/${cat.slug}/${col.slug}/${linkSlug}`} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
+                                <Link href={`/kategoria/${cat.slug}/${col.slug}/${linkSlug}`} prefetch={false} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
                                   {link}
                                 </Link>
                               </li>
@@ -99,7 +99,7 @@ export default function MegaMenu() {
                           <h4 className="font-black uppercase text-lg text-slate-900 leading-tight mb-2">Chemia i Oleje</h4>
                           <p className="text-xs text-slate-500 font-medium">Zabezpiecz maszynę na sezon. Zamów komplet smarów i płynów z szybką wysyłką.</p>
                        </div>
-                       <Link href={`/kategoria/${cat.slug}`} className="mt-4 text-[10px] font-black text-slate-900 uppercase tracking-widest hover:text-red-600 flex items-center gap-1 transition-colors">
+                       <Link href={`/kategoria/${cat.slug}`} prefetch={false} className="mt-4 text-[10px] font-black text-slate-900 uppercase tracking-widest hover:text-red-600 flex items-center gap-1 transition-colors">
                          Zobacz cały dział <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
                        </Link>
                     </div>

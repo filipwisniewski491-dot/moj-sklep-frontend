@@ -92,7 +92,8 @@ export default function CrossSellModule({ skus }: CrossSellModuleProps) {
               </div>
               
               <div className="px-4 pb-4 pt-3 flex-1 flex flex-col">
-                <Link href={`/produkt/${product.slug}`}>
+                {/* 🚀 ZMIANA: Zablokowano pobieranie w tle linków z sugerowanych produktów */}
+                <Link href={`/produkt/${product.slug}`} prefetch={false}>
                   <h3 className="font-bold text-slate-800 leading-tight group-hover:text-red-600 transition-colors line-clamp-2 text-xs tracking-tight min-h-[34px]">{product.name}</h3>
                 </Link>
                 

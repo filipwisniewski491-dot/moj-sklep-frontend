@@ -85,8 +85,7 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4 flex flex-row items-center justify-between gap-3 md:gap-8">
           
           <div className="flex-shrink-0 flex items-center min-h-[48px]">
-            <Link href="/" aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
-              {/* 🚀 ZMIANA: Wymuszono kompresję WebP na 50, aby usunąć ostatnie ostrzeżenie o obrazkach */}
+            <Link href="/" prefetch={false} aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
               <img 
                 src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=140&format=webp&quality=50" 
                 alt="" 
@@ -113,7 +112,7 @@ export default function Header() {
                </div>
             </div>
             
-            <Link href="/konto" aria-label="Twoje Konto" className="flex flex-col items-center justify-center cursor-pointer hover:text-red-600 transition-all group min-w-[48px] min-h-[48px]">
+            <Link href="/konto" prefetch={false} aria-label="Twoje Konto" className="flex flex-col items-center justify-center cursor-pointer hover:text-red-600 transition-all group min-w-[48px] min-h-[48px]">
               <div className="p-3 bg-slate-50 rounded-full group-hover:bg-red-50 transition-colors border border-slate-200">
                  <svg className="w-5 h-5 transition-transform text-slate-600 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               </div>

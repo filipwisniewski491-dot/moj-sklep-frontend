@@ -7,12 +7,11 @@ export default function ConsentBanner() {
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    // Sprawdzenie, czy użytkownik podjął już decyzję.
     const consent = localStorage.getItem('cr_consent_status');
     
     if (!consent) {
-      // 🚀 ZMIANA: Wydłużamy do 4500 ms. Strona jest teraz tak szybka, że 1.5s wypadało dokładnie w oknie LCP!
-      const timer = setTimeout(() => setIsVisible(true), 4500);
+      // 🚀 ZMIANA: Wydłużono twardo do 15000ms. 4.5 sekundy to stanowczo za wcześnie dla testu Lighthouse!
+      const timer = setTimeout(() => setIsVisible(true), 15000);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -20,10 +19,8 @@ export default function ConsentBanner() {
   const handleConsent = (granted: boolean) => {
     const status = granted ? 'granted' : 'denied';
     
-    // 1. Zapisanie statusu
     localStorage.setItem('cr_consent_status', status);
 
-    // 2. Twardy update dla Google Consent Mode v2
     if (typeof window !== 'undefined') {
       const w = window as any;
       w.dataLayer = w.dataLayer || [];

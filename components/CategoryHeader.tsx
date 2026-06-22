@@ -34,17 +34,17 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
       <div className="max-w-7xl mx-auto">
         {breadcrumbs.length > 0 && (
           <nav className="flex text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2 items-center flex-wrap min-h-[32px]" aria-label="Breadcrumb">
-            <Link href="/" className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">Start</Link>
+            {/* 🚀 ZMIANA: Zablokowano prefetch w okruszkach */}
+            <Link href="/" prefetch={false} className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">Start</Link>
             {breadcrumbs.map((crumb: any, idx: number) => (
               <React.Fragment key={idx}>
                 <span className="text-slate-500">/</span>
-                <Link href={`/kategoria/${crumb.path}`} className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">{crumb.name}</Link>
+                <Link href={`/kategoria/${crumb.path}`} prefetch={false} className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">{crumb.name}</Link>
               </React.Fragment>
             ))}
           </nav>
         )}
         
-        {/* 🚀 ZMIANA: Usunięto fetchPriority="high", aby przeglądarka od razu wyrenderowała tekst i skróciła LCP */}
         <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase text-slate-900 mb-2 max-w-4xl leading-tight">
           {displayH1}
         </h1>

@@ -40,7 +40,7 @@ export default function Footer() {
            <h4 className="text-white font-black mb-6 uppercase text-[11px] tracking-widest">Sklep</h4>
            <ul className="space-y-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
               {QUICK_SILOS.slice(0, 4).map(cat => (
-                <li key={cat.slug}><Link href={`/kategoria/${cat.slug}`} className="hover:text-red-500 transition-colors">{cat.name}</Link></li>
+                <li key={cat.slug}><Link href={`/kategoria/${cat.slug}`} prefetch={false} className="hover:text-red-500 transition-colors">{cat.name}</Link></li>
               ))}
            </ul>
         </div>
