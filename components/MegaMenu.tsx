@@ -75,8 +75,8 @@ export default function MegaMenu() {
                   <div className="grid grid-cols-4 gap-8">
                     {cat.columns.map(col => (
                       <div key={col.slug}>
-                        {/* 🚀 ZMIANA: Spłaszczono linki kolumn i podkategorii */}
-                        <Link href={`/kategoria/${col.slug}`} prefetch={false} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
+                        {/* 🚀 ZMIANA: Link prowadzi do struktury L1/L2 */}
+                        <Link href={`/kategoria/${cat.slug}/${col.slug}`} prevalidate={false} prefetch={false} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
                           {col.title}
                         </Link>
                         <ul className="space-y-2.5">
@@ -84,7 +84,8 @@ export default function MegaMenu() {
                             const linkSlug = generateSlug(link);
                             return (
                               <li key={linkSlug}>
-                                <Link href={`/kategoria/${linkSlug}`} prefetch={false} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
+                                {/* 🚀 ZMIANA: Link prowadzi do głębokiej struktury L1/L2/L3 */}
+                                <Link href={`/kategoria/${cat.slug}/${col.slug}/${linkSlug}`} prefetch={false} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
                                   {link}
                                 </Link>
                               </li>
