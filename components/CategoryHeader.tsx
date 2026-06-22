@@ -44,10 +44,8 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
           </nav>
         )}
         
-        <h1 
-          className="text-3xl md:text-5xl lg:text-6xl font-black uppercase text-slate-900 mb-2 max-w-4xl leading-tight"
-          fetchPriority="high"
-        >
+        {/* 🚀 ZMIANA: Usunięto fetchPriority="high", aby przeglądarka od razu wyrenderowała tekst i skróciła LCP */}
+        <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase text-slate-900 mb-2 max-w-4xl leading-tight">
           {displayH1}
         </h1>
         
