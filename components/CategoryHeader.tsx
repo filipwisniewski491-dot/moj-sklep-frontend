@@ -9,12 +9,25 @@ const capitalizeWords = (str: string) => {
 
 export default function CategoryHeader({ initialData, searchParams, fullPath }: { initialData: any, searchParams: any, fullPath: string }) {
   const categoryData = initialData?.category || null;
-  const breadcrumbs = initialData?.breadcrumbs || [];
+  const subcategories = initialData?.subcategories || categoryData?.category_children || [];
   
-  // 🚀 ZMIANA 1: Pobieranie dzieci dla kategorii na głębokich poziomach (L2, L3, L4)
-  let subcategories = initialData?.subcategories || [];
-  if (subcategories.length === 0 && categoryData?.category_children?.length > 0) {
-    subcategories = categoryData.category_children;
+  const slugArray = fullPath ? fullPath.split('/') : [];
+  let breadcrumbs = initialData?.breadcrumbs || [];
+  
+  // 🚀 NAPRAWA BREADCRUMBS: Jeśli backend zwraca niekompletną ścieżkę, odtwarzamy ją automatycznie ze struktury URL (L1 / L2 / L3)
+  if ((!breadcrumbs || breadcrumbs.length <= 1) && slugArray.length > 1) {
+    breadcrumbs = slugArray.map((slugPart: string, index: number) => {
+      const cumulativePath = slugArray.slice(0, index + 1).join('/');
+      const prettyName = slugPart
+        .replace(/-/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      return {
+        name: prettyName,
+        path: cumulativePath
+      };
+    });
   }
 
   const rawBrandLabel = searchParams?.['Pasuje do marki'];
@@ -26,8 +39,14 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
   if (!displayH1) displayH1 = "Kategoria";
   
-  // 🚀 ZMIANA 2: Gwarantowane wyciąganie tekstu z metadata, gdzie Medusa trzyma Custom Fields
-  let displayTopSeo = categoryData?.top_seo_text || categoryData?.metadata?.top_seo_text || categoryData?.description || "";
+  // 🚀 PANCERNE WYSZUKIWANIE SEO: Przeszukuje absolutnie każdy możliwy klucz pola w strukturze MedusaJS
+  let displayTopSeo = 
+    categoryData?.top_seo_text || 
+    categoryData?.metadata?.top_seo_text || 
+    categoryData?.metadata?.topSeoText ||
+    categoryData?.topSeoText ||
+    categoryData?.description || 
+    "";
 
   if (brandLabel) {
     if (!displayH1.toLowerCase().includes(brandLabel.toLowerCase())) {
@@ -55,7 +74,7 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
           {displayH1}
         </h1>
         
-        {/* Renderowanie tekstu SEO (jeśli został znaleziony w Medusie) */}
+        {/* Renderowanie tekstu z obsługą tagów HTML i nowych linii */}
         {displayTopSeo && (
           <div 
             className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium prose prose-slate"

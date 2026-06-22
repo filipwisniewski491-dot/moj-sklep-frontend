@@ -59,13 +59,11 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedSearchParams = await searchParams;
   
   const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
-  
-  // 🚀 REWOLUCJA: Z powrotem generujemy pełną ścieżkę strukturalną (np. czesci-do-ciagnikow/silnik/weze)
   const fullPath = slugArray.join('/');
+  const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
   
-  // 🚀 NAPRAWA: Przekazujemy pełny fullPath do API. 
-  // Dzięki temu backend bezbłędnie wyciągnie wszystkich rodziców i zbuduje pełną tablicę breadcrumbs (L1 / L2 / L3)
-  const data = await getCategoryData(fullPath, resolvedSearchParams);
+  // 🚀 REWOLUCYJNA NAPRAWA 404: Pyta backend tylko o ostatni wycinek URL (czyli handle w MedusaJS)
+  const data = await getCategoryData(currentSlug, resolvedSearchParams);
   
   if (!data) {
     notFound();
@@ -78,6 +76,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const categoryData = searchData?.category || null;
   const faqs = categoryData?.faqs || [];
   
+  // Bezpieczne pobranie opisu SEO na dół strony
   const bottomSeoText = categoryData?.bottom_seo_text || categoryData?.metadata?.bottom_seo_text || '';
 
   return (

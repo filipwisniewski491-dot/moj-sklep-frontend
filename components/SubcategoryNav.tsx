@@ -23,10 +23,10 @@ export default function SubcategoryNav({ subcategories, fullPath }: { subcategor
       <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-600 mb-4">Wybierz podkategorię:</h2>
       <div className="flex flex-wrap gap-2 lg:gap-3">
         {displayList.map((sub: any, idx: number) => {
-            // 🚀 ZMIANA: Niezawodna obsługa prostych stringów ATAKŻE pełnych obiektów bezpośrednio z Medusy
             const subName = typeof sub === 'string' ? sub : sub.name;
             const subSlug = typeof sub === 'string' ? generateSlug(sub) : (sub.handle || generateSlug(sub.name));
             
+            // 🚀 BUDOWANIE ŚCIEŻKI: Dokleja kolejny poziom zachowując pełną strukturę drzewa URL
             const targetPath = fullPath ? `${fullPath}/${subSlug}` : subSlug;
 
             return (
