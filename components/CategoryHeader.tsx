@@ -20,7 +20,9 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
   let displayH1 = categoryData?.h1_dynamic;
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
   if (!displayH1) displayH1 = "Kategoria";
-  let displayTopSeo = categoryData?.top_seo_text || "";
+  
+  // 🚀 ZMIANA: Szukamy tekstu SEO w metadata (gdzie Medusa trzyma custom fields)
+  let displayTopSeo = categoryData?.metadata?.top_seo_text || categoryData?.top_seo_text || "";
 
   if (brandLabel) {
     if (!displayH1.toLowerCase().includes(brandLabel.toLowerCase())) {
@@ -34,7 +36,6 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
       <div className="max-w-7xl mx-auto">
         {breadcrumbs.length > 0 && (
           <nav className="flex text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 gap-2 items-center flex-wrap min-h-[32px]" aria-label="Breadcrumb">
-            {/* 🚀 ZMIANA: Zablokowano prefetch w okruszkach */}
             <Link href="/" prefetch={false} className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">Start</Link>
             {breadcrumbs.map((crumb: any, idx: number) => (
               <React.Fragment key={idx}>
@@ -49,10 +50,12 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
           {displayH1}
         </h1>
         
+        {/* 🚀 ZMIANA: Bezpieczne renderowanie HTML dla pogrubień i znaków nowych linii z Medusy */}
         {displayTopSeo && (
-          <p className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium">
-            {displayTopSeo}
-          </p>
+          <div 
+            className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium prose prose-slate"
+            dangerouslySetInnerHTML={{ __html: displayTopSeo }}
+          />
         )}
 
         {subcategories.length > 0 && (

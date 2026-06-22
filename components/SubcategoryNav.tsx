@@ -22,7 +22,7 @@ export default function SubcategoryNav({ subcategories, fullPath }: { subcategor
       <div className="flex flex-wrap gap-2 lg:gap-3">
         {(showAllSubcats ? subcategories : subcategories.slice(0, 7)).map((sub: string) => {
             const subSlug = generateSlug(sub);
-            // Budujemy pełną, strukturalną ścieżkę L1/L2/L3/L4...
+            // 🚀 ZMIANA: Sklejamy pełną ścieżkę L1/L2... z nowo klikniętą podkategorią
             const targetPath = fullPath ? `${fullPath}/${subSlug}` : subSlug;
 
             return (

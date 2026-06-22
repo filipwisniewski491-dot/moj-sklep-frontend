@@ -9,20 +9,19 @@ import CategoryHeader from '@/components/CategoryHeader';
 import CategoryFilters from '@/components/CategoryFilters';
 import ProductGrid from '@/components/ProductGrid';
 
-// USUNIĘTO { ssr: false } - komponenty będą poprawnie kompilowane na serwerze, ale ich JS doładuje się później
 const DynamicFooter = dynamic(() => import('@/components/Footer'));
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
-// Wymuszenie czyszczenia starego cache (z 50 produktami) z serwerów Vercela
 export const revalidate = 3602;
 
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   
-  const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
-  const currentSlug = resolvedParams?.slug ? resolvedParams.slug[resolvedParams.slug.length - 1] : 'Kategoria';
+  const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
+  const fullPath = slugArray.join('/');
+  const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : 'Kategoria';
   
   const baseCategoryName = currentSlug.replace(/-/g, ' ').toUpperCase();
   const seoFriendlyParams = ['Pasuje do marki', 'Pasuje do modelu', 'page'];
@@ -58,9 +57,14 @@ export async function generateMetadata({ params, searchParams }: any): Promise<M
 export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
-  const fullPath = resolvedParams?.slug ? resolvedParams.slug.join('/') : '';
   
-  const data = await getCategoryData(fullPath, resolvedSearchParams);
+  // 🚀 ZMIANA: Bezpieczne pobieranie pełnej ścieżki i ostatniego sluga (do zapytania API)
+  const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
+  const fullPath = slugArray.join('/');
+  const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
+  
+  // 🚀 ZMIANA: Przekazujemy currentSlug zamiast fullPath do API Medusy, ponieważ Medusa filtruje kategorie po ich finalnym "handle"
+  const data = await getCategoryData(currentSlug, resolvedSearchParams);
   
   if (!data) {
     notFound();
