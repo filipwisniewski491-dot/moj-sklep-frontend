@@ -62,11 +62,10 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const fullPath = slugArray.join('/');
   const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
   
-  // 🚀 ZABEZPIECZENIE PRZED 404: 
-  // Próbujemy szukać po ostatnim członie adresu (standard dla L2/L3)
+  // Zabezpieczenie przed 404: najpierw szukamy po slugu roboczym
   let data = await getCategoryData(currentSlug, resolvedSearchParams);
   
-  // Jeśli błąd 404 (częste dla głównych L1), ponawiamy zapytanie po pełnej ścieżce url
+  // Fallback dla L1: jeśli brak wyniku, ponawiamy zapytanie po pełnej ścieżce
   if (!data) {
     data = await getCategoryData(fullPath, resolvedSearchParams);
   }
@@ -82,14 +81,35 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const categoryData = searchData?.category || null;
   const faqs = categoryData?.faqs || [];
   
-  // SEO wyciągane bezpośrednio z metadata po przepuszczeniu ich przez API
-  const bottomSeoText = categoryData?.bottom_seo_text || categoryData?.metadata?.bottom_seo_text || '';
+  // 🚀 PANCERNE DEKODOWANIE I WYCIĄGANIE TEKSTÓW SEO (ZARÓWNO TOP JAK I BOTTOM)
+  let topSeoText = categoryData?.top_seo_text || '';
+  let bottomSeoText = categoryData?.bottom_seo_text || '';
+
+  if (categoryData?.metadata) {
+    try {
+      const meta = typeof categoryData.metadata === 'string' 
+        ? JSON.parse(categoryData.metadata) 
+        : categoryData.metadata;
+        
+      topSeoText = meta.top_seo_text || meta.topSeoText || topSeoText;
+      bottomSeoText = meta.bottom_seo_text || meta.bottomSeoText || bottomSeoText;
+    } catch (e) {
+      console.error("Błąd dekodowania metadata obiektu SEO:", e);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       
-      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} /> 
+      {/* Podajemy topSeoText jawnie jako parametr wyjściowy */}
+      <CategoryHeader 
+        initialData={searchData} 
+        searchParams={resolvedSearchParams} 
+        fullPath={fullPath} 
+        topSeoText={topSeoText} 
+      /> 
+      
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         <aside className="w-full lg:w-80 flex-shrink-0">
           <CategoryFilters initialFilters={filtersData} initialTotalCount={totalCount} />
