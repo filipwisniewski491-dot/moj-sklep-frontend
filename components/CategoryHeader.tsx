@@ -44,7 +44,13 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
           </nav>
         )}
         
-        <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase italic text-slate-900 mb-2 max-w-4xl leading-tight">{displayH1}</h1>
+        {/* LCP OPTYMALIZACJA: fetchPriority="high" zmusza przeglądarkę do natychmiastowego renderowania */}
+        <h1 
+          className="text-3xl md:text-5xl lg:text-6xl font-black uppercase italic text-slate-900 mb-2 max-w-4xl leading-tight"
+          fetchPriority="high"
+        >
+          {displayH1}
+        </h1>
         
         {displayTopSeo && (
           <p className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium">

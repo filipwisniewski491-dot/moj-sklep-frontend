@@ -63,7 +63,6 @@ export async function getProductData(identifier: string) {
       sku: mainVariant?.sku || meta.sku || null,
       slug: product.handle,
       name: product.title || 'Produkt',
-      // POPRAWKA: Dzielenie przez 100, bo Medusa wysyła grosze!
       price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0, 
       description: product.description || '',
       category_text: product.categories?.[0]?.name || meta.category || '',
@@ -94,7 +93,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
 
     const options: RequestInit = { headers: headers, cache: 'no-store' };
     
-    // 1. Znajdź kategorię po 'handle' i pobierz jej całe drzewo dzieci (include_descendants_tree)
+    // 1. Znajdź kategorię po 'handle' i pobierz jej całe drzewo dzieci
     const categoryRes = await fetch(
       `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`, 
       options
@@ -110,14 +109,14 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     const categoryIds = extractCategoryIds(category);
 
     // 3. Zbuduj zapytanie pobierające produkty ze wszystkich zebranych ID
-    // DODANO: fields=*variants,*images,+metadata
     let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&`;
     
     categoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
-    // Opcjonalnie: Medusa domyślnie zwraca mało produktów, możesz wymusić więcej np. &limit=50
-    productsQueryUrl += `limit=50`;
+    
+    // TBT OPTYMALIZACJA: Pobieramy 24 produkty zamiast 50, odciążając wątek główny
+    productsQueryUrl += `limit=24`;
 
     const productsRes = await fetch(productsQueryUrl, options);
     const productsJson = await productsRes.json();
@@ -133,7 +132,6 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
             id: p.id,
             sku: mainVariant?.sku || meta.sku || null,
             name: p.title,
-            // POPRAWKA: Dzielenie przez 100, bo Medusa wysyła grosze!
             price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0,
             slug: p.handle,
             external_images: meta.external_images || [],

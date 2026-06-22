@@ -23,6 +23,9 @@ export default function SearchBar() {
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Opóźnienie startu ciężkich animacji Reactowych na czas początkowego renderu
+  const [canStartAnimation, setCanStartAnimation] = useState(false);
 
   const { isActive, brand, model } = useGarage();
 
@@ -30,8 +33,16 @@ export default function SearchBar() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // TBT OPTYMALIZACJA: Czekamy aż strona zostanie załadowana (Above the Fold) przed włączeniem animacji
   useEffect(() => {
-    if (query.length > 0) return;
+    const startTimer = setTimeout(() => {
+      setCanStartAnimation(true);
+    }, 3500);
+    return () => clearTimeout(startTimer);
+  }, []);
+
+  useEffect(() => {
+    if (!canStartAnimation || query.length > 0) return;
 
     const typingSpeed = isDeleting ? 40 : 80;
     const currentPhrase = PHRASES[phraseIndex];
@@ -50,7 +61,7 @@ export default function SearchBar() {
     }, typingSpeed);
 
     return () => clearTimeout(timeout);
-  }, [placeholderText, isDeleting, phraseIndex, query.length]);
+  }, [placeholderText, isDeleting, phraseIndex, query.length, canStartAnimation]);
 
   const { items, setIsOpen: setCartOpen } = useCart() as any;
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
@@ -62,11 +73,11 @@ export default function SearchBar() {
       const timer = setTimeout(() => {
         setShowWelcomeBack(true);
         sessionStorage.setItem('centrumrolnictwa_welcome_shown', 'true');
-      }, 1500);
+      }, 4000); // Opóźnione do 4s by uniknąć kolizji z LCP
 
       const hideTimer = setTimeout(() => {
         setShowWelcomeBack(false);
-      }, 7500);
+      }, 9000);
 
       return () => { clearTimeout(timer); clearTimeout(hideTimer); };
     }
@@ -141,7 +152,7 @@ export default function SearchBar() {
         <div className="relative flex items-center w-full">
           <input 
             type="text" 
-            placeholder={placeholderText + (query.length === 0 && !isDeleting ? '|' : '')} 
+            placeholder={placeholderText + (query.length === 0 && (!isDeleting && canStartAnimation) ? '|' : '')} 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => query.length >= 2 && setIsOpen(true)}
