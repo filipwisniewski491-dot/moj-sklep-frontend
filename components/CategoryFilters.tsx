@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useGarage } from '@/store/useGarage'; // 🚀 IMPORT ZUSTAND
+import { useGarage } from '@/store/useGarage'; // 🚀 Importujemy Twój Garaż!
 
 const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
   const [isOpen, setIsOpen] = useState(false); 
@@ -56,7 +56,7 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const router = useRouter();
   const pathname = usePathname(); 
   
-  // 🚀 Czerpiemy dane o Garażu prosto z globalnego store'a (bezpieczne i błyskawiczne)
+  // 🚀 ZUSTAND: Bezpieczne, natychmiastowe pobieranie danych Garażu
   const { isActive: isGarageActive, brand: garageBrand, model: garageModel } = useGarage();
   
   const [activeFiltersData, setActiveFiltersData] = useState<any | null>(null);
@@ -78,6 +78,7 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const narrowedToDisplay = activeFiltersData?.narrowedFilters || {};
   const totalCount = activeFiltersData?.totalCount || initialTotalCount;
 
+  // Renderowanie tylko dla desktopu (optymalizacja PageSpeed)
   useEffect(() => {
     const checkScreenSize = () => setIsDesktop(window.innerWidth >= 1024);
     checkScreenSize();
@@ -85,13 +86,14 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
+  // Blokada przewijania tła na mobile
   useEffect(() => {
     if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  // 🚀 ZMIANA: Popychanie włączonego garażu do URL, co wyzwala filtrowanie na serwerze!
+  // 🚀 INTELIGENTNY GARAŻ: Jeśli garaż jest włączony, filtry AUTOMATYCZNIE dodają się do URL!
   useEffect(() => {
     if (isGarageActive && garageBrand) {
       if (searchParams.get('Pasuje do marki') !== garageBrand || searchParams.get('Pasuje do modelu') !== garageModel) {
@@ -99,11 +101,13 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         currentParams.set('Pasuje do marki', garageBrand);
         if (garageModel) currentParams.set('Pasuje do modelu', garageModel);
         
+        // Pushujemy parametry do URL bez przeładowania strony
         router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
       }
     }
   }, [isGarageActive, garageBrand, garageModel, pathname, searchParams, router]);
 
+  // Pobieranie aktywnych liczników dla filtrów w tle
   useEffect(() => {
     if (isFirstRender.current) { 
       isFirstRender.current = false; 
@@ -126,9 +130,16 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         setLoading(false); 
       }
     }
-    fetchFilterCounts();
+    
+    // Optymalizacja: pobieramy tylko gdy URL się zmieni (debounce)
+    const timeoutId = setTimeout(() => {
+      fetchFilterCounts();
+    }, 150);
+    
+    return () => clearTimeout(timeoutId);
   }, [pathname, searchParamsString]);
 
+  // Uniwersalna funkcja aktualizująca URL (SEO Friendly)
   const updateUrlParams = (key: string, value: string | null) => {
     const currentParams = new URLSearchParams(searchParams.toString());
     if (value === null || value === '') currentParams.delete(key);
@@ -166,6 +177,7 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const hasTypProduktu = filterCoverage.find(f => f.key.toLowerCase() === 'typ produktu' || f.key.toLowerCase() === 'typ');
   if (hasTypProduktu) techFilterKeys.push(hasTypProduktu.key);
 
+  // 🚀 ZASADA 5 ATYRBUTÓW: Pokazujemy tylko najlepsze, zapobiegając "paraliżowi decyzyjnemu"
   for (const f of filterCoverage) {
      if (techFilterKeys.length >= (hasTypProduktu ? 6 : 5)) break;
      if (!techFilterKeys.includes(f.key)) techFilterKeys.push(f.key);
@@ -234,14 +246,16 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
 
   const FilterContent = () => (
     <div className="space-y-6">
+      {/* Priorytet #1: Szybkie wyszukiwanie OEM */}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
         <div className="relative flex items-center">
-          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
+          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} />
           <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center">🔍</button>
         </div>
       </div>
       
+      {/* Priorytet #2: Dobór do maszyny (Zintegrowane z Garażem) */}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
         <div className="space-y-3">
@@ -253,9 +267,9 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
       <div className="mb-6 border-b border-slate-100 pb-6">
         <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-600 mb-3">Zakres Cenowy (zł)</h4>
         <div className="flex gap-2 items-center">
-          <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
+          <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={minPrice} onChange={e => setMinPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPriceFilter()} />
           <span className="text-slate-500 font-black">-</span>
-          <input aria-label="Cena maksymalna" type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
+          <input aria-label="Cena maksymalna" type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPriceFilter()} />
         </div>
         <button aria-label="Zastosuj filtr cenowy" onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[48px]">Zastosuj cenę</button>
       </div>
@@ -268,6 +282,7 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
 
   return (
     <>
+      {/* Widok Mobile */}
       <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
          <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
            <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
@@ -290,6 +305,7 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         </div>
       )}
 
+      {/* Widok Desktop (Ochrona LCP/TBT na Mobile) */}
       {isDesktop && (
         <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
           <FilterContent />
