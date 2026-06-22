@@ -9,12 +9,18 @@ const capitalizeWords = (str: string) => {
 
 export default function CategoryHeader({ initialData, searchParams, fullPath }: { initialData: any, searchParams: any, fullPath: string }) {
   const categoryData = initialData?.category || null;
-  const subcategories = initialData?.subcategories || categoryData?.category_children || [];
+  
+  // 🚀 NAPRAWA L3: Bezpieczne sprawdzanie długości tablicy. 
+  // Jeśli pierwsza lista jest pusta, bezwzględnie sięgamy po "dzieci" z bazy Medusy.
+  let subcategories = initialData?.subcategories;
+  if (!subcategories || subcategories.length === 0) {
+    subcategories = categoryData?.category_children || categoryData?.children || [];
+  }
   
   const slugArray = fullPath ? fullPath.split('/') : [];
   let breadcrumbs = initialData?.breadcrumbs || [];
   
-  // 🚀 NAPRAWA BREADCRUMBS: Jeśli backend zwraca niekompletną ścieżkę, odtwarzamy ją automatycznie ze struktury URL (L1 / L2 / L3)
+  // Odtwarzanie ścieżki (Breadcrumbs)
   if ((!breadcrumbs || breadcrumbs.length <= 1) && slugArray.length > 1) {
     breadcrumbs = slugArray.map((slugPart: string, index: number) => {
       const cumulativePath = slugArray.slice(0, index + 1).join('/');
@@ -39,14 +45,21 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
   if (!displayH1) displayH1 = "Kategoria";
   
-  // 🚀 PANCERNE WYSZUKIWANIE SEO: Przeszukuje absolutnie każdy możliwy klucz pola w strukturze MedusaJS
-  let displayTopSeo = 
-    categoryData?.top_seo_text || 
-    categoryData?.metadata?.top_seo_text || 
-    categoryData?.metadata?.topSeoText ||
-    categoryData?.topSeoText ||
-    categoryData?.description || 
-    "";
+  // 🚀 NAPRAWA SEO: Pancerne wyciąganie tekstu z Medusy. 
+  // Uwzględnia zaszyfrowane metadata (stringified JSON) oraz standardowe pole description.
+  let displayTopSeo = "";
+  if (categoryData) {
+    let meta = categoryData.metadata;
+    if (typeof meta === 'string') {
+       try { meta = JSON.parse(meta); } catch(e) { meta = {}; }
+    }
+    displayTopSeo = 
+      categoryData.top_seo_text || 
+      meta?.top_seo_text || 
+      meta?.topSeoText ||
+      categoryData.description || 
+      "";
+  }
 
   if (brandLabel) {
     if (!displayH1.toLowerCase().includes(brandLabel.toLowerCase())) {
@@ -74,7 +87,7 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
           {displayH1}
         </h1>
         
-        {/* Renderowanie tekstu z obsługą tagów HTML i nowych linii */}
+        {/* Renderowanie opisu SEO z poprawną obsługą znaczników HTML */}
         {displayTopSeo && (
           <div 
             className="text-sm text-slate-600 max-w-3xl mb-6 leading-relaxed font-medium prose prose-slate"
@@ -82,7 +95,7 @@ export default function CategoryHeader({ initialData, searchParams, fullPath }: 
           />
         )}
 
-        {subcategories.length > 0 && (
+        {subcategories && subcategories.length > 0 && (
           <SubcategoryNav subcategories={subcategories} fullPath={fullPath} />
         )}
       </div>
