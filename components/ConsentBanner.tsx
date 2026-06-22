@@ -11,8 +11,8 @@ export default function ConsentBanner() {
     const consent = localStorage.getItem('cr_consent_status');
     
     if (!consent) {
-      // OPÓŹNIENIE ZWIĘKSZONE NA 3.5s - ratuje wynik LCP!
-      const timer = setTimeout(() => setIsVisible(true), 3500);
+      // 🚀 ZMIANA: Wydłużamy do 4500 ms. Strona jest teraz tak szybka, że 1.5s wypadało dokładnie w oknie LCP!
+      const timer = setTimeout(() => setIsVisible(true), 4500);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -39,7 +39,6 @@ export default function ConsentBanner() {
         'analytics_storage': status,
       });
 
-      // 3. Natychmiastowy sygnał do GTM/sGTM, aby uruchomić śledzenie bez odświeżania strony!
       w.dataLayer.push({ event: 'consent_updated' });
     }
 
@@ -52,7 +51,6 @@ export default function ConsentBanner() {
     <div className="fixed bottom-0 left-0 w-full z-[999999] p-4 md:p-6 pointer-events-none font-sans">
       <div className="max-w-5xl mx-auto bg-slate-900 text-slate-300 border border-slate-700 p-6 md:p-8 rounded-[32px] shadow-2xl pointer-events-auto relative overflow-hidden flex flex-col md:flex-row items-center gap-6 lg:gap-10">
         
-        {/* Dekoracyjne tło */}
         <div className="absolute -left-20 -top-20 w-64 h-64 bg-red-600 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
 
         <div className="flex-1 relative z-10">
