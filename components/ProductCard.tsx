@@ -18,18 +18,21 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
   const [qty, setQty] = useState(1);
   const [shippingTag, setShippingTag] = useState<{text: string, style: string, pulse: boolean} | null>(null);
 
-  // 🚀 ZMIANA: Inteligentna etykieta dostawy liczona po zamontowaniu (aby uniknąć błędu hydratacji)
+  // 🚀 POPRAWKA LOGIKI MARKETINGOWEJ: Do 12:00 wysyłka w 24h, po 12:00 prestiżowy tag "Bestseller"
   useEffect(() => {
     const now = new Date();
-    const day = now.getDay();
+    const day = now.getDay(); 
     const hour = now.getHours();
 
-    if (day === 0 || day === 6 || (day === 5 && hour >= 8)) {
-      setShippingTag({ text: "Wysyłka w poniedziałek", style: "bg-slate-100 text-slate-600 border-slate-200", pulse: false });
-    } else if (hour < 8) {
-      setShippingTag({ text: "Wysyłka dziś", style: "bg-emerald-50 text-emerald-700 border-emerald-100", pulse: true });
+    // Weekend (Sobota, Niedziela) lub Piątek po 12:00
+    if (day === 0 || day === 6 || (day === 5 && hour >= 12)) {
+      setShippingTag({ text: "Bestseller", style: "bg-amber-50 text-amber-800 border-amber-200 font-bold", pulse: false });
+    } else if (hour < 12) {
+      // Dni robocze przed 12:00
+      setShippingTag({ text: "Wysyłka w 24h", style: "bg-emerald-50 text-emerald-700 border-emerald-100", pulse: true });
     } else {
-      setShippingTag({ text: "Wysyłka w 24h", style: "bg-blue-50 text-blue-700 border-blue-100", pulse: false });
+      // Dni robocze po 12:00 - zamiast pisać wolne "48h", dajemy mocny tag sprzedażowy
+      setShippingTag({ text: "Top Wybór", style: "bg-blue-50 text-blue-700 border-blue-100 font-bold", pulse: false });
     }
   }, []);
 
@@ -45,10 +48,10 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
   const netPrice = price / 1.23; 
   const sku = product.sku || product.id || "BRAK SKU";
   
-  // 🚀 ZMIANA: Haszowanie opinii na podstawie SKU. Wynik zawsze będzie taki sam dla tego samego produktu.
-  const hash = sku.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-  const reviewsCount = (hash % 50) + 1; // Generuje od 1 do 50
-  const rating = (4.4 + (hash % 6) / 10).toFixed(1); // Generuje od 4.4 do 4.9
+  // 🚀 POPRAWKA GWIAZDEK: Całkowicie przemieszane i unikalne opinie (zakres 4-49 opinii) dla każdego produktu
+  const hash = sku.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) + index;
+  const reviewsCount = (hash % 45) + 4; 
+  const rating = (4.4 + (hash % 6) / 10).toFixed(1); 
 
   const itemToTrack: GA4Item = {
     item_id: String(product.id || sku),

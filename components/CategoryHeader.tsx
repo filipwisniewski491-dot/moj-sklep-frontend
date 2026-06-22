@@ -2,16 +2,6 @@ import React from 'react';
 import Link from 'next/link';
 import SubcategoryNav from './SubcategoryNav';
 
-// 🚀 Słownik polskich nazw dla okruszków (Breadcrumbs)
-const BREADCRUMB_DICTIONARY: Record<string, string> = {
-  'czesci-do-ciagnikow': 'Części do ciągników',
-  'uklad-chlodzenia': 'Układ chłodzenia',
-  'wentylatory': 'Wentylatory',
-  'narzedzia-reczne': 'Narzędzia ręczne',
-  'pasy-klinowe': 'Pasy klinowe',
-  'czesci-uniwersalne': 'Części uniwersalne'
-};
-
 const capitalizeWords = (str: string) => {
   if (!str) return '';
   return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
@@ -41,18 +31,25 @@ export default function CategoryHeader({ initialData, searchParams, fullPath, to
     breadcrumbs = slugArray.map((slugPart: string, index: number) => {
       const cumulativePath = slugArray.slice(0, index + 1).join('/');
       
-      // 🚀 ZMIANA: Tłumaczenie przez słownik z fallbackiem do standardowej kapitalizacji
-      const prettyName = BREADCRUMB_DICTIONARY[slugPart.toLowerCase()] || slugPart
-        .replace(/-/g, ' ')
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-        
+      // 🚀 POPRAWKA: Jeśli to aktualnie przeglądana kategoria, pobieramy jej nazwę prosto z bazy (z polskimi znakami!)
+      let prettyName = '';
+      if (index === slugArray.length - 1 && categoryData?.name) {
+        prettyName = categoryData.name;
+      } else {
+        prettyName = slugPart
+          .replace(/-/g, ' ')
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+      }
       return {
         name: prettyName,
         path: cumulativePath
       };
     });
+  } else if (breadcrumbs.length === 1 && categoryData?.name) {
+    // Zabezpieczenie dla poziomu L1
+    breadcrumbs[0].name = categoryData.name;
   }
 
   const rawBrandLabel = searchParams?.['Pasuje do marki'];

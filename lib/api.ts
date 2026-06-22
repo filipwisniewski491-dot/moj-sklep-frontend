@@ -3,8 +3,6 @@
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
-// 🚀 ZMIANA: Inteligentne pobieranie ID. 
-// Najpierw zbieramy kategorie najniższego rzędu (liście), bo tam są produkty!
 function extractCategoryIds(category: any): string[] {
   let leaves: string[] = [];
   let branches: string[] = [];
@@ -19,7 +17,6 @@ function extractCategoryIds(category: any): string[] {
   }
 
   traverse(category);
-  // Łączymy: najpierw liście (priorytet), potem reszta.
   return [...leaves, ...branches];
 }
 
@@ -102,11 +99,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         return null;
     }
 
-    // Wyciągamy ID priorytetyzując podkategorie
     const allCategoryIds = extractCategoryIds(category);
-    
-    // 🚀 ZABEZPIECZENIE: Limitujemy do 60 ID. 
-    // 60 * 40 znaków = ~2400 znaków w URL. Zawsze przejdzie przez serwer bez błędu 414.
     const safeCategoryIds = allCategoryIds.slice(0, 60);
 
     let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&`;
@@ -115,14 +108,10 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
       productsQueryUrl += `category_id[]=${id}&`;
     });
     
-    productsQueryUrl += `limit=24`;
+    // 🚀 POPRAWKA: Zwiększono limit do 100 sztuk, aby przycisk "Pokaż więcej" miał co wyświetlać
+    productsQueryUrl += `limit=100`;
 
     const productsRes = await fetch(productsQueryUrl, options);
-    
-    if (!productsRes.ok) {
-        console.error("Błąd zapytania o produkty. Status:", productsRes.status);
-    }
-    
     const productsJson = await productsRes.json();
 
     return {
