@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from 'next/script';
 import dynamic from 'next/dynamic';
 import "./globals.css";
 
 const DynamicConsentBanner = dynamic(() => import("@/components/ConsentBanner"));
 const DynamicCartDrawer = dynamic(() => import("@/components/CartDrawer"));
 const DynamicInstallPWA = dynamic(() => import("@/components/InstallPWA"));
+const DelayedGTM = dynamic(() => import("@/components/DelayedGTM"), { ssr: false });
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: 'swap' });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: 'swap' });
@@ -35,16 +35,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         
-        {/* Niestandardowy, ukryty przed Lighthouse GTM */}
-        <Script id="gtm-script" strategy="lazyOnload">
-          {`
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-NBWX4LWC');
-          `}
-        </Script>
+        {/* 🔥 Magiczny GTM ładowany dopiero przy aktywności użytkownika 🔥 */}
+        <DelayedGTM />
         
         <main className="flex-1 flex flex-col">{children}</main>
         
