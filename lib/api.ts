@@ -3,6 +3,26 @@
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
+// 🚀 ZMIANA: Inteligentne pobieranie ID. 
+// Najpierw zbieramy kategorie najniższego rzędu (liście), bo tam są produkty!
+function extractCategoryIds(category: any): string[] {
+  let leaves: string[] = [];
+  let branches: string[] = [];
+
+  function traverse(cat: any) {
+    if (cat.category_children && cat.category_children.length > 0) {
+      branches.push(cat.id);
+      cat.category_children.forEach((child: any) => traverse(child));
+    } else {
+      leaves.push(cat.id);
+    }
+  }
+
+  traverse(category);
+  // Łączymy: najpierw liście (priorytet), potem reszta.
+  return [...leaves, ...branches];
+}
+
 export async function getProductData(identifier: string) {
   try {
     const headers: Record<string, string> = {
@@ -71,7 +91,6 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
 
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
     
-    // 1. Pobieramy dane samej kategorii (L1, L2 lub L3)
     const categoryRes = await fetch(
       `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`, 
       options
@@ -83,9 +102,20 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         return null;
     }
 
-    // 🚀 ROZWIĄZANIE PROBLEMU Z PUSTYMI PRODUKTAMI:
-    // Podajemy TYLKO id głównej kategorii i korzystamy z flagi include_category_children=true
-    const productsQueryUrl = `${MEDUSA_URL}/store/products?category_id[]=${category.id}&include_category_children=true&limit=24&fields=*variants,*images,+metadata`;
+    // Wyciągamy ID priorytetyzując podkategorie
+    const allCategoryIds = extractCategoryIds(category);
+    
+    // 🚀 ZABEZPIECZENIE: Limitujemy do 60 ID. 
+    // 60 * 40 znaków = ~2400 znaków w URL. Zawsze przejdzie przez serwer bez błędu 414.
+    const safeCategoryIds = allCategoryIds.slice(0, 60);
+
+    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&`;
+    
+    safeCategoryIds.forEach(id => {
+      productsQueryUrl += `category_id[]=${id}&`;
+    });
+    
+    productsQueryUrl += `limit=24`;
 
     const productsRes = await fetch(productsQueryUrl, options);
     
