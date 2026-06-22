@@ -62,18 +62,15 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const fullPath = slugArray.join('/');
   const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
   
-  // 🚀 KROK 1: Próba pobrania danych po końcowym slugu (dla L2/L3)
+  // 🚀 ZABEZPIECZENIE PRZED 404: 
+  // Próbujemy szukać po ostatnim członie adresu (standard dla L2/L3)
   let data = await getCategoryData(currentSlug, resolvedSearchParams);
   
-  // 🚀 KROK 2: PANCERNY FALLBACK DLA L1 
-  // Jeśli pierwsza próba zwróciła pusty wynik (błąd 404), ponawiamy zapytanie po pełnej ścieżce
-  if (!data || !data.searchData?.category) {
-    const fallbackData = await getCategoryData(fullPath, resolvedSearchParams);
-    if (fallbackData && fallbackData.searchData?.category) {
-      data = fallbackData;
-    }
+  // Jeśli błąd 404 (częste dla głównych L1), ponawiamy zapytanie po pełnej ścieżce url
+  if (!data) {
+    data = await getCategoryData(fullPath, resolvedSearchParams);
   }
-  
+
   if (!data) {
     notFound();
   }
@@ -85,46 +82,14 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const categoryData = searchData?.category || null;
   const faqs = categoryData?.faqs || [];
   
-  let topSeoText = '';
-  let bottomSeoText = '';
-
-  // 🚀 KROK 3: Ekstrakcja danych i automatyczny system diagnostyczny w terminalu
-  if (categoryData) {
-    console.log("=== DIAGNOSTYKA STRONY KATEGORII ===");
-    console.log("Aktualny Slug:", currentSlug);
-    console.log("Pobrane klucze obiektu kategorii:", Object.keys(categoryData));
-    if (categoryData.metadata) {
-      console.log("Zawartość obiektu metadata:", categoryData.metadata);
-    }
-    console.log("====================================");
-
-    // Szukanie top_seo_text w korzeniu lub w zagnieżdżonym metadata
-    topSeoText = categoryData.top_seo_text || '';
-    if (!topSeoText && categoryData.metadata) {
-      const meta = typeof categoryData.metadata === 'string' ? JSON.parse(categoryData.metadata) : categoryData.metadata;
-      topSeoText = meta.top_seo_text || meta.topSeoText || '';
-    }
-
-    // Szukanie bottom_seo_text w korzeniu lub w zagnieżdżonym metadata
-    bottomSeoText = categoryData.bottom_seo_text || '';
-    if (!bottomSeoText && categoryData.metadata) {
-      const meta = typeof categoryData.metadata === 'string' ? JSON.parse(categoryData.metadata) : categoryData.metadata;
-      bottomSeoText = meta.bottom_seo_text || meta.bottomSeoText || '';
-    }
-  }
+  // SEO wyciągane bezpośrednio z metadata po przepuszczeniu ich przez API
+  const bottomSeoText = categoryData?.bottom_seo_text || categoryData?.metadata?.bottom_seo_text || '';
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       
-      {/* Przekazujemy przefiltrowany tekst bezpośrednio do nagłówka komponentu */}
-      <CategoryHeader 
-        initialData={searchData} 
-        searchParams={resolvedSearchParams} 
-        fullPath={fullPath} 
-        topSeoText={topSeoText} 
-      /> 
-      
+      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} /> 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         <aside className="w-full lg:w-80 flex-shrink-0">
           <CategoryFilters initialFilters={filtersData} initialTotalCount={totalCount} />
