@@ -15,7 +15,7 @@ const DynamicFooter = dynamic(() => import('@/components/Footer'), { ssr: false 
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'), { ssr: false });
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'), { ssr: false });
 
-export const revalidate = 3600;
+export const revalidate = 3601;
 
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
   const resolvedParams = await params;

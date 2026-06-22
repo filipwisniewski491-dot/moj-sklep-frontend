@@ -3,13 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SearchBar from '@/components/SearchBar';
-import dynamic from 'next/dynamic'; // <-- 1. Import funkcji do leniwego ładowania
+import dynamic from 'next/dynamic';
 import { useCart } from '@/store/useCart';
 
-// 2. Odcinamy MegaMenu od serwera. Załaduje się tylko w samej przeglądarce (klient)
-const DynamicMegaMenu = dynamic(() => import('@/components/MegaMenu'), { 
-  ssr: false 
-});
+const DynamicMegaMenu = dynamic(() => import('@/components/MegaMenu'), { ssr: false });
 
 export default function Header() {
   const { items, setIsOpen: setCartOpen } = useCart() as any;
@@ -21,11 +18,10 @@ export default function Header() {
 
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isMounted, setIsMounted] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false); // <-- 3. Stan decydujący o renderowaniu menu
+  const [isDesktop, setIsDesktop] = useState(false); 
 
   useEffect(() => {
     setIsMounted(true);
-    
     const calculateTimeLeft = () => {
       const now = new Date();
       const cutoff = new Date();
@@ -41,11 +37,8 @@ export default function Header() {
     calculateTimeLeft();
     const timer = setInterval(calculateTimeLeft, 1000);
 
-    // 4. Sprawdzamy szerokość okna. Jeśli to mobile (<768px), MegaMenu się nie wyrenderuje!
-    const checkScreenSize = () => {
-      setIsDesktop(window.innerWidth >= 768);
-    };
-    checkScreenSize(); // Sprawdzenie przy pierwszym załadowaniu
+    const checkScreenSize = () => setIsDesktop(window.innerWidth >= 768);
+    checkScreenSize(); 
     window.addEventListener('resize', checkScreenSize);
 
     return () => {
@@ -58,19 +51,20 @@ export default function Header() {
 
   return (
     <>
-      <div className="bg-slate-900 sm:bg-slate-50 text-white sm:text-slate-600 py-2 px-2 sm:px-4 font-bold relative z-[60] border-b border-slate-800 sm:border-slate-200">
+      <div className="bg-slate-900 sm:bg-slate-50 text-white sm:text-slate-600 px-2 sm:px-4 font-bold relative z-[60] border-b border-slate-800 sm:border-slate-200">
         
-        <div className="sm:hidden flex justify-center items-center text-[10px] uppercase tracking-widest text-center min-h-[32px]">
-           <span className="text-amber-400 mr-1.5 text-[12px]">⏳</span>
-           <span>{isShippingToday ? 'Zamów TERAZ = Wysyłka DZIŚ' : 'Wysyłka JUTRO RANO'}</span>
-           <span className="mx-2 text-slate-500">|</span>
-           <span className="text-emerald-400 mr-1 text-[12px]">🚚</span> 
-           <span>Darmowa od 500 zł</span>
+        {/* 🚀 ZMIANA CLS: Sztywne h-[36px] i overflow-hidden blokują rozszerzanie się paska! */}
+        <div className="sm:hidden flex justify-center items-center text-[10px] uppercase tracking-widest text-center h-[36px] overflow-hidden whitespace-nowrap">
+           <span className="text-amber-400 mr-1.5 text-[12px] shrink-0">⏳</span>
+           <span className="truncate">{isShippingToday ? 'ZAMÓW TERAZ = WYSYŁKA DZIŚ' : 'WYSYŁKA JUTRO RANO'}</span>
+           <span className="mx-1.5 text-slate-500 shrink-0">|</span>
+           <span className="text-emerald-400 mr-1 text-[12px] shrink-0">🚚</span> 
+           <span className="truncate">DARMOWA OD 500 ZŁ</span>
         </div>
 
-        <div className="hidden sm:flex max-w-7xl mx-auto flex-row justify-between items-center text-center gap-3">
+        <div className="hidden sm:flex max-w-7xl mx-auto flex-row justify-between items-center text-center gap-3 h-[48px]">
           <div className="flex items-center space-x-6 text-xs uppercase tracking-[0.2em]">
-            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800 min-h-[48px]">
+            <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
               <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
             </a>
             <span className="hidden md:flex items-center gap-2 text-slate-600">
@@ -81,7 +75,7 @@ export default function Header() {
             <span className="text-[10px] uppercase tracking-widest hidden md:inline font-black">
               {isShippingToday ? 'Wysyłamy dzisiaj. Zamów w:' : 'Wysyłka jutro rano. Zamów w:'}
             </span>
-            <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest">
+            <span suppressHydrationWarning className="text-red-600 font-black tabular-nums text-sm tracking-widest min-w-[75px] inline-block text-right">
               ⏳ {isMounted ? `${String(timeLeft.hours).padStart(2, '0')}:${String(timeLeft.minutes).padStart(2, '0')}:${String(timeLeft.seconds).padStart(2, '0')}` : '00:00:00'}
             </span>
           </div>
@@ -140,7 +134,6 @@ export default function Header() {
         </div>
       </header>
       
-      {/* 5. Renderujemy MegaMenu TYLKO, gdy upewnimy się, że to ekran komputera */}
       {isDesktop && <DynamicMegaMenu />}
     </>
   );
