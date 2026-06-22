@@ -20,7 +20,6 @@ function extractCategoryIds(category: any): string[] {
   return [...leaves, ...branches];
 }
 
-// 🚀 ZWRÓCONA FUNKCJA - Obsługuje stronę produktu (tego brakowało przy buildzie!)
 export async function getProductData(identifier: string) {
   try {
     const headers: Record<string, string> = {
@@ -80,7 +79,6 @@ export async function getProductData(identifier: string) {
   }
 }
 
-// Nasza zoptymalizowana funkcja pobierająca kategorie wraz z oryginalnymi nazwami
 export async function getCategoryData(fullPath: string, searchParams: any) {
   try {
     const headers: Record<string, string> = {
@@ -90,6 +88,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
 
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
     
+    // 1. Pobieramy obecną kategorię z drzewem
     const categoryRes = await fetch(
       `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`, 
       options
@@ -101,10 +100,9 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         return null;
     }
 
-    // 🚀 GENIALNE OKRUSZKI: Pobieramy oryginalne nazwy wszystkich kategorii ze ścieżki
+    // 🚀 NAPRAWA OKRUSZKÓW: Pobieramy pełną ścieżkę z API, by mieć polskie znaki!
     const slugArray = fullPath.split('/');
     const handlesQuery = slugArray.map(slug => `handle[]=${slug}`).join('&');
-    
     const breadcrumbsRes = await fetch(`${MEDUSA_URL}/store/product-categories?${handlesQuery}`, options);
     const breadcrumbsJson = await breadcrumbsRes.json();
     const fetchedCategories = breadcrumbsJson.product_categories || [];
@@ -113,11 +111,12 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
       const cumulativePath = slugArray.slice(0, index + 1).join('/');
       const foundCat = fetchedCategories.find((c: any) => c.handle === slugPart);
       return {
-        name: foundCat?.name || slugPart.replace(/-/g, ' '), // Prawdziwa nazwa z polskimi znakami!
+        name: foundCat?.name || slugPart.replace(/-/g, ' '), 
         path: cumulativePath
       };
     });
 
+    // 2. Wyciągamy podkategorie i limitujemy ID, żeby nie przeciążyć serwera
     const allCategoryIds = extractCategoryIds(category);
     const safeCategoryIds = allCategoryIds.slice(0, 60);
 
@@ -125,38 +124,85 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     safeCategoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
-    productsQueryUrl += `limit=100`;
+    productsQueryUrl += `limit=100`; // Ładujemy do 100 sztuk dla filtrów
 
     const productsRes = await fetch(productsQueryUrl, options);
     const productsJson = await productsRes.json();
 
+    // 🚀 NAPRAWA FILTRÓW: Dynamiczne wyciąganie danych z JSON (technical_specs) z Medusy
+    const extractedFilters: Record<string, Record<string, number>> = {};
+
+    const mappedProducts = productsJson.products?.map((p: any) => {
+      const meta = p.metadata || {};
+      const mainVariant = p.variants?.[0] || null;
+
+      // Zbieramy atrybuty techniczne
+      let techSpecs: Record<string, any> = {};
+      
+      if (meta.technical_specs) {
+        if (typeof meta.technical_specs === 'string') {
+          try { techSpecs = JSON.parse(meta.technical_specs); } catch(e) {}
+        } else if (typeof meta.technical_specs === 'object') {
+          techSpecs = meta.technical_specs;
+        }
+      }
+      
+      // Dodajemy też markę i model, żeby działały jako filtry w panelu
+      if (meta['Pasuje do marki']) techSpecs['Pasuje do marki'] = meta['Pasuje do marki'];
+      if (meta['Pasuje do modelu']) techSpecs['Pasuje do modelu'] = meta['Pasuje do modelu'];
+      if (meta.producent || meta.Producent) techSpecs['Producent'] = meta.producent || meta.Producent;
+
+      // Agregujemy (zliczamy) cechy do filtrów bocznych
+      Object.entries(techSpecs).forEach(([key, value]) => {
+        if (!value) return;
+        
+        // Zabezpieczenie dla wartości tablicowych (np. ["Ursus", "Zetor"])
+        const values = Array.isArray(value) ? value : [value];
+        const formattedKey = key.charAt(0).toUpperCase() + key.slice(1); // Zawsze z dużej litery
+        
+        values.forEach(val => {
+          const stringVal = String(val).trim();
+          if (!stringVal) return;
+          
+          if (!extractedFilters[formattedKey]) {
+            extractedFilters[formattedKey] = {};
+          }
+          extractedFilters[formattedKey][stringVal] = (extractedFilters[formattedKey][stringVal] || 0) + 1;
+        });
+      });
+
+      return {
+        id: p.id,
+        sku: mainVariant?.sku || meta.sku || null,
+        name: p.title,
+        price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0,
+        slug: p.handle,
+        external_images: meta.external_images || [],
+        images: p.images || []
+      };
+    }) || [];
+
     return {
       searchData: {
-        totalCount: productsJson.count || productsJson.products?.length || 0,
-        products: productsJson.products?.map((p: any) => {
-          const meta = p.metadata || {};
-          const mainVariant = p.variants?.[0] || null;
-          return {
-            id: p.id,
-            sku: mainVariant?.sku || meta.sku || null,
-            name: p.title,
-            price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0,
-            slug: p.handle,
-            external_images: meta.external_images || [],
-            images: p.images || []
-          };
-        }) || [],
+        totalCount: productsJson.count || mappedProducts.length || 0,
+        products: mappedProducts,
         category: {
-          ...category, 
+          ...category,
           h1_dynamic: category.name,
           top_seo_text: category.metadata?.top_seo_text || category.description || "",
           bottom_seo_text: category.metadata?.bottom_seo_text || "",
           faqs: category.metadata?.faqs || []
         },
         breadcrumbs: dynamicBreadcrumbs, 
-        subcategories: category.category_children?.map((c: any) => c.name) || []
+        // 🚀 NAPRAWA PODKATEGORII: Przekazujemy pełne obiekty dla kafelków!
+        subcategories: category.category_children?.map((c: any) => ({
+          name: c.name,
+          path: c.handle,
+          id: c.id
+        })) || []
       },
-      filtersData: {} 
+      // 🚀 Przekazujemy wszystkie zbudowane filtry do lewego panelu!
+      filtersData: extractedFilters 
     };
   } catch (error) {
     console.error("[API LIB] Błąd pobierania kategorii z Medusy:", error);
