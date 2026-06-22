@@ -1,84 +1,3 @@
-// lib/api.ts
-
-const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
-const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
-
-function extractCategoryIds(category: any): string[] {
-  let leaves: string[] = [];
-  let branches: string[] = [];
-
-  function traverse(cat: any) {
-    if (cat.category_children && cat.category_children.length > 0) {
-      branches.push(cat.id);
-      cat.category_children.forEach((child: any) => traverse(child));
-    } else {
-      leaves.push(cat.id);
-    }
-  }
-
-  traverse(category);
-  return [...leaves, ...branches];
-}
-
-export async function getProductData(identifier: string) {
-  try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
-
-    const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
-    const queryFields = "fields=*variants,*categories,+metadata,+images";
-
-    let res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}`, options);
-    let json = await res.json();
-
-    if (!json.products || json.products.length === 0) {
-      const slugParts = identifier.split('-');
-      if (slugParts.length > 1) {
-        slugParts.pop();
-        const shortHandle = slugParts.join('-');
-        res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(shortHandle)}&${queryFields}`, options);
-        json = await res.json();
-      }
-    }
-
-    if (!json.products || json.products.length === 0) {
-      res = await fetch(`${MEDUSA_URL}/store/products?q=${encodeURIComponent(identifier)}&${queryFields}`, options);
-      json = await res.json();
-    }
-
-    if (!json.products || json.products.length === 0) {
-       return null;
-    }
-
-    const product = json.products[0];
-    const meta = product.metadata || {};
-    const mainVariant = product.variants?.[0] || null;
-
-    return {
-      id: product.id,
-      sku: mainVariant?.sku || meta.sku || null,
-      slug: product.handle,
-      name: product.title || 'Produkt',
-      price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0, 
-      description: product.description || '',
-      category_text: product.categories?.[0]?.name || meta.category || '',
-      category_path: product.categories?.[0]?.metadata?.category_path || meta.category_path || null,
-      attributes: meta.technical_specs || meta.attributes || {},
-      images: product.images?.map((img: any) => ({ url: img.url })) || [],
-      external_images: meta.external_images || [],
-      expert_advice: meta.expert_advice || null,
-      symptoms: meta.symptoms || null,
-      faq: meta.faq || null,
-      crossSell: meta.cross_sell_skus || meta.cross_sell || []
-    };
-  } catch (error) {
-    console.error("[API LIB] Krytyczny błąd pobierania produktu z Medusy:", error);
-    return null;
-  }
-}
-
 export async function getCategoryData(fullPath: string, searchParams: any) {
   try {
     const headers: Record<string, string> = {
@@ -99,16 +18,30 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         return null;
     }
 
+    // 🚀 GENIALNE OKRUSZKI: Pobieramy oryginalne nazwy wszystkich kategorii ze ścieżki
+    const slugArray = fullPath.split('/');
+    const handlesQuery = slugArray.map(slug => `handle[]=${slug}`).join('&');
+    
+    const breadcrumbsRes = await fetch(`${MEDUSA_URL}/store/product-categories?${handlesQuery}`, options);
+    const breadcrumbsJson = await breadcrumbsRes.json();
+    const fetchedCategories = breadcrumbsJson.product_categories || [];
+
+    const dynamicBreadcrumbs = slugArray.map((slugPart, index) => {
+      const cumulativePath = slugArray.slice(0, index + 1).join('/');
+      const foundCat = fetchedCategories.find((c: any) => c.handle === slugPart);
+      return {
+        name: foundCat?.name || slugPart.replace(/-/g, ' '), // Prawdziwa nazwa z polskimi znakami!
+        path: cumulativePath
+      };
+    });
+
     const allCategoryIds = extractCategoryIds(category);
     const safeCategoryIds = allCategoryIds.slice(0, 60);
 
     let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&`;
-    
     safeCategoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
-    
-    // 🚀 POPRAWKA: Zwiększono limit do 100 sztuk, aby przycisk "Pokaż więcej" miał co wyświetlać
     productsQueryUrl += `limit=100`;
 
     const productsRes = await fetch(productsQueryUrl, options);
@@ -137,9 +70,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
           bottom_seo_text: category.metadata?.bottom_seo_text || "",
           faqs: category.metadata?.faqs || []
         },
-        breadcrumbs: [
-          { name: category.name, path: category.handle }
-        ],
+        breadcrumbs: dynamicBreadcrumbs, // 🚀 Wrzucamy idealne okruszki
         subcategories: category.category_children?.map((c: any) => c.name) || []
       },
       filtersData: {} 

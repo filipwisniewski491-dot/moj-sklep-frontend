@@ -18,38 +18,11 @@ const parseMarkdown = (text: string) => {
 
 export default function CategoryHeader({ initialData, searchParams, fullPath, topSeoText }: { initialData: any, searchParams: any, fullPath: string, topSeoText?: string }) {
   const categoryData = initialData?.category || null;
+  const breadcrumbs = initialData?.breadcrumbs || []; // 🚀 Prosto i czysto z bazy danych
   
   let subcategories = initialData?.subcategories;
   if (!subcategories || subcategories.length === 0) {
     subcategories = categoryData?.category_children || categoryData?.children || [];
-  }
-  
-  const slugArray = fullPath ? fullPath.split('/') : [];
-  let breadcrumbs = initialData?.breadcrumbs || [];
-  
-  if ((!breadcrumbs || breadcrumbs.length <= 1) && slugArray.length > 1) {
-    breadcrumbs = slugArray.map((slugPart: string, index: number) => {
-      const cumulativePath = slugArray.slice(0, index + 1).join('/');
-      
-      // 🚀 POPRAWKA: Jeśli to aktualnie przeglądana kategoria, pobieramy jej nazwę prosto z bazy (z polskimi znakami!)
-      let prettyName = '';
-      if (index === slugArray.length - 1 && categoryData?.name) {
-        prettyName = categoryData.name;
-      } else {
-        prettyName = slugPart
-          .replace(/-/g, ' ')
-          .split(' ')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
-      }
-      return {
-        name: prettyName,
-        path: cumulativePath
-      };
-    });
-  } else if (breadcrumbs.length === 1 && categoryData?.name) {
-    // Zabezpieczenie dla poziomu L1
-    breadcrumbs[0].name = categoryData.name;
   }
 
   const rawBrandLabel = searchParams?.['Pasuje do marki'];
