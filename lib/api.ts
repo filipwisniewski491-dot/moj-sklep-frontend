@@ -92,17 +92,27 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         return null;
     }
 
-    const categoryIds = extractCategoryIds(category);
+    // 🚀 ROZWIĄZANIE 404 DLA L1:
+    // Ucinamy liczbę ID do maksymalnie 40 sztuk. To gwarantuje, że adres URL nigdy nie przekroczy
+    // limitów serwera Nginx/Node.js, nawet jeśli kategoria ma 1000 podkategorii.
+    const allCategoryIds = extractCategoryIds(category);
+    const safeCategoryIds = allCategoryIds.slice(0, 40);
 
-    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&`;
+    // Dodajemy flagę 'include_category_children=true', co informuje Medusę, by sama dobrała produkty z niższych poziomów
+    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&include_category_children=true&`;
     
-    categoryIds.forEach(id => {
+    safeCategoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
     
     productsQueryUrl += `limit=24`;
 
     const productsRes = await fetch(productsQueryUrl, options);
+    
+    if (!productsRes.ok) {
+        console.error("Błąd zapytania o produkty. Status:", productsRes.status);
+    }
+    
     const productsJson = await productsRes.json();
 
     return {
@@ -122,7 +132,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
           };
         }) || [],
         category: {
-          ...category, // 🚀 ROZWIĄZANIE: Przekazujemy wszystkie surowe dane w tym ukryte metadata!
+          ...category, 
           h1_dynamic: category.name,
           top_seo_text: category.metadata?.top_seo_text || category.description || "",
           bottom_seo_text: category.metadata?.bottom_seo_text || "",
