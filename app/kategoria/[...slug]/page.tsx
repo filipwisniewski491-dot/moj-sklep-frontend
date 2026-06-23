@@ -1,6 +1,5 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCategoryData } from '@/lib/api'; 
 import dynamic from 'next/dynamic';
 
 import Header from '@/components/Header';
@@ -13,7 +12,7 @@ const DynamicFooter = dynamic(() => import('@/components/Footer'));
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
-export const revalidate = 3602;
+export const revalidate = 0; // Wyłączamy cache na poziomie strony dla pełnej dynamiki filtrów
 
 export async function generateMetadata({ params, searchParams }: any): Promise<Metadata> {
   const resolvedParams = await params;
@@ -60,28 +59,32 @@ export default async function CategoryPage({ params, searchParams }: any) {
   
   const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
   const fullPath = slugArray.join('/');
-  const currentSlug = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
-  
-  // Zabezpieczenie przed 404: najpierw szukamy po slugu roboczym
-  let data = await getCategoryData(currentSlug, resolvedSearchParams);
-  
-  // Fallback dla L1: jeśli brak wyniku, ponawiamy zapytanie po pełnej ścieżce
-  if (!data) {
-    data = await getCategoryData(fullPath, resolvedSearchParams);
+
+  // 🚀 BEZPOŚREDNIE UDERZENIE DO NASZEGO TUNELU MEILISEARCH
+  // Pobieramy dane strukturalne oraz wyliczone cechy filtrów w jednym szybkim żądaniu HTTP
+  const apiQuery = new URLSearchParams(resolvedSearchParams);
+  apiQuery.set('fullPath', fullPath);
+
+  let data: any = null;
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const res = await fetch(`${siteUrl}/api/search?${apiQuery.toString()}`, { cache: 'no-store' });
+    if (res.ok) {
+      data = await res.json();
+    }
+  } catch (error) {
+    console.error("Błąd pobierania danych ze skonsolidowanego API:", error);
   }
 
-  if (!data) {
+  if (!data || !data.category) {
     notFound();
   }
 
-  const { searchData, filtersData } = data;
-  
-  const totalCount = searchData?.totalCount || 0;
-  const products = searchData?.products || [];
-  const categoryData = searchData?.category || null;
+  const totalCount = data?.totalCount || 0;
+  const products = data?.products || [];
+  const categoryData = data?.category || null;
   const faqs = categoryData?.faqs || [];
   
-  // 🚀 PANCERNE DEKODOWANIE I WYCIĄGANIE TEKSTÓW SEO (ZARÓWNO TOP JAK I BOTTOM)
   let topSeoText = categoryData?.top_seo_text || '';
   let bottomSeoText = categoryData?.bottom_seo_text || '';
 
@@ -102,9 +105,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       
-      {/* Podajemy topSeoText jawnie jako parametr wyjściowy */}
       <CategoryHeader 
-        initialData={searchData} 
+        initialData={data} 
         searchParams={resolvedSearchParams} 
         fullPath={fullPath} 
         topSeoText={topSeoText} 
@@ -112,7 +114,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
       
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         <aside className="w-full lg:w-80 flex-shrink-0">
-          <CategoryFilters initialFilters={filtersData} initialTotalCount={totalCount} />
+          {/* Przekazujemy przeliczone przez Meilisearch fasetowe filtry bezpośrednio do widoku */}
+          <CategoryFilters initialFilters={data.filters} initialTotalCount={totalCount} />
         </aside>
         <div className="flex-1 flex flex-col min-h-[500px]">
           <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />

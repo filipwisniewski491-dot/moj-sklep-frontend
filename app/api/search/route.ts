@@ -8,14 +8,13 @@ export const dynamic = 'force-dynamic';
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
-// 🚀 Inicjalizacja klienta Meilisearch po stronie serwera (bezpieczny tunel)
 const meiliClient = new Meilisearch({
   host: process.env.NEXT_PUBLIC_MEILISEARCH_HOST || '',
   apiKey: process.env.NEXT_PUBLIC_MEILISEARCH_API_KEY || '',
 });
 
 const corsHeaders = {
-  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+  'Cache-Control': 'no-store, max-age=0',
   'Content-Type': 'application/json'
 };
 
@@ -26,8 +25,6 @@ export async function GET(request: Request) {
 
   // =========================================================================
   // 1. ZWROTNICA: Pasek wyszukiwarki (Live Search -> MeiliSearch)
-  // Jeśli zapytanie ma tylko parametr 'q' i brak 'fullPath', to znaczy 
-  // że to podpowiedzi z górnego paska.
   // =========================================================================
   if (searchQ && !fullPath) {
     try {
@@ -43,20 +40,17 @@ export async function GET(request: Request) {
   }
 
   // =========================================================================
-  // 2. ZWROTNICA: Strony Kategorii (Twój oryginalny kod -> Medusa)
+  // 2. ZWROTNICA: Strony Kategorii (Meilisearch Faceted Search)
   // =========================================================================
-  const currentLimit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 24;
-  const activeFilters = Object.fromEntries(searchParams.entries());
-  const sort = activeFilters.sort || null;
-  const minPrice = activeFilters.minPrice ? parseFloat(activeFilters.minPrice) : null;
-  const maxPrice = activeFilters.maxPrice ? parseFloat(activeFilters.maxPrice) : null;
-
-  // Czyścimy parametry systemowe, by zostawić tylko atrybuty do filtrowania
-  ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q'].forEach(k => delete activeFilters[k]);
-
   if (!fullPath) {
     return NextResponse.json({ error: "Brak ścieżki (fullPath)" }, { status: 400, headers: corsHeaders });
   }
+
+  const currentLimit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 250;
+  const activeFilters = Object.fromEntries(searchParams.entries());
+  
+  // Czyścimy parametry systemowe, by zostawić tylko realne filtry specyfikacji
+  ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page'].forEach(k => delete activeFilters[k]);
 
   const segments = fullPath.split('/').filter(Boolean);
   const currentHandle = segments[segments.length - 1]; 
@@ -73,19 +67,15 @@ export async function GET(request: Request) {
   let directSubcategories: string[] = [];
 
   try {
+    // Pobieramy struktury SEO oraz podkategorie z Medusy, żeby zachować teksty pozycjonerskie
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    // Odpytujemy TYLKO tą jedną kategorię
     const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, cache: 'no-store' });
     const currentCategoryJson = await currentCategoryRes.json();
     const currentCategory = currentCategoryJson.product_categories?.[0];
 
-    let categoryIdQuery = "";
-
     if (currentCategory) {
-      categoryIdQuery = `&category_id[]=${currentCategory.id}`;
-      
       const meta = currentCategory.metadata || {};
       dbCategoryData.name = currentCategory.name;
       dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
@@ -104,95 +94,61 @@ export async function GET(request: Request) {
       return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
     });
 
-    let productsEndpoint = `${MEDUSA_URL}/store/products?limit=${currentLimit}&fields=*variants,*categories,+metadata,+images${categoryIdQuery}`;
+    // 🚀 WYKORZYSTANIE SILNIKA MEILISEARCH DO FILTRÓW I PRODUKTÓW
+    const index = meiliClient.index('products');
     
-    if (searchQ) {
-       productsEndpoint += `&q=${encodeURIComponent(searchQ)}`;
-    }
+    // Budujemy tablicę filtrów logicznych dla Meilisearch
+    const filterArray: string[] = [`category_handle = "${currentHandle}"`];
 
-    const prodRes = await fetch(productsEndpoint, { headers, cache: 'no-store' });
-    if (!prodRes.ok) throw new Error(`Błąd pobierania produktów z Medusy: Kod ${prodRes.status}`);
-
-    const prodJson = await prodRes.json();
-    let filteredProducts = prodJson.products || [];
-
-    const globalFilters: Record<string, Record<string, number>> = {};
-    const narrowedFilters: Record<string, Record<string, number>> = {};
-
-    filteredProducts = filteredProducts.filter((p: any) => {
-      const specs = p.metadata?.technical_specs || p.metadata?.attributes || {};
-      const mainVariant = p.variants?.[0];
-      const price = mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0; 
-      
-      Object.entries(specs).forEach(([key, val]) => {
-        const strVal = String(val);
-        if (!globalFilters[key]) globalFilters[key] = {};
-        globalFilters[key][strVal] = (globalFilters[key][strVal] || 0) + 1;
-      });
-
-      if (minPrice !== null && price < minPrice) return false;
-      if (maxPrice !== null && price > maxPrice) return false;
-
-      let matchesAllSpecs = true;
-      for (const [activeKey, activeVal] of Object.entries(activeFilters)) {
-        if (String(specs[activeKey]) !== String(activeVal)) {
-          matchesAllSpecs = false;
-          break;
-        }
+    // Mapujemy aktywne checkboxy z adresu URL na zapytanie Meilisearch
+    Object.entries(activeFilters).forEach(([key, val]) => {
+      if (val) {
+        filterArray.push(`\`${key}\` = "${val}"`);
       }
-
-      if (matchesAllSpecs) {
-        Object.entries(specs).forEach(([key, val]) => {
-          const strVal = String(val);
-          if (!narrowedFilters[key]) narrowedFilters[key] = {};
-          narrowedFilters[key][strVal] = (narrowedFilters[key][strVal] || 0) + 1;
-        });
-      }
-
-      return matchesAllSpecs;
     });
 
-    if (sort === 'price_asc') filteredProducts.sort((a: any, b: any) => (a.variants?.[0]?.calculated_price?.calculated_amount || 0) - (b.variants?.[0]?.calculated_price?.calculated_amount || 0));
-    if (sort === 'price_desc') filteredProducts.sort((a: any, b: any) => (b.variants?.[0]?.calculated_price?.calculated_amount || 0) - (a.variants?.[0]?.calculated_price?.calculated_amount || 0));
-    if (sort === 'name_asc') filteredProducts.sort((a: any, b: any) => a.title.localeCompare(b.title));
+    const searchResult = await index.search(searchQ, {
+      limit: currentLimit,
+      filter: filterArray.join(' AND '),
+      // Określamy, z jakich cech silnik ma wygenerować liczniki produktów
+      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent']
+    });
 
-    const mappedProducts = filteredProducts.map((p: any) => {
-      const meta = p.metadata || {};
-      const mainVariant = p.variants?.[0];
-      
-      const externalImages: string[] = meta.external_images || [];
-      const finalImages = externalImages.length > 0 
-        ? [{ url: externalImages[0] }] 
-        : (p.images?.map((img: any) => ({ url: img.url })) || (p.thumbnail ? [{ url: p.thumbnail }] : []));
-      
-      return {
-        id: p.id,
-        sku: mainVariant?.sku || meta.sku || 'BRAK',
-        name: p.title || 'Produkt Nienazwany',
-        price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0,
-        slug: p.handle,
-        external_images: externalImages,
-        images: finalImages
-      };
+    // Konwertujemy wyniki z Meilisearch na format w 100% zgodny z ProductCard.tsx
+    const mappedProducts = searchResult.hits.map((p: any) => ({
+      id: p.id,
+      sku: p.id,
+      name: p.title,
+      price: p.price || 0,
+      slug: p.handle,
+      category_text: p.Kategoria || '',
+      images: p.thumbnail ? [{ url: p.thumbnail }] : []
+    }));
+
+    // Przekształcamy dystrybucję faset z Meilisearch na strukturę oczekiwaną przez CategoryFilters.tsx
+    const meiliFacets = searchResult.facetDistribution || {};
+    const formattedFilters: Record<string, Record<string, number>> = {};
+    
+    Object.entries(meiliFacets).forEach(([facetKey, facetValues]) => {
+      formattedFilters[facetKey] = facetValues as Record<string, number>;
     });
 
     return NextResponse.json({ 
       category: dbCategoryData, 
       breadcrumbs, 
       subcategories: directSubcategories,
-      filters: globalFilters, 
-      narrowedFilters,
-      depth: breadcrumbs.length, 
+      filters: formattedFilters, 
+      narrowedFilters: formattedFilters, // Dynamiczne, żywe liczniki sztuk w nawiasach
       products: mappedProducts,
-      totalCount: prodJson.count || filteredProducts.length, 
+      totalCount: searchResult.estimatedTotalHits || mappedProducts.length, 
       faqs: dbCategoryData.faqs
     }, { headers: corsHeaders });
 
   } catch (error: any) {
-    console.error("[Search Route Error API Medusa]:", error);
+    console.error("[Search Route Error API Meilisearch Native]:", error);
     return NextResponse.json({ 
-      category: { h1_dynamic: `BŁĄD POŁĄCZENIA Z BAZĄ`, name: "Błąd serwera" }, 
-      products: [], breadcrumbs, subcategories: [], filters: {}, narrowedFilters: {}, totalCount: 0, faqs: [] 
+      category: { h1_dynamic: `BŁĄD POŁĄCZENIA`, name: "Błąd serwera" }, 
+      products: [], breadcrumbs: [], subcategories: [], filters: {}, narrowedFilters: {}, totalCount: 0, faqs: [] 
     }, { status: 500, headers: corsHeaders }); 
   }
 }
