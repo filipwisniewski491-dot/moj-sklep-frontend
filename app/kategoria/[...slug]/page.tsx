@@ -1,5 +1,4 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Meilisearch } from 'meilisearch';
 
@@ -69,32 +68,45 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const fullPath = slugArray.join('/');
   const currentHandle = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
 
-  // Zmienne na dane z API
-  let dbCategoryData = { h1_dynamic: currentHandle.toUpperCase().replace(/-/g, ' '), name: currentHandle.replace(/-/g, ' '), top_seo_text: "", bottom_seo_text: "", faqs: [] };
+  // 1. Zabezpieczenie danych awaryjnych (na wypadek braku połączenia z Medusą)
+  let dbCategoryData = { 
+    h1_dynamic: currentHandle.toUpperCase().replace(/-/g, ' '), 
+    name: currentHandle.replace(/-/g, ' '), 
+    top_seo_text: "", 
+    bottom_seo_text: "", 
+    faqs: [] 
+  };
+  
   let totalCount = 0;
   let products: any[] = [];
   let formattedFilters: any = {};
 
+  // 2. Pobieramy opisy SEO i FAQ z Medusy (w bezpiecznym bloku try-catch)
   try {
-    // 1. Pobieramy opisy SEO i FAQ bezpośrednio z Medusy
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
+    
     const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, cache: 'no-store' });
-    const currentCategoryJson = await currentCategoryRes.json();
-    const currentCategory = currentCategoryJson.product_categories?.[0];
+    
+    if (currentCategoryRes.ok) {
+      const currentCategoryJson = await currentCategoryRes.json();
+      const currentCategory = currentCategoryJson.product_categories?.[0];
 
-    if (!currentCategory) {
-      return notFound();
+      if (currentCategory) {
+        const meta = currentCategory.metadata || {};
+        dbCategoryData.name = currentCategory.name;
+        dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
+        dbCategoryData.top_seo_text = meta.top_seo_text || currentCategory.description || "";
+        dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
+        dbCategoryData.faqs = meta.faqs || meta.faq || [];
+      }
     }
+  } catch (error) {
+    console.warn("Błąd komunikacji z Medusą - wyświetlam stronę bazując na URL:", error);
+  }
 
-    const meta = currentCategory.metadata || {};
-    dbCategoryData.name = currentCategory.name;
-    dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
-    dbCategoryData.top_seo_text = meta.top_seo_text || currentCategory.description || "";
-    dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
-    dbCategoryData.faqs = meta.faqs || meta.faq || [];
-
-    // 2. Pobieramy produkty i filtry bezpośrednio z Meilisearch
+  // 3. Pobieramy produkty i filtry z Meilisearch (Główne źródło prawdy)
+  try {
     const activeFilters = { ...resolvedSearchParams };
     ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page'].forEach(k => delete activeFilters[k]);
 
@@ -125,15 +137,14 @@ export default async function CategoryPage({ params, searchParams }: any) {
     formattedFilters = searchResult.facetDistribution || {};
 
   } catch (error) {
-    console.error("Błąd kategorii:", error);
-    return notFound();
+    console.error("Błąd zapytania do Meilisearch:", error);
   }
 
   let topSeoText = dbCategoryData.top_seo_text;
   let bottomSeoText = dbCategoryData.bottom_seo_text;
   const faqs = dbCategoryData.faqs;
 
-  // Tworzymy dummy dane do nagłówka (kompatybilność z CategoryHeader)
+  // Kompatybilność z nagłówkiem kategorii
   const headerData = { category: dbCategoryData, breadcrumbs: [] };
 
   return (
