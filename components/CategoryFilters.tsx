@@ -60,15 +60,13 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ initialFilters = {}, initialNarrowedFilters = {}, initialTotalCount = 0 }: any) {
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, totalCount = 0 }: any) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname(); 
   
   const { isActive: isGarageActive, brand: garageBrand, model: garageModel } = useGarage();
   
-  const [activeFiltersData, setActiveFiltersData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   
@@ -78,13 +76,6 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
   
   const [filterSearchQuery, setFilterSearchQuery] = useState<Record<string, string>>({});
   const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({});
-  
-  const isFirstRender = useRef(true);
-  const searchParamsString = searchParams.toString();
-
-  const filtersToDisplay = activeFiltersData?.filters || initialFilters || {};
-  const narrowedToDisplay = activeFiltersData?.narrowedFilters || initialNarrowedFilters || {};
-  const totalCount = activeFiltersData?.totalCount || initialTotalCount;
 
   useEffect(() => {
     const checkScreenSize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -110,30 +101,6 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     }
   }, [isGarageActive, garageBrand, garageModel, pathname, searchParams, router]);
 
-  useEffect(() => {
-    if (isFirstRender.current) { 
-      isFirstRender.current = false; 
-      return; 
-    }
-    async function fetchFilterCounts() {
-      setLoading(true);
-      try {
-        const queryStr = new URLSearchParams(searchParamsString);
-        queryStr.set('fullPath', pathname.replace('/kategoria/', ''));
-        queryStr.set('limit', '0'); 
-        const res = await fetch(`/api/search?${queryStr.toString()}`);
-        const json = await res.json();
-        setActiveFiltersData(json);
-      } catch (error) { 
-        console.error("Błąd pobierania filtrów:", error); 
-      } finally { 
-        setLoading(false); 
-      }
-    }
-    const timeoutId = setTimeout(() => fetchFilterCounts(), 150);
-    return () => clearTimeout(timeoutId);
-  }, [pathname, searchParamsString]);
-
   const updateUrlParams = (key: string, value: string | null) => {
     const currentParams = new URLSearchParams(searchParams.toString());
     if (value === null || value === '') currentParams.delete(key);
@@ -149,16 +116,15 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     setIsMobileFiltersOpen(false);
   };
 
-  // 🚀 DYNAMICZNE ZAWĘŻANIE W GARAŻU: Pokazujemy modele przypisane tylko do wybranej marki
   const isMarkaSelected = !!searchParams.get('Pasuje do marki');
-  const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka'] || {};
+  const formatedGarageMake = baseFilters['Pasuje do marki'] || baseFilters['Marka'] || {};
   const formatedGarageModel = isMarkaSelected 
-    ? (narrowedToDisplay['Pasuje do modelu'] || narrowedToDisplay['Model'] || {}) 
-    : (filtersToDisplay['Pasuje do modelu'] || filtersToDisplay['Model'] || {});
+    ? (narrowedFilters['Pasuje do modelu'] || narrowedFilters['Model'] || {}) 
+    : (baseFilters['Pasuje do modelu'] || baseFilters['Model'] || {});
 
-  let techFilters = { ...filtersToDisplay };
+  let techFilters = { ...baseFilters };
   
-  // 🚀 BLOKADA POWIELONYCH NAZW (Usunąłem Model, Typ, Kategorie itp. z paska bocznego)
+  // 🚀 ZASADA: Wycynamy wszystkie śmieciowe i powielone filtry!
   const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle', 'model', 'typ'];
 
   Object.keys(techFilters).forEach(key => {
@@ -173,7 +139,7 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  // 🚀 ŚCISŁE TOP 3 FILTRÓW TECHNICZNYCH
+  // 🚀 TOP 3 FILTRÓW TECHNICZNYCH
   const techFilterKeys = filterCoverage.slice(0, 3).map(f => f.key);
 
   let activeFiltersCount = 0;
@@ -189,15 +155,12 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     
     const isLongList = sortedEntries.length > 5;
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
-    
     const hasActiveSelection = !!searchParams.get(filterKey);
     
     return (
       <div key={filterKey} className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
-          
-          {/* 🚀 WYRAZISTY PRZYCISK WYCZYŚĆ */}
           {hasActiveSelection && (
             <button 
               onClick={() => updateUrlParams(filterKey, null)}
@@ -221,7 +184,7 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
           ) : (
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, staticCount]) => {
               const isChecked = searchParams.get(filterKey) === val;
-              const dynamicCount = narrowedToDisplay[filterKey]?.[val] || 0;
+              const dynamicCount = narrowedFilters[filterKey]?.[val] || 0;
               const isDisabled = dynamicCount === 0 && !isChecked;
 
               return (
@@ -260,8 +223,8 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
         <div className="space-y-3">
-          <SearchableSelect label="Marka maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
-          <SearchableSelect label="Model maszyny" placeholder={loading ? "Ładowanie..." : "Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
+          <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
+          <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
         </div>
       </div>
 
