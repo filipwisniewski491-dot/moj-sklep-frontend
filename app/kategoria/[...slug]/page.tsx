@@ -79,20 +79,18 @@ export default async function CategoryPage({ params, searchParams }: any) {
   let totalCount = 0;
   let products: any[] = [];
   let formattedFilters: any = {};
-  
-  // Tablica do przechowywania kategorii głównej i wszystkich jej dzieci
   let allowedHandles: string[] = [currentHandle];
+  let currentCategory: any = null;
 
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
     
-    // 🚀 DODANE: include_descendants_tree=true - pobieramy całe drzewo kategorii!
-    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}&include_descendants_tree=true`, { headers, cache: 'no-store' });
+    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, cache: 'no-store' });
     
     if (currentCategoryRes.ok) {
       const currentCategoryJson = await currentCategoryRes.json();
-      const currentCategory = currentCategoryJson.product_categories?.[0];
+      currentCategory = currentCategoryJson.product_categories?.[0];
 
       if (currentCategory) {
         const meta = currentCategory.metadata || {};
@@ -102,20 +100,19 @@ export default async function CategoryPage({ params, searchParams }: any) {
         dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
         dbCategoryData.faqs = meta.faqs || meta.faq || [];
 
-        // 🚀 Rekurencyjne wyciąganie wszystkich slugów podkategorii
-        const extractHandles = (cat: any) => {
+        // Bezpieczne, rekurencyjne zbieranie slugów podkategorii
+        const collectHandles = (cat: any) => {
           if (!cat) return;
           if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
           if (cat.category_children && Array.isArray(cat.category_children)) {
-            cat.category_children.forEach(extractHandles);
+            cat.category_children.forEach(collectHandles);
           }
         };
-        allowedHandles = []; // Reset, wyciągniemy je na czysto
-        extractHandles(currentCategory);
+        collectHandles(currentCategory);
       }
     }
   } catch (error) {
-    console.warn("Błąd komunikacji z Medusą - działamy w trybie awaryjnym:", error);
+    console.warn("Medyza zajęta, renderowanie z danych URL", error);
   }
 
   try {
@@ -125,10 +122,9 @@ export default async function CategoryPage({ params, searchParams }: any) {
     const index = meiliClient.index('products');
     const filterArray: string[] = [];
 
-    // 🚀 ZMIANA: Szukamy produktów, które są w głównej kategorii LUB jakiejkolwiek jej podkategorii
     if (allowedHandles.length > 0) {
-      const handlesFilter = allowedHandles.map(h => `category_handle = "${h}"`).join(' OR ');
-      filterArray.push(`(${handlesFilter})`);
+      const handlesValue = allowedHandles.map(h => `"${h}"`).join(', ');
+      filterArray.push(`category_handle IN [${handlesValue}]`);
     } else {
       filterArray.push(`category_handle = "${currentHandle}"`);
     }
@@ -140,7 +136,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     const searchResult = await index.search(resolvedSearchParams.q || "", {
       limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
       filter: filterArray.join(' AND '),
-      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent', 'Kategoria']
+      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent']
     });
 
     products = searchResult.hits.map((p: any) => ({
@@ -157,20 +153,36 @@ export default async function CategoryPage({ params, searchParams }: any) {
     formattedFilters = searchResult.facetDistribution || {};
 
   } catch (error) {
-    console.error("Błąd zapytania do Meilisearch:", error);
+    console.error("Błąd indeksowania Meilisearch:", error);
   }
 
   let topSeoText = dbCategoryData.top_seo_text;
   let bottomSeoText = dbCategoryData.bottom_seo_text;
   const faqs = dbCategoryData.faqs;
-  const headerData = { category: dbCategoryData, breadcrumbs: [] };
+
+  // Generowanie pełnej struktury breadcrumbs dla kompatybilności wstecznej
+  let tempPath = "";
+  const breadcrumbs = slugArray.map(s => {
+    tempPath = tempPath ? `${tempPath}/${s}` : s;
+    return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
+  });
+
+  const searchData = {
+    category: dbCategoryData,
+    breadcrumbs,
+    subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [],
+    filters: formattedFilters,
+    narrowedFilters: formattedFilters,
+    products,
+    totalCount
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       
       <CategoryHeader 
-        initialData={headerData} 
+        initialData={searchData} 
         searchParams={resolvedSearchParams} 
         fullPath={fullPath} 
         topSeoText={topSeoText} 

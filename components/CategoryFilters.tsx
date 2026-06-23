@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useGarage } from '@/store/useGarage'; // 🚀 Importujemy Twój Garaż!
+import { useGarage } from '@/store/useGarage'; 
 
 const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
   const [isOpen, setIsOpen] = useState(false); 
@@ -56,7 +56,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const router = useRouter();
   const pathname = usePathname(); 
   
-  // 🚀 ZUSTAND: Bezpieczne, natychmiastowe pobieranie danych Garażu
   const { isActive: isGarageActive, brand: garageBrand, model: garageModel } = useGarage();
   
   const [activeFiltersData, setActiveFiltersData] = useState<any | null>(null);
@@ -75,10 +74,10 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const searchParamsString = searchParams.toString();
 
   const filtersToDisplay = activeFiltersData?.filters || initialFilters || {};
-  const narrowedToDisplay = activeFiltersData?.narrowedFilters || {};
+  // Poprawiony fallback liczników kafelkowych chroniący przed wyszarzeniem pól
+  const narrowedToDisplay = activeFiltersData?.narrowedFilters || initialFilters || {};
   const totalCount = activeFiltersData?.totalCount || initialTotalCount;
 
-  // Renderowanie tylko dla desktopu (optymalizacja PageSpeed)
   useEffect(() => {
     const checkScreenSize = () => setIsDesktop(window.innerWidth >= 1024);
     checkScreenSize();
@@ -86,14 +85,12 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Blokada przewijania tła na mobile
   useEffect(() => {
     if (isMobileFiltersOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  // 🚀 INTELIGENTNY GARAŻ: Jeśli garaż jest włączony, filtry AUTOMATYCZNIE dodają się do URL!
   useEffect(() => {
     if (isGarageActive && garageBrand) {
       if (searchParams.get('Pasuje do marki') !== garageBrand || searchParams.get('Pasuje do modelu') !== garageModel) {
@@ -101,13 +98,11 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         currentParams.set('Pasuje do marki', garageBrand);
         if (garageModel) currentParams.set('Pasuje do modelu', garageModel);
         
-        // Pushujemy parametry do URL bez przeładowania strony
         router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
       }
     }
   }, [isGarageActive, garageBrand, garageModel, pathname, searchParams, router]);
 
-  // Pobieranie aktywnych liczników dla filtrów w tle
   useEffect(() => {
     if (isFirstRender.current) { 
       isFirstRender.current = false; 
@@ -131,7 +126,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
       }
     }
     
-    // Optymalizacja: pobieramy tylko gdy URL się zmieni (debounce)
     const timeoutId = setTimeout(() => {
       fetchFilterCounts();
     }, 150);
@@ -139,7 +133,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     return () => clearTimeout(timeoutId);
   }, [pathname, searchParamsString]);
 
-  // Uniwersalna funkcja aktualizująca URL (SEO Friendly)
   const updateUrlParams = (key: string, value: string | null) => {
     const currentParams = new URLSearchParams(searchParams.toString());
     if (value === null || value === '') currentParams.delete(key);
@@ -155,11 +148,11 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     setIsMobileFiltersOpen(false);
   };
 
-  const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka maszyny'] || filtersToDisplay['marka maszyny'] || {};
+  const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka'] || {};
   const formatedGarageModel = filtersToDisplay['Pasuje do modelu'] || {};
 
   let techFilters = { ...filtersToDisplay };
-  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu'];
+  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle'];
 
   Object.keys(techFilters).forEach(key => {
     const lowerKey = key.toLowerCase();
@@ -177,7 +170,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const hasTypProduktu = filterCoverage.find(f => f.key.toLowerCase() === 'typ produktu' || f.key.toLowerCase() === 'typ');
   if (hasTypProduktu) techFilterKeys.push(hasTypProduktu.key);
 
-  // 🚀 ZASADA 5 ATYRBUTÓW: Pokazujemy tylko najlepsze, zapobiegając "paraliżowi decyzyjnemu"
   for (const f of filterCoverage) {
      if (techFilterKeys.length >= (hasTypProduktu ? 6 : 5)) break;
      if (!techFilterKeys.includes(f.key)) techFilterKeys.push(f.key);
@@ -246,7 +238,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
 
   const FilterContent = () => (
     <div className="space-y-6">
-      {/* Priorytet #1: Szybkie wyszukiwanie OEM */}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
         <div className="relative flex items-center">
@@ -255,7 +246,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         </div>
       </div>
       
-      {/* Priorytet #2: Dobór do maszyny (Zintegrowane z Garażem) */}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
         <div className="space-y-3">
@@ -282,7 +272,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
 
   return (
     <>
-      {/* Widok Mobile */}
       <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
          <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
            <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
@@ -305,7 +294,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         </div>
       )}
 
-      {/* Widok Desktop (Ochrona LCP/TBT na Mobile) */}
       {isDesktop && (
         <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
           <FilterContent />
