@@ -27,7 +27,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
         {value && (
           <button 
             onClick={(e) => { e.stopPropagation(); onChange(''); setIsOpen(false); }}
-            className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
+            className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm"
           >
             ✕ Wyczyść
           </button>
@@ -149,11 +149,17 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     setIsMobileFiltersOpen(false);
   };
 
-  const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka maszyny'] || filtersToDisplay['marka maszyny'] || {};
-  const formatedGarageModel = filtersToDisplay['Pasuje do modelu'] || {};
+  // 🚀 DYNAMICZNE ZAWĘŻANIE W GARAŻU: Pokazujemy modele przypisane tylko do wybranej marki
+  const isMarkaSelected = !!searchParams.get('Pasuje do marki');
+  const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka'] || {};
+  const formatedGarageModel = isMarkaSelected 
+    ? (narrowedToDisplay['Pasuje do modelu'] || narrowedToDisplay['Model'] || {}) 
+    : (filtersToDisplay['Pasuje do modelu'] || filtersToDisplay['Model'] || {});
 
   let techFilters = { ...filtersToDisplay };
-  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle'];
+  
+  // 🚀 BLOKADA POWIELONYCH NAZW (Usunąłem Model, Typ, Kategorie itp. z paska bocznego)
+  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle', 'model', 'typ'];
 
   Object.keys(techFilters).forEach(key => {
     const lowerKey = key.toLowerCase();
@@ -167,7 +173,7 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  // 🚀 ZASADA 3 ATYRBUTÓW (+ Marka i Model, które obsługuje Garaz/Select)
+  // 🚀 ŚCISŁE TOP 3 FILTRÓW TECHNICZNYCH
   const techFilterKeys = filterCoverage.slice(0, 3).map(f => f.key);
 
   let activeFiltersCount = 0;
@@ -191,13 +197,13 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
         <div className="flex items-center justify-between">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
           
-          {/* 🚀 WYCZYSZCZENIE POJEDYNCZEGO FILTRA */}
+          {/* 🚀 WYRAZISTY PRZYCISK WYCZYŚĆ */}
           {hasActiveSelection && (
             <button 
               onClick={() => updateUrlParams(filterKey, null)}
-              className="text-[9px] font-black uppercase text-red-600 hover:text-red-700 tracking-wider bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
+              className="text-[9px] font-black uppercase text-red-600 hover:text-white tracking-wider bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm"
             >
-              ✕ Wyczyść filtr
+              ✕ Wyczyść
             </button>
           )}
         </div>
@@ -219,7 +225,7 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
               const isDisabled = dynamicCount === 0 && !isChecked;
 
               return (
-                <label key={val} className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); if (isDisabled) return; updateUrlParams(filterKey, isChecked ? null : val); }}>
+                <label key={val} className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 hover:opacity-100 cursor-pointer' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); updateUrlParams(filterKey, isChecked ? null : val); }}>
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-300 bg-white group-hover:border-red-400'}`}>
                       {isChecked && <div className="w-3 h-3 bg-red-600 rounded-[3px]"></div>}
@@ -265,7 +271,7 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
           {(minPrice || maxPrice) && (
              <button 
                onClick={() => { setMinPrice(''); setMaxPrice(''); const currentParams = new URLSearchParams(searchParams.toString()); currentParams.delete('minPrice'); currentParams.delete('maxPrice'); router.push(`${pathname}?${currentParams.toString()}`, { scroll: false }); }}
-               className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
+               className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm"
              >
                ✕ Wyczyść
              </button>
