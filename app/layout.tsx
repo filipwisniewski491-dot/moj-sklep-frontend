@@ -1,11 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import dynamic from 'next/dynamic';
 import "./globals.css";
-
-const DynamicConsentBanner = dynamic(() => import("@/components/ConsentBanner"), { ssr: false });
-const DynamicCartDrawer = dynamic(() => import("@/components/CartDrawer"), { ssr: false });
-const DynamicInstallPWA = dynamic(() => import("@/components/InstallPWA"), { ssr: false });
+import GlobalClientComponents from '@/components/GlobalClientComponents';
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: 'swap' });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: 'swap' });
@@ -30,7 +26,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pl" className={htmlClasses} suppressHydrationWarning>
       <head>
-        {/* Preconnect tylko do CDN z zasobami (fonty/obrazy), które są krytyczne dla LCP */}
         <link rel="preconnect" href="https://centrumrolnictwa-cdn.b-cdn.net" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://centrumrolnictwa-cdn.b-cdn.net" />
 
@@ -38,7 +33,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           __html: `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { 'ad_storage': 'denied', 'ad_user_data': 'denied', 'ad_personalization': 'denied', 'analytics_storage': 'denied', 'wait_for_update': 500 });` 
         }} />
         
-        {/* GTM ukryty przed robotami - ładuje się tylko dla ludzi */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             const isBot = /Lighthouse|PageSpeed|Googlebot|GTmetrix|pingdom|bot|spider|crawl/i.test(navigator.userAgent);
@@ -65,9 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-100 selection:text-red-900 relative">
         <main className="flex-1 flex flex-col">{children}</main>
         
-        <DynamicInstallPWA />
-        <DynamicCartDrawer />
-        <DynamicConsentBanner />
+        {/* Renderowanie dynamicznych komponentów z klienta */}
+        <GlobalClientComponents />
       </body>
     </html>
   );
