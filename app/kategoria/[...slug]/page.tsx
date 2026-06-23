@@ -68,7 +68,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const fullPath = slugArray.join('/');
   const currentHandle = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
 
-  // 1. Zabezpieczenie danych awaryjnych (na wypadek braku połączenia z Medusą)
   let dbCategoryData = { 
     h1_dynamic: currentHandle.toUpperCase().replace(/-/g, ' '), 
     name: currentHandle.replace(/-/g, ' '), 
@@ -80,13 +79,16 @@ export default async function CategoryPage({ params, searchParams }: any) {
   let totalCount = 0;
   let products: any[] = [];
   let formattedFilters: any = {};
+  
+  // Tablica do przechowywania kategorii głównej i wszystkich jej dzieci
+  let allowedHandles: string[] = [currentHandle];
 
-  // 2. Pobieramy opisy SEO i FAQ z Medusy (w bezpiecznym bloku try-catch)
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
     
-    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, cache: 'no-store' });
+    // 🚀 DODANE: include_descendants_tree=true - pobieramy całe drzewo kategorii!
+    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}&include_descendants_tree=true`, { headers, cache: 'no-store' });
     
     if (currentCategoryRes.ok) {
       const currentCategoryJson = await currentCategoryRes.json();
@@ -99,19 +101,37 @@ export default async function CategoryPage({ params, searchParams }: any) {
         dbCategoryData.top_seo_text = meta.top_seo_text || currentCategory.description || "";
         dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
         dbCategoryData.faqs = meta.faqs || meta.faq || [];
+
+        // 🚀 Rekurencyjne wyciąganie wszystkich slugów podkategorii
+        const extractHandles = (cat: any) => {
+          if (!cat) return;
+          if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
+          if (cat.category_children && Array.isArray(cat.category_children)) {
+            cat.category_children.forEach(extractHandles);
+          }
+        };
+        allowedHandles = []; // Reset, wyciągniemy je na czysto
+        extractHandles(currentCategory);
       }
     }
   } catch (error) {
-    console.warn("Błąd komunikacji z Medusą - wyświetlam stronę bazując na URL:", error);
+    console.warn("Błąd komunikacji z Medusą - działamy w trybie awaryjnym:", error);
   }
 
-  // 3. Pobieramy produkty i filtry z Meilisearch (Główne źródło prawdy)
   try {
     const activeFilters = { ...resolvedSearchParams };
     ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page'].forEach(k => delete activeFilters[k]);
 
     const index = meiliClient.index('products');
-    const filterArray: string[] = [`category_handle = "${currentHandle}"`];
+    const filterArray: string[] = [];
+
+    // 🚀 ZMIANA: Szukamy produktów, które są w głównej kategorii LUB jakiejkolwiek jej podkategorii
+    if (allowedHandles.length > 0) {
+      const handlesFilter = allowedHandles.map(h => `category_handle = "${h}"`).join(' OR ');
+      filterArray.push(`(${handlesFilter})`);
+    } else {
+      filterArray.push(`category_handle = "${currentHandle}"`);
+    }
 
     Object.entries(activeFilters).forEach(([key, val]) => {
       if (val) filterArray.push(`\`${key}\` = "${val}"`);
@@ -120,7 +140,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     const searchResult = await index.search(resolvedSearchParams.q || "", {
       limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
       filter: filterArray.join(' AND '),
-      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent']
+      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent', 'Kategoria']
     });
 
     products = searchResult.hits.map((p: any) => ({
@@ -143,8 +163,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
   let topSeoText = dbCategoryData.top_seo_text;
   let bottomSeoText = dbCategoryData.bottom_seo_text;
   const faqs = dbCategoryData.faqs;
-
-  // Kompatybilność z nagłówkiem kategorii
   const headerData = { category: dbCategoryData, breadcrumbs: [] };
 
   return (
