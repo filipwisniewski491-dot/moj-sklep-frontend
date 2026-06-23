@@ -22,7 +22,17 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
 
   return ( 
     <div className="w-full relative" ref={wrapperRef}> 
-      <h3 className="text-slate-600 font-black uppercase text-[10px] tracking-widest mb-2">{label}</h3> 
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-slate-600 font-black uppercase text-[10px] tracking-widest">{label}</h3> 
+        {value && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onChange(''); setIsOpen(false); }}
+            className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
+          >
+            ✕ Wyczyść
+          </button>
+        )}
+      </div>
       <button aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3.5 min-h-[48px] flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> 
         <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value || placeholder}</span> 
         <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg> 
@@ -33,7 +43,6 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
             <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-3 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors min-h-[48px]" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} /> 
           </div> 
           <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white"> 
-            <button aria-label="Wyczyść wybór" className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors ${!value ? 'bg-red-50 text-red-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}>Wyczyść wybór</button> 
             {filteredOptions.length === 0 ? ( 
               <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div> 
             ) : ( 
@@ -51,7 +60,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ initialFilters = {}, initialTotalCount = 0 }: { initialFilters?: any, initialTotalCount?: number }) {
+export default function CategoryFilters({ initialFilters = {}, initialNarrowedFilters = {}, initialTotalCount = 0 }: any) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname(); 
@@ -73,8 +82,9 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const isFirstRender = useRef(true);
   const searchParamsString = searchParams.toString();
 
+  // 🚀 Baza dla liczb (cała kategoria) i Narrowed dla wyłączania klikania (Disable)
   const filtersToDisplay = activeFiltersData?.filters || initialFilters || {};
-  const narrowedToDisplay = activeFiltersData?.narrowedFilters || initialFilters || {};
+  const narrowedToDisplay = activeFiltersData?.narrowedFilters || initialNarrowedFilters || {};
   const totalCount = activeFiltersData?.totalCount || initialTotalCount;
 
   useEffect(() => {
@@ -96,7 +106,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         const currentParams = new URLSearchParams(searchParams.toString());
         currentParams.set('Pasuje do marki', garageBrand);
         if (garageModel) currentParams.set('Pasuje do modelu', garageModel);
-        
         router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
       }
     }
@@ -107,14 +116,12 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
       isFirstRender.current = false; 
       return; 
     }
-
     async function fetchFilterCounts() {
       setLoading(true);
       try {
         const queryStr = new URLSearchParams(searchParamsString);
         queryStr.set('fullPath', pathname.replace('/kategoria/', ''));
         queryStr.set('limit', '0'); 
-
         const res = await fetch(`/api/search?${queryStr.toString()}`);
         const json = await res.json();
         setActiveFiltersData(json);
@@ -124,11 +131,7 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
         setLoading(false); 
       }
     }
-    
-    const timeoutId = setTimeout(() => {
-      fetchFilterCounts();
-    }, 150);
-    
+    const timeoutId = setTimeout(() => fetchFilterCounts(), 150);
     return () => clearTimeout(timeoutId);
   }, [pathname, searchParamsString]);
 
@@ -147,11 +150,12 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     setIsMobileFiltersOpen(false);
   };
 
+  // Tutaj pobieramy z bazy GŁÓWNEJ (nie zwężonej)
   const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka'] || {};
   const formatedGarageModel = filtersToDisplay['Pasuje do modelu'] || {};
 
   let techFilters = { ...filtersToDisplay };
-  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle'];
+  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle'];
 
   Object.keys(techFilters).forEach(key => {
     const lowerKey = key.toLowerCase();
@@ -165,8 +169,8 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  // ŚCISŁE 5 FILTRÓW
-  const techFilterKeys = filterCoverage.slice(0, 5).map(f => f.key);
+  // 🚀 ZASADA: Tniemy bezwzględnie do 3 najlepszych filtrów (plus domyślnie obsłużone Marka/Model wyżej)
+  const techFilterKeys = filterCoverage.slice(0, 3).map(f => f.key);
 
   let activeFiltersCount = 0;
   searchParams.forEach((val, key) => { if (!['limit', 'sort', 'view', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
@@ -182,9 +186,22 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     const isLongList = sortedEntries.length > 5;
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
     
+    // Sprawdzamy, czy aktualny parametr jest wybrany
+    const hasActiveSelection = !!searchParams.get(filterKey);
+    
     return (
       <div key={filterKey} className="space-y-3">
-        <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
+        <div className="flex items-center justify-between">
+          <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
+          {hasActiveSelection && (
+            <button 
+              onClick={() => updateUrlParams(filterKey, null)}
+              className="text-[9px] font-black uppercase text-red-600 hover:text-red-700 tracking-wider bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
+            >
+              ✕ Wyczyść
+            </button>
+          )}
+        </div>
         
         {isLongList && (
           <div className="relative mb-3">
@@ -197,10 +214,12 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
           {matchedEntries.length === 0 ? (
             <div className="text-[9px] text-slate-500 uppercase font-black tracking-widest py-2">Brak wyników</div>
           ) : (
-            (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val]) => {
+            (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, staticCount]) => {
               const isChecked = searchParams.get(filterKey) === val;
-              const activeCount = narrowedToDisplay[filterKey]?.[val] || 0;
-              const isDisabled = activeCount === 0 && !isChecked;
+              
+              // dynamicCount określa czy kombinacja istnieje, ale na ekranie zawsze drukujemy staticCount dla logiki całej kategorii
+              const dynamicCount = narrowedToDisplay[filterKey]?.[val] || 0;
+              const isDisabled = dynamicCount === 0 && !isChecked;
 
               return (
                 <label key={val} className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); if (isDisabled) return; updateUrlParams(filterKey, isChecked ? null : val); }}>
@@ -211,11 +230,7 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
                     <span className={`text-sm transition-colors truncate ${isChecked ? 'text-red-700 font-black' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{val}</span>
                   </div>
                   <div className="flex items-center gap-2 pl-2 flex-shrink-0">
-                    {isChecked ? (
-                      <span className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1 bg-red-100/50 px-2 py-1 rounded-md hover:bg-red-200 transition-colors">✕ Usuń</span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{isDisabled ? 0 : activeCount}</span>
-                    )}
+                    <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{staticCount as number}</span>
                   </div>
                 </label>
               );
@@ -248,7 +263,17 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
       </div>
 
       <div className="mb-6 border-b border-slate-100 pb-6">
-        <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-600 mb-3">Zakres Cenowy (zł)</h4>
+        <div className="flex justify-between items-center mb-3">
+          <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-600">Zakres Cenowy (zł)</h4>
+          {(minPrice || maxPrice) && (
+             <button 
+               onClick={() => { setMinPrice(''); setMaxPrice(''); const currentParams = new URLSearchParams(searchParams.toString()); currentParams.delete('minPrice'); currentParams.delete('maxPrice'); router.push(`${pathname}?${currentParams.toString()}`, { scroll: false }); }}
+               className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
+             >
+               ✕ Wyczyść
+             </button>
+          )}
+        </div>
         <div className="flex gap-2 items-center">
           <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={minPrice} onChange={e => setMinPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPriceFilter()} />
           <span className="text-slate-500 font-black">-</span>

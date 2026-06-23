@@ -89,22 +89,23 @@ export async function GET(request: Request) {
     });
 
     const index = meiliClient.index('products');
-    const filterArray: string[] = [];
     
-    if (allowedHandles.length > 0) {
-      const handlesValue = allowedHandles.map(h => JSON.stringify(h)).join(', ');
-      filterArray.push(`category_handle IN [${handlesValue}]`);
-    } else {
-      filterArray.push(`category_handle = ${JSON.stringify(currentHandle)}`);
-    }
+    const categoryFilterStr = allowedHandles.length > 0 
+      ? `category_handle IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
+      : `category_handle = ${JSON.stringify(currentHandle)}`;
 
-    Object.entries(activeFilters).forEach(([key, val]) => {
-      if (val) {
-        filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
-      }
+    // 🚀 Baza dla filtrów - niezależna od wyborów użytkownika
+    const baseFacetsResult = await index.search(searchQ, {
+      limit: 0,
+      filter: categoryFilterStr,
+      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent', 'Kategoria']
     });
 
-    // Ustalanie sortowania dla Meilisearch
+    const filterArray: string[] = [categoryFilterStr];
+    Object.entries(activeFilters).forEach(([key, val]) => {
+      if (val) filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
+    });
+
     const sortParam = searchParams.get('sort');
     let meiliSort = undefined;
     if (sortParam === 'price_asc') meiliSort = ['price:asc'];
@@ -127,14 +128,12 @@ export async function GET(request: Request) {
       images: p.thumbnail ? [{ url: p.thumbnail }] : []
     }));
 
-    const meiliFacets = searchResult.facetDistribution || {};
-    
     return NextResponse.json({ 
       category: dbCategoryData, 
       breadcrumbs, 
       subcategories: directSubcategories,
-      filters: meiliFacets, 
-      narrowedFilters: meiliFacets, 
+      filters: baseFacetsResult.facetDistribution || {}, 
+      narrowedFilters: searchResult.facetDistribution || {}, 
       products: mappedProducts,
       totalCount: searchResult.estimatedTotalHits || mappedProducts.length, 
       faqs: dbCategoryData.faqs

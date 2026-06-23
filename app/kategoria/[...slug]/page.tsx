@@ -79,7 +79,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
   
   let totalCount = 0;
   let products: any[] = [];
-  let formattedFilters: any = {};
+  let baseFilters: any = {};
+  let narrowedFilters: any = {};
   let allowedHandles: string[] = [currentHandle];
   let currentCategory: any = null;
 
@@ -120,19 +121,23 @@ export default async function CategoryPage({ params, searchParams }: any) {
     ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
 
     const index = meiliClient.index('products');
-    const filterArray: string[] = [];
+    
+    // 🚀 MULTI-QUERY ARCHITECTURE: Zapytanie nr 1 (Czyste liczniki dla CAŁEJ kategorii)
+    const categoryFilterStr = allowedHandles.length > 0 
+      ? `category_handle IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
+      : `category_handle = ${JSON.stringify(currentHandle)}`;
 
-    if (allowedHandles.length > 0) {
-      const handlesValue = allowedHandles.map(h => JSON.stringify(h)).join(', ');
-      filterArray.push(`category_handle IN [${handlesValue}]`);
-    } else {
-      filterArray.push(`category_handle = ${JSON.stringify(currentHandle)}`);
-    }
+    const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+      limit: 0,
+      filter: categoryFilterStr, // Brak filtrów użytkownika
+      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent']
+    });
+    baseFilters = baseFacetsResult.facetDistribution || {};
 
+    // Zapytanie nr 2 (Właściwe produkty i zwężone filtry)
+    const filterArray: string[] = [categoryFilterStr];
     Object.entries(activeFilters).forEach(([key, val]) => {
-      if (val) {
-        filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
-      }
+      if (val) filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
     });
 
     const sortParam = resolvedSearchParams.sort;
@@ -158,7 +163,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     }));
 
     totalCount = searchResult.estimatedTotalHits || products.length;
-    formattedFilters = searchResult.facetDistribution || {};
+    narrowedFilters = searchResult.facetDistribution || {};
 
   } catch (error) {
     console.error("Błąd zapytania Meilisearch:", error);
@@ -178,10 +183,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
     category: dbCategoryData,
     breadcrumbs,
     subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [],
-    filters: formattedFilters,
-    narrowedFilters: formattedFilters,
-    products,
-    totalCount
   };
 
   return (
@@ -190,13 +191,14 @@ export default async function CategoryPage({ params, searchParams }: any) {
       <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={topSeoText} /> 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         <aside className="w-full lg:w-80 flex-shrink-0">
-          <CategoryFilters initialFilters={formattedFilters} initialTotalCount={totalCount} />
+          <CategoryFilters 
+            initialFilters={baseFilters} 
+            initialNarrowedFilters={narrowedFilters}
+            initialTotalCount={totalCount} 
+          />
         </aside>
         <div className="flex-1 flex flex-col min-h-[500px]">
-          
-          {/* PASEK SORTOWANIA I WIDOKU */}
           <CategoryToolbar totalCount={totalCount} />
-
           <ProductGrid 
             initialProducts={products} 
             totalCount={totalCount} 
@@ -204,7 +206,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
             loading={false} 
             isListView={resolvedSearchParams?.view === 'list'}
           />
-          
           {bottomSeoText && <DynamicSeoSection text={bottomSeoText} />}
           {faqs && faqs.length > 0 && <DynamicFaqSection faqs={faqs} />}
         </div>
