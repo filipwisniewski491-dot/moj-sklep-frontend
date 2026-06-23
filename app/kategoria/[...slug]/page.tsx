@@ -100,7 +100,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
         dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
         dbCategoryData.faqs = meta.faqs || meta.faq || [];
 
-        // Bezpieczne, rekurencyjne zbieranie slugów podkategorii
         const collectHandles = (cat: any) => {
           if (!cat) return;
           if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
@@ -112,7 +111,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
       }
     }
   } catch (error) {
-    console.warn("Medyza zajęta, renderowanie z danych URL", error);
+    console.warn("Medyza zajęta, renderowanie z danych URL");
   }
 
   try {
@@ -122,15 +121,19 @@ export default async function CategoryPage({ params, searchParams }: any) {
     const index = meiliClient.index('products');
     const filterArray: string[] = [];
 
+    // 🔥 POPRAWKA: Używamy bezpiecznego JSON.stringify i pojedynczych apostrofów
     if (allowedHandles.length > 0) {
-      const handlesValue = allowedHandles.map(h => `"${h}"`).join(', ');
+      const handlesValue = allowedHandles.map(h => JSON.stringify(h)).join(', ');
       filterArray.push(`category_handle IN [${handlesValue}]`);
     } else {
-      filterArray.push(`category_handle = "${currentHandle}"`);
+      filterArray.push(`category_handle = ${JSON.stringify(currentHandle)}`);
     }
 
     Object.entries(activeFilters).forEach(([key, val]) => {
-      if (val) filterArray.push(`\`${key}\` = "${val}"`);
+      if (val) {
+        // Meilisearch wymaga formatu: 'Klucz ze spacją' = "Wartość"
+        filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
+      }
     });
 
     const searchResult = await index.search(resolvedSearchParams.q || "", {
@@ -153,14 +156,13 @@ export default async function CategoryPage({ params, searchParams }: any) {
     formattedFilters = searchResult.facetDistribution || {};
 
   } catch (error) {
-    console.error("Błąd indeksowania Meilisearch:", error);
+    console.error("Błąd zapytania Meilisearch:", error);
   }
 
   let topSeoText = dbCategoryData.top_seo_text;
   let bottomSeoText = dbCategoryData.bottom_seo_text;
   const faqs = dbCategoryData.faqs;
 
-  // Generowanie pełnej struktury breadcrumbs dla kompatybilności wstecznej
   let tempPath = "";
   const breadcrumbs = slugArray.map(s => {
     tempPath = tempPath ? `${tempPath}/${s}` : s;
@@ -180,26 +182,17 @@ export default async function CategoryPage({ params, searchParams }: any) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
-      
-      <CategoryHeader 
-        initialData={searchData} 
-        searchParams={resolvedSearchParams} 
-        fullPath={fullPath} 
-        topSeoText={topSeoText} 
-      /> 
-      
+      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={topSeoText} /> 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         <aside className="w-full lg:w-80 flex-shrink-0">
           <CategoryFilters initialFilters={formattedFilters} initialTotalCount={totalCount} />
         </aside>
         <div className="flex-1 flex flex-col min-h-[500px]">
           <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
-          
           {bottomSeoText && <DynamicSeoSection text={bottomSeoText} />}
           {faqs && faqs.length > 0 && <DynamicFaqSection faqs={faqs} />}
         </div>
       </main>
-
       <MobileBottomNav />
       <DynamicFooter />
     </div>
