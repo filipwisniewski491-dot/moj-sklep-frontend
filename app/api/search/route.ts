@@ -94,11 +94,11 @@ export async function GET(request: Request) {
       ? `category_handle IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handle = ${JSON.stringify(currentHandle)}`;
 
-    // 🚀 Baza dla filtrów - niezależna od wyborów użytkownika
+    // 🚀 ZAPYTANIE NR 1: WSZYSTKIE FILTRY DLA KATEGORII BAZOWEJ
     const baseFacetsResult = await index.search(searchQ, {
       limit: 0,
       filter: categoryFilterStr,
-      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent', 'Kategoria']
+      facets: ['*'] // 👈 Wyciąga całą Twoją specyfikację techniczną!
     });
 
     const filterArray: string[] = [categoryFilterStr];
@@ -111,11 +111,12 @@ export async function GET(request: Request) {
     if (sortParam === 'price_asc') meiliSort = ['price:asc'];
     if (sortParam === 'price_desc') meiliSort = ['price:desc'];
 
+    // 🚀 ZAPYTANIE NR 2: ZAWĘŻONE WYNIKI DLA UŻYTKOWNIKA
     const searchResult = await index.search(searchQ, {
       limit: currentLimit,
       filter: filterArray.join(' AND '),
       sort: meiliSort,
-      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent', 'Kategoria']
+      facets: ['*'] // 👈
     });
 
     const mappedProducts = searchResult.hits.map((p: any) => ({

@@ -82,7 +82,6 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
   const isFirstRender = useRef(true);
   const searchParamsString = searchParams.toString();
 
-  // 🚀 Baza dla liczb (cała kategoria) i Narrowed dla wyłączania klikania (Disable)
   const filtersToDisplay = activeFiltersData?.filters || initialFilters || {};
   const narrowedToDisplay = activeFiltersData?.narrowedFilters || initialNarrowedFilters || {};
   const totalCount = activeFiltersData?.totalCount || initialTotalCount;
@@ -150,8 +149,7 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     setIsMobileFiltersOpen(false);
   };
 
-  // Tutaj pobieramy z bazy GŁÓWNEJ (nie zwężonej)
-  const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka'] || {};
+  const formatedGarageMake = filtersToDisplay['Pasuje do marki'] || filtersToDisplay['Marka maszyny'] || filtersToDisplay['marka maszyny'] || {};
   const formatedGarageModel = filtersToDisplay['Pasuje do modelu'] || {};
 
   let techFilters = { ...filtersToDisplay };
@@ -169,7 +167,7 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  // 🚀 ZASADA: Tniemy bezwzględnie do 3 najlepszych filtrów (plus domyślnie obsłużone Marka/Model wyżej)
+  // 🚀 ZASADA 3 ATYRBUTÓW (+ Marka i Model, które obsługuje Garaz/Select)
   const techFilterKeys = filterCoverage.slice(0, 3).map(f => f.key);
 
   let activeFiltersCount = 0;
@@ -186,19 +184,20 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
     const isLongList = sortedEntries.length > 5;
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
     
-    // Sprawdzamy, czy aktualny parametr jest wybrany
     const hasActiveSelection = !!searchParams.get(filterKey);
     
     return (
       <div key={filterKey} className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
+          
+          {/* 🚀 WYCZYSZCZENIE POJEDYNCZEGO FILTRA */}
           {hasActiveSelection && (
             <button 
               onClick={() => updateUrlParams(filterKey, null)}
               className="text-[9px] font-black uppercase text-red-600 hover:text-red-700 tracking-wider bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
             >
-              ✕ Wyczyść
+              ✕ Wyczyść filtr
             </button>
           )}
         </div>
@@ -216,8 +215,6 @@ export default function CategoryFilters({ initialFilters = {}, initialNarrowedFi
           ) : (
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, staticCount]) => {
               const isChecked = searchParams.get(filterKey) === val;
-              
-              // dynamicCount określa czy kombinacja istnieje, ale na ekranie zawsze drukujemy staticCount dla logiki całej kategorii
               const dynamicCount = narrowedToDisplay[filterKey]?.[val] || 0;
               const isDisabled = dynamicCount === 0 && !isChecked;
 
