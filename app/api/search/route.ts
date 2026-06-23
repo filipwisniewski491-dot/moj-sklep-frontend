@@ -1,4 +1,3 @@
-// app/api/search/route.ts
 import { NextResponse } from 'next/server';
 import { Meilisearch } from 'meilisearch';
 
@@ -40,7 +39,7 @@ export async function GET(request: Request) {
   const currentLimit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 250;
   const activeFilters = Object.fromEntries(searchParams.entries());
   
-  ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page'].forEach(k => delete activeFilters[k]);
+  ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
 
   const segments = fullPath.split('/').filter(Boolean);
   const currentHandle = segments[segments.length - 1]; 
@@ -92,7 +91,6 @@ export async function GET(request: Request) {
     const index = meiliClient.index('products');
     const filterArray: string[] = [];
     
-    // 🔥 POPRAWKA: Pobieramy rodziców i dzieci + bezpieczny JSON.stringify
     if (allowedHandles.length > 0) {
       const handlesValue = allowedHandles.map(h => JSON.stringify(h)).join(', ');
       filterArray.push(`category_handle IN [${handlesValue}]`);
@@ -102,15 +100,21 @@ export async function GET(request: Request) {
 
     Object.entries(activeFilters).forEach(([key, val]) => {
       if (val) {
-        // Meilisearch wymaga formatu: 'Klucz ze spacją' = "Wartość"
         filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
       }
     });
 
+    // Ustalanie sortowania dla Meilisearch
+    const sortParam = searchParams.get('sort');
+    let meiliSort = undefined;
+    if (sortParam === 'price_asc') meiliSort = ['price:asc'];
+    if (sortParam === 'price_desc') meiliSort = ['price:desc'];
+
     const searchResult = await index.search(searchQ, {
       limit: currentLimit,
       filter: filterArray.join(' AND '),
-      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent']
+      sort: meiliSort,
+      facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent', 'Kategoria']
     });
 
     const mappedProducts = searchResult.hits.map((p: any) => ({

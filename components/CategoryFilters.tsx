@@ -74,7 +74,6 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
   const searchParamsString = searchParams.toString();
 
   const filtersToDisplay = activeFiltersData?.filters || initialFilters || {};
-  // Poprawiony fallback liczników kafelkowych chroniący przed wyszarzeniem pól
   const narrowedToDisplay = activeFiltersData?.narrowedFilters || initialFilters || {};
   const totalCount = activeFiltersData?.totalCount || initialTotalCount;
 
@@ -166,17 +165,11 @@ export default function CategoryFilters({ initialFilters = {}, initialTotalCount
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  let techFilterKeys: string[] = [];
-  const hasTypProduktu = filterCoverage.find(f => f.key.toLowerCase() === 'typ produktu' || f.key.toLowerCase() === 'typ');
-  if (hasTypProduktu) techFilterKeys.push(hasTypProduktu.key);
-
-  for (const f of filterCoverage) {
-     if (techFilterKeys.length >= (hasTypProduktu ? 6 : 5)) break;
-     if (!techFilterKeys.includes(f.key)) techFilterKeys.push(f.key);
-  }
+  // ŚCISŁE 5 FILTRÓW
+  const techFilterKeys = filterCoverage.slice(0, 5).map(f => f.key);
 
   let activeFiltersCount = 0;
-  searchParams.forEach((val, key) => { if (!['limit', 'sort', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
+  searchParams.forEach((val, key) => { if (!['limit', 'sort', 'view', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
 
   const renderFilterBlock = (filterKey: string) => {
     const filterValues = techFilters[filterKey] as Record<string, number>;

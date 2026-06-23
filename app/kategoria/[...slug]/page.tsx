@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import CategoryHeader from '@/components/CategoryHeader';
 import CategoryFilters from '@/components/CategoryFilters';
+import CategoryToolbar from '@/components/CategoryToolbar';
 import ProductGrid from '@/components/ProductGrid';
 
 const DynamicFooter = dynamic(() => import('@/components/Footer'));
@@ -116,12 +117,11 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
   try {
     const activeFilters = { ...resolvedSearchParams };
-    ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page'].forEach(k => delete activeFilters[k]);
+    ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
 
     const index = meiliClient.index('products');
     const filterArray: string[] = [];
 
-    // 🔥 POPRAWKA: Używamy bezpiecznego JSON.stringify i pojedynczych apostrofów
     if (allowedHandles.length > 0) {
       const handlesValue = allowedHandles.map(h => JSON.stringify(h)).join(', ');
       filterArray.push(`category_handle IN [${handlesValue}]`);
@@ -131,14 +131,19 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
     Object.entries(activeFilters).forEach(([key, val]) => {
       if (val) {
-        // Meilisearch wymaga formatu: 'Klucz ze spacją' = "Wartość"
         filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
       }
     });
 
+    const sortParam = resolvedSearchParams.sort;
+    let meiliSort = undefined;
+    if (sortParam === 'price_asc') meiliSort = ['price:asc'];
+    if (sortParam === 'price_desc') meiliSort = ['price:desc'];
+
     const searchResult = await index.search(resolvedSearchParams.q || "", {
       limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
       filter: filterArray.join(' AND '),
+      sort: meiliSort,
       facets: ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Marka', 'Model', 'Producent']
     });
 
@@ -188,7 +193,18 @@ export default async function CategoryPage({ params, searchParams }: any) {
           <CategoryFilters initialFilters={formattedFilters} initialTotalCount={totalCount} />
         </aside>
         <div className="flex-1 flex flex-col min-h-[500px]">
-          <ProductGrid initialProducts={products} totalCount={totalCount} fullPath={fullPath} loading={false} />
+          
+          {/* PASEK SORTOWANIA I WIDOKU */}
+          <CategoryToolbar totalCount={totalCount} />
+
+          <ProductGrid 
+            initialProducts={products} 
+            totalCount={totalCount} 
+            fullPath={fullPath} 
+            loading={false} 
+            isListView={resolvedSearchParams?.view === 'list'}
+          />
+          
           {bottomSeoText && <DynamicSeoSection text={bottomSeoText} />}
           {faqs && faqs.length > 0 && <DynamicFaqSection faqs={faqs} />}
         </div>
