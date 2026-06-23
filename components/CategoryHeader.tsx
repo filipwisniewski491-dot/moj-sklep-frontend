@@ -1,6 +1,24 @@
+'use client'; // 🚀 Kluczowa zmiana: pozwala nam czytać adres URL na żywo
+
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import SubcategoryNav from './SubcategoryNav';
+
+// 📚 Słownik głównych kategorii (aby zapewnić idealne polskie znaki dla L1 i L2)
+const BREADCRUMB_DICTIONARY: Record<string, string> = {
+  'czesci-do-ciagnikow': 'Części do ciągników',
+  'czesci-do-maszyn': 'Części do maszyn',
+  'hydraulika-silowa': 'Hydraulika siłowa',
+  'warsztat-i-uniwersalne': 'Warsztat i Uniwersalne',
+  'hodowla-i-zootechnika': 'Hodowla i Zootechnika',
+  'zbior-zielonki': 'Zbiór zielonki',
+  'uklad-chlodzenia': 'Układ chłodzenia',
+  'uklad-paliwowy-i-wydechowy': 'Układ paliwowy i wydechowy',
+  'siedzenia-i-fotele': 'Siedzenia i fotele',
+  'silnik-i-osprzet': 'Silnik i osprzęt',
+  'uprawa-ziemi': 'Uprawa ziemi'
+};
 
 const capitalizeWords = (str: string) => {
   if (!str) return '';
@@ -16,14 +34,41 @@ const parseMarkdown = (text: string) => {
   return html;
 };
 
-export default function CategoryHeader({ initialData, searchParams, fullPath, topSeoText }: { initialData: any, searchParams: any, fullPath: string, topSeoText?: string }) {
+export default function CategoryHeader({ initialData, searchParams, topSeoText }: { initialData: any, searchParams: any, fullPath?: string, topSeoText?: string }) {
+  const pathname = usePathname(); // Pobieramy pełny adres, np. "/kategoria/czesci-do-ciagnikow/uklad-chlodzenia"
   const categoryData = initialData?.category || null;
-  const breadcrumbs = initialData?.breadcrumbs || []; // 🚀 Prosto i czysto z bazy danych
   
   let subcategories = initialData?.subcategories;
   if (!subcategories || subcategories.length === 0) {
     subcategories = categoryData?.category_children || categoryData?.children || [];
   }
+  
+  // 🚀 ZMIANA: Tniemy URL prosto z przeglądarki, wyrzucając słowo "kategoria"
+  const pathSegments = pathname.split('/').filter(p => p && p !== 'kategoria');
+  
+  const breadcrumbs = pathSegments.map((slugPart: string, index: number) => {
+    // Budujemy link narastająco: kategoria1 -> kategoria1/kategoria2
+    const cumulativePath = pathSegments.slice(0, index + 1).join('/');
+    
+    let prettyName = '';
+    // Jeśli to ostatni okruszek (czyli kategoria, na której właśnie jesteśmy),
+    // bierzemy jej idealną nazwę wprost z bazy danych Medusy.
+    if (index === pathSegments.length - 1 && categoryData?.name) {
+      prettyName = categoryData.name;
+    } else {
+      // Dla wcześniejszych kategorii używamy słownika lub kapitalizujemy
+      prettyName = BREADCRUMB_DICTIONARY[slugPart.toLowerCase()] || slugPart
+        .replace(/-/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+
+    return {
+      name: prettyName,
+      path: cumulativePath
+    };
+  });
 
   const rawBrandLabel = searchParams?.['Pasuje do marki'];
   const rawModelLabel = searchParams?.['Pasuje do modelu'];
@@ -68,7 +113,7 @@ export default function CategoryHeader({ initialData, searchParams, fullPath, to
         )}
 
         {subcategories && subcategories.length > 0 && (
-          <SubcategoryNav subcategories={subcategories} fullPath={fullPath} />
+          <SubcategoryNav subcategories={subcategories} fullPath={pathname.replace('/kategoria/', '')} />
         )}
       </div>
     </div>
