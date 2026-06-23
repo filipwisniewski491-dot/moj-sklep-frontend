@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/store/useCart';
 import { trackViewSearchResults } from '@/lib/analytics'; 
 import { useGarage } from '@/store/useGarage'; 
+// Dodajemy import Twojego nowego klienta Meilisearch!
+import { meiliClient } from '@/lib/meilisearch-client';
 
 const PHRASES = [
   "Wpisz numer OEM części...",
@@ -20,7 +22,7 @@ export default function SearchBar() {
   const searchRef = useRef<HTMLDivElement>(null);
   
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   
@@ -91,6 +93,7 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // TO JEST KLUCZOWY FRAGMENT - ZMIENIONY NA MEILISEARCH
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
@@ -101,14 +104,19 @@ export default function SearchBar() {
     const delayDebounceFn = setTimeout(async () => {
       setIsSearching(true);
       try {
+        // Garaż działa z Meilisearch bez problemu!
         const searchQuery = isActive ? `${query} ${brand} ${model}` : query;
         
-        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
-        const json = await res.json();
-        setResults(json.data || json.products || []); 
+        // 🚀 Zapytanie bezpośrednio do Twojego serwera Hetzner
+        const index = meiliClient.index('products');
+        const searchResult = await index.search(searchQuery, { 
+            limit: 6 // Pobieramy 6 pierwszych wyników
+        });
+        
+        setResults(searchResult.hits); 
         setIsOpen(true);
       } catch (error) {
-        console.error('Błąd wyszukiwania', error);
+        console.error('Błąd wyszukiwania Meilisearch:', error);
       } finally {
         setIsSearching(false);
       }
@@ -148,7 +156,6 @@ export default function SearchBar() {
 
       <div className="relative w-full z-50 group flex flex-col" ref={searchRef}>
         <div className="relative flex items-center w-full">
-          {/* 🚀 ZMIANA: Dodano aria-label aby odblokować 100 punktów Accessibility i Agentów AI */}
           <input 
             aria-label="Szukaj produktów w sklepie"
             type="text" 
@@ -184,11 +191,12 @@ export default function SearchBar() {
                 </div>
                 <ul className="max-h-[60vh] overflow-y-auto custom-scrollbar">
                   {results.map((product: any) => {
-                    const img = product.image || product.external_images?.[0] || product.images?.[0]?.url_thumbnail || product.images?.[0]?.url;
+                    // Dodano 'thumbnail' z Meilisearch do obrazków
+                    const img = product.thumbnail || product.image || product.external_images?.[0] || product.images?.[0]?.url_thumbnail || product.images?.[0]?.url;
                     return (
                       <li key={product.id || product.sku} className="border-b border-slate-50 last:border-0 hover:bg-red-50/30 transition-colors">
                         <Link 
-                          href={`/produkt/${product.slug || product.sku || product.id}`}
+                          href={`/produkt/${product.handle || product.slug || product.id}`}
                           onClick={() => {
                             const searchQuery = isActive ? `${query} ${brand} ${model}` : query;
                             trackViewSearchResults(searchQuery);
@@ -197,11 +205,13 @@ export default function SearchBar() {
                           className="flex items-center gap-5 p-4 md:p-5"
                         >
                           <div className="w-14 h-14 bg-white rounded-xl border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden p-1">
-                            {img ? <img src={img} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" /> : <span className="text-[8px] font-black uppercase text-slate-300">Brak</span>}
+                            {img ? <img src={img} alt={product.name || product.title} className="w-full h-full object-contain mix-blend-multiply" /> : <span className="text-[8px] font-black uppercase text-slate-300">Brak</span>}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-xs md:text-sm font-bold text-slate-800 leading-tight truncate">{product.name || product.title}</h4>
-                            <p className="text-[9px] font-black text-slate-400 mt-1 uppercase tracking-widest">SKU: {product.sku}</p>
+                            <h4 className="text-xs md:text-sm font-bold text-slate-800 leading-tight truncate">{product.title || product.name}</h4>
+                            <p className="text-[9px] font-black text-slate-400 mt-1 uppercase tracking-widest">
+                                {product['Numer katalogowy / OEM'] ? `OEM: ${product['Numer katalogowy / OEM']}` : `SKU: ${product.id}`}
+                            </p>
                           </div>
                           <div className="text-right flex-shrink-0 pl-4">
                             <span className="font-black text-slate-900 tracking-tighter">{(product.price || 0).toFixed(2)} <span className="text-[10px] font-bold text-slate-400">zł</span></span>
