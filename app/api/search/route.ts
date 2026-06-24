@@ -17,6 +17,13 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
+// 🔥 LISTA TOP FASETÓW (Zamiast '*')
+const OPTIMIZED_FACETS = [
+  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Producent', 
+  'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy', 
+  'Ilość zębów', 'Wymiary', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Zastosowanie'
+];
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const searchQ = searchParams.get('q') || "";
@@ -32,9 +39,7 @@ export async function GET(request: Request) {
     }
   }
 
-  if (!fullPath) {
-    return NextResponse.json({ error: "Brak ścieżki" }, { status: 400, headers: corsHeaders });
-  }
+  if (!fullPath) return NextResponse.json({ error: "Brak ścieżki" }, { status: 400, headers: corsHeaders });
 
   const currentLimit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 250;
   const activeFilters = Object.fromEntries(searchParams.entries());
@@ -45,57 +50,36 @@ export async function GET(request: Request) {
   const currentHandle = segments[segments.length - 1]; 
 
   let dbCategoryData = { h1_dynamic: currentHandle.toUpperCase().replace(/-/g, ' '), name: currentHandle.replace(/-/g, ' '), top_seo_text: "", bottom_seo_text: "", faqs: [] };
-  let breadcrumbs: any[] = [];
-  let directSubcategories: string[] = [];
   let allowedHandles: string[] = [currentHandle];
 
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-
     const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, next: { revalidate: 3600 } });
     
     if (currentCategoryRes.ok) {
         const currentCategoryJson = await currentCategoryRes.json();
         const currentCategory = currentCategoryJson.product_categories?.[0];
-
         if (currentCategory) {
-          const meta = currentCategory.metadata || {};
-          dbCategoryData.name = currentCategory.name;
-          dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
-          dbCategoryData.top_seo_text = meta.top_seo_text || currentCategory.description || "";
-          dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
-          dbCategoryData.faqs = meta.faqs || meta.faq || [];
-
-          if (currentCategory.category_children && currentCategory.category_children.length > 0) {
-            directSubcategories = currentCategory.category_children.map((child: any) => child.name).sort();
-          }
-
           const collectHandles = (cat: any) => {
             if (!cat) return;
             if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-            if (cat.category_children && Array.isArray(cat.category_children)) {
-              cat.category_children.forEach(collectHandles);
-            }
+            if (cat.category_children && Array.isArray(cat.category_children)) cat.category_children.forEach(collectHandles);
           };
           collectHandles(currentCategory);
         }
     }
-    
-    breadcrumbs = segments.map((s, i) => ({ 
-      name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: segments.slice(0, i + 1).join('/') 
-    }));
 
     const index = meiliClient.index('products');
-    
     const categoryFilterStr = allowedHandles.length > 0 
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
 
+    // 🔥 ZAPYTANIA Z OPTIMIZED_FACETS
     const baseFacetsResult = await index.search(searchQ, {
       limit: 0,
       filter: categoryFilterStr,
-      facets: ['*'] 
+      facets: OPTIMIZED_FACETS 
     });
 
     const filterArray: string[] = [categoryFilterStr];
@@ -116,35 +100,22 @@ export async function GET(request: Request) {
       limit: currentLimit,
       filter: filterArray.join(' AND '),
       sort: meiliSort,
-      facets: ['*'] 
+      facets: OPTIMIZED_FACETS 
     });
 
     const mappedProducts = searchResult.hits.map((p: any) => ({
-      id: p.id,
-      sku: p.id,
-      name: p.title,
-      price: p.price || 0,
-      slug: p.handle,
-      category_text: p.Kategoria || '',
-      images: p.thumbnail ? [{ url: p.thumbnail }] : []
+      id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
+      category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
     }));
 
     return NextResponse.json({ 
-      category: dbCategoryData, 
-      breadcrumbs, 
-      subcategories: directSubcategories,
       filters: baseFacetsResult.facetDistribution || {}, 
       narrowedFilters: searchResult.facetDistribution || {}, 
       products: mappedProducts,
       totalCount: searchResult.estimatedTotalHits || mappedProducts.length, 
-      faqs: dbCategoryData.faqs
     }, { headers: corsHeaders });
 
   } catch (error: any) {
-    console.error("Błąd route Meilisearch:", error);
-    return NextResponse.json({ 
-      category: { h1_dynamic: `BŁĄD POŁĄCZENIA`, name: "Błąd serwera" }, 
-      products: [], breadcrumbs: [], subcategories: [], filters: {}, narrowedFilters: {}, totalCount: 0, faqs: [] 
-    }, { status: 500, headers: corsHeaders }); 
+    return NextResponse.json({ products: [], filters: {}, narrowedFilters: {}, totalCount: 0 }, { status: 500, headers: corsHeaders }); 
   }
 }
