@@ -17,14 +17,24 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
+// ✅ POPRAWKA: Usunięto 'Producent' - nie istnieje w filterableAttributes Meilisearch
+// Meilisearch rzuca błąd na CAŁE zapytanie gdy choć jeden facet nie istnieje
 const OPTIMIZED_FACETS = [
-  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Producent',
-  'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy',
-  'Ilość zębów', 'Wymiary', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Zastosowanie'
+  'Pasuje do marki',
+  'Pasuje do modelu',
+  'Typ produktu',
+  'Rodzaj',
+  'Waga [kg]',
+  'Napięcie [V]',
+  'Strona zabudowy',
+  'Ilość zębów',
+  'Wymiary',
+  'Średnica wewnętrzna [mm]',
+  'Średnica zewnętrzna [mm]',
+  'Zastosowanie'
 ];
 
-// ✅ POPRAWKA: Buduje filtr z cudzysłowami (nie apostrofami) wokół nazw atrybutów
-// Meilisearch wymaga: "Nazwa atrybutu" = "wartość"  (NIE: 'Nazwa atrybutu' = "wartość")
+// ✅ Poprawna składnia filtrów: cudzysłowy wokół nazwy atrybutu
 function buildFilterValue(key: string, val: string): string {
   const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
   if (values.length === 0) return '';
@@ -37,7 +47,7 @@ export async function GET(request: Request) {
   const searchQ = searchParams.get('q') || "";
   const fullPath = searchParams.get('fullPath');
 
-  // Tryb wyszukiwarki globalnej (bez fullPath)
+  // Tryb wyszukiwarki globalnej
   if (searchQ && !fullPath) {
     try {
       const index = meiliClient.index('products');
@@ -56,7 +66,7 @@ export async function GET(request: Request) {
   const segments = fullPath.split('/').filter(Boolean);
   const currentHandle = segments[segments.length - 1];
 
-  // ✅ Zbieramy handle bieżącej kategorii + wszystkich jej dzieci z Medusy
+  // Zbieramy handle bieżącej kategorii + wszystkich dzieci z Medusy
   let allowedHandles: string[] = [currentHandle];
 
   try {
@@ -71,7 +81,6 @@ export async function GET(request: Request) {
     if (catRes.ok) {
       const catJson = await catRes.json();
       const currentCategory = catJson.product_categories?.[0];
-
       if (currentCategory) {
         const collectHandles = (cat: any) => {
           if (!cat) return;
@@ -82,22 +91,20 @@ export async function GET(request: Request) {
       }
     }
   } catch (error) {
-    console.warn("Nie udało się pobrać kategorii z Medusy, używam tylko bieżącego handle:", error);
+    console.warn("Nie udało się pobrać kategorii z Medusy:", error);
   }
 
-  // ✅ POPRAWKA: Składnia IN z cudzysłowami — to działa z tablicą category_handles
+  // ✅ Filtr kategorii z cudzysłowami
   const categoryFilterStr = `category_handles IN [${allowedHandles.map(h => `"${h}"`).join(', ')}]`;
 
-  // Aktywne filtry (bez systemowych kluczy)
+  // Aktywne filtry użytkownika (bez systemowych kluczy)
   const SYSTEM_KEYS = new Set(['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view']);
   const activeFilters: Record<string, string> = {};
   searchParams.forEach((val, key) => {
     if (!SYSTEM_KEYS.has(key) && val) activeFilters[key] = val;
   });
 
-  // Budujemy tablicę filtrów
   const filterArray: string[] = [categoryFilterStr];
-
   Object.entries(activeFilters).forEach(([key, val]) => {
     const f = buildFilterValue(key, val);
     if (f) filterArray.push(f);
@@ -110,7 +117,6 @@ export async function GET(request: Request) {
 
   const finalFilter = filterArray.join(' AND ');
 
-  // Sortowanie
   const sortParam = searchParams.get('sort');
   let meiliSort: string[] | undefined;
   if (sortParam === 'price_asc') meiliSort = ['price:asc'];
@@ -121,23 +127,21 @@ export async function GET(request: Request) {
   try {
     const index = meiliClient.index('products');
 
-    // Dwa równoległe zapytania: bazowe facety (bez filtrów) + wyniki z filtrami
     const [baseFacetsResult, searchResult] = await Promise.all([
       index.search(searchQ, {
         limit: 0,
-        filter: categoryFilterStr,   // tylko filtr kategorii — daje pełne facety
+        filter: categoryFilterStr,
         facets: OPTIMIZED_FACETS,
       }),
       index.search(searchQ, {
         limit: currentLimit,
-        filter: finalFilter,          // pełny filtr z aktywnymi filtrami użytkownika
+        filter: finalFilter,
         sort: meiliSort,
         facets: OPTIMIZED_FACETS,
       }),
     ]);
 
-    // Debug — widoczny w logach serwera Next.js
-    console.log(`[search] handle=${currentHandle} allowedHandles=${allowedHandles.length} hits=${searchResult.hits.length} filter=${finalFilter}`);
+    console.log(`[search] handle=${currentHandle} handles=${allowedHandles.length} hits=${searchResult.hits.length}`);
 
     const mappedProducts = searchResult.hits.map((p: any) => ({
       id: p.id,
