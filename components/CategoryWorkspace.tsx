@@ -6,7 +6,6 @@ import CategoryToolbar from './CategoryToolbar';
 import ProductGrid from './ProductGrid';
 
 export default function CategoryWorkspace({ initialData, fullPath, currentHandle, allowedHandles }: any) {
-  // ✅ initialData z serwera trafia bezpośrednio do state — widoczne od razu
   const [data, setData] = useState(() => ({
     products: initialData?.products || [],
     filters: initialData?.filters || {},
@@ -16,7 +15,6 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
 
   const [loading, setLoading] = useState(false);
 
-  // ✅ Odczyt filtrów z URL tylko po stronie klienta
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>(() => {
     if (typeof window !== 'undefined') {
       const result: Record<string, string> = {};
@@ -26,8 +24,47 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
     return {};
   });
 
-  // Czy to pierwsze załadowanie — jeśli tak, nie fetchujemy (już mamy initialData)
   const isFirstRender = useRef(true);
+
+  const fetchProducts = useCallback(async (filters: Record<string, string>) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('fullPath', fullPath);
+      params.set('limit', '250');
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val) params.set(key, val);
+      });
+
+      const res = await fetch(`/api/search?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+
+      setData({
+        products: json.products || [],
+        filters: json.filters || {},
+        narrowedFilters: json.narrowedFilters || {},
+        totalCount: json.totalCount || 0,
+      });
+    } catch (e) {
+      console.error('Błąd pobierania produktów:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [fullPath]);
+
+  // ✅ KLUCZOWA ZMIANA: przy pierwszym renderze fetchuj jeśli initialData jest puste
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      // Jeśli serwer nie dał produktów — pobierz przez API
+      if (!initialData?.products?.length) {
+        fetchProducts(activeFilters);
+      }
+      return;
+    }
+    fetchProducts(activeFilters);
+  }, [activeFilters]);
 
   const updateFilter = useCallback((key: string, value: string | null) => {
     setActiveFilters(prev => {
@@ -58,48 +95,6 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
       return next;
     });
   }, []);
-
-  // ✅ Fetch tylko gdy filtry się zmienią (nie przy pierwszym renderze)
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        params.set('fullPath', fullPath);
-        params.set('limit', '250');
-        Object.entries(activeFilters).forEach(([key, val]) => {
-          if (val) params.set(key, val);
-        });
-
-        const res = await fetch(`/api/search?${params.toString()}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-
-        setData({
-          products: json.products || [],
-          filters: json.filters || {},
-          narrowedFilters: json.narrowedFilters || {},
-          totalCount: json.totalCount || 0,
-        });
-      } catch (e) {
-        console.error('Błąd pobierania produktów:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [activeFilters, fullPath]);
-
-  // ✅ Debug — widoczny w konsoli przeglądarki
-  useEffect(() => {
-    console.log('[CategoryWorkspace] products:', data.products.length, 'totalCount:', data.totalCount);
-  }, [data]);
 
   const isListView = activeFilters.view === 'list';
 
