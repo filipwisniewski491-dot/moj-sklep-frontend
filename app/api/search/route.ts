@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic';
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
-// 🔥 POPRAWKA: Meilisearch (małe 's')
 const meiliClient = new Meilisearch({
   host: process.env.NEXT_PUBLIC_MEILISEARCH_HOST || '',
   apiKey: process.env.NEXT_PUBLIC_MEILISEARCH_API_KEY || '',
@@ -48,7 +47,6 @@ export async function GET(request: Request) {
   const segments = fullPath.split('/').filter(Boolean);
   const currentHandle = segments[segments.length - 1]; 
 
-  let dbCategoryData = { h1_dynamic: currentHandle.toUpperCase().replace(/-/g, ' '), name: currentHandle.replace(/-/g, ' '), top_seo_text: "", bottom_seo_text: "", faqs: [] };
   let allowedHandles: string[] = [currentHandle];
 
   try {
@@ -60,10 +58,6 @@ export async function GET(request: Request) {
         const currentCategoryJson = await currentCategoryRes.json();
         const currentCategory = currentCategoryJson.product_categories?.[0];
         if (currentCategory) {
-          dbCategoryData.name = currentCategory.name;
-          dbCategoryData.h1_dynamic = currentCategory.metadata?.h1_dynamic || currentCategory.name.toUpperCase();
-          dbCategoryData.top_seo_text = currentCategory.metadata?.top_seo_text || currentCategory.description || "";
-          
           const collectHandles = (cat: any) => {
             if (!cat) return;
             if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
@@ -78,7 +72,6 @@ export async function GET(request: Request) {
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
 
-    const baseFacetsResult = await index.search(searchQ, { limit: 0, filter: categoryFilterStr, facets: OPTIMIZED_FACETS });
     const filterArray: string[] = [categoryFilterStr];
     
     Object.entries(activeFilters).forEach(([key, val]) => {
@@ -103,12 +96,11 @@ export async function GET(request: Request) {
     }));
 
     return NextResponse.json({ 
-      filters: baseFacetsResult.facetDistribution || {}, 
       narrowedFilters: searchResult.facetDistribution || {}, 
       products: mappedProducts, totalCount: searchResult.estimatedTotalHits || mappedProducts.length, 
     }, { headers: corsHeaders });
 
   } catch (error: any) {
-    return NextResponse.json({ products: [], filters: {}, narrowedFilters: {}, totalCount: 0 }, { status: 500, headers: corsHeaders }); 
+    return NextResponse.json({ products: [], narrowedFilters: {}, totalCount: 0 }, { status: 500, headers: corsHeaders }); 
   }
 }

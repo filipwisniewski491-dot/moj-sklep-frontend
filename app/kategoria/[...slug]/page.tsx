@@ -16,6 +16,7 @@ export const revalidate = 3600;
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
+// Ucinamy miliony fasetów do 15 najważniejszych = ogromny skok prędkości
 const OPTIMIZED_FACETS = [
   'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Producent', 
   'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy', 
@@ -74,6 +75,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
   
   try {
     const baseFacetsResult = await index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryFilterStr, facets: OPTIMIZED_FACETS });
+    
     const activeFilters = { ...resolvedSearchParams };
     ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
     
@@ -112,8 +114,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
       <Header />
       <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} /> 
       
-      {/* 🔥 DELEGACJA DO BEZPOŚREDNIEGO KLIENTA MEILISEARCH */}
-      <CategoryWorkspace initialData={initialData} fullPath={fullPath} allowedHandles={allowedHandles} />
+      {/* DELEGACJA DO KLIENTA */}
+      <CategoryWorkspace initialData={initialData} fullPath={fullPath} />
 
       {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}
       {dbCategoryData.faqs && dbCategoryData.faqs.length > 0 && <DynamicFaqSection faqs={dbCategoryData.faqs} />}
