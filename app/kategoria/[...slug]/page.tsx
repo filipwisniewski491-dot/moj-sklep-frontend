@@ -16,7 +16,7 @@ const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
 const OPTIMIZED_FACETS = [
-  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Producent', 
+  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 
   'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy', 
   'Ilość zębów', 'Wymiary', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Zastosowanie'
 ];
