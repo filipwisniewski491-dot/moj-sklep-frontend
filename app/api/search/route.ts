@@ -17,6 +17,7 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
+// 🔥 TO ZAPEWNIA PRĘDKOŚĆ "MIGNIĘCIA OKIEM" (Zamiast '*')
 const OPTIMIZED_FACETS = [
   'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Producent', 
   'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy', 
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
 
   const currentLimit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 250;
   const activeFilters = Object.fromEntries(searchParams.entries());
+  
   ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
 
   const segments = fullPath.split('/').filter(Boolean);
@@ -52,7 +54,11 @@ export async function GET(request: Request) {
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, next: { revalidate: 3600 } });
+    
+    // 🔥 TURBO CACHE - nie czekamy na Medusę!
+    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { 
+      headers, next: { revalidate: 3600 } 
+    });
     
     if (currentCategoryRes.ok) {
         const currentCategoryJson = await currentCategoryRes.json();
@@ -68,12 +74,15 @@ export async function GET(request: Request) {
     }
 
     const index = meiliClient.index('products');
+    
+    // 🔥 TUTAJ BYŁ BŁĄD! Zmienione z category_handle na category_handles
     const categoryFilterStr = allowedHandles.length > 0 
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
 
     const filterArray: string[] = [categoryFilterStr];
     
+    // Logika Multi-select dla checkboxów po przecinku (OR)
     Object.entries(activeFilters).forEach(([key, val]) => {
       const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
       if (values.length > 0) {
@@ -82,12 +91,15 @@ export async function GET(request: Request) {
       }
     });
 
-    let meiliSort = undefined;
+    let meiliSort: any = undefined;
     if (searchParams.get('sort') === 'price_asc') meiliSort = ['price:asc'];
     if (searchParams.get('sort') === 'price_desc') meiliSort = ['price:desc'];
 
     const searchResult = await index.search(searchQ, {
-      limit: currentLimit, filter: filterArray.join(' AND '), sort: meiliSort, facets: OPTIMIZED_FACETS 
+      limit: currentLimit, 
+      filter: filterArray.join(' AND '), 
+      sort: meiliSort, 
+      facets: OPTIMIZED_FACETS // 🔥 Zamiast ['*']
     });
 
     const mappedProducts = searchResult.hits.map((p: any) => ({
