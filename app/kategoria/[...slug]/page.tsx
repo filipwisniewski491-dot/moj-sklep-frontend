@@ -12,11 +12,9 @@ const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
 export const revalidate = 3600; 
-
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
-// Ucinamy miliony fasetów do 15 najważniejszych = ogromny skok prędkości
 const OPTIMIZED_FACETS = [
   'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Producent', 
   'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy', 
@@ -38,7 +36,11 @@ export default async function CategoryPage({ params, searchParams }: any) {
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-    const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, next: { revalidate: 3600 } });
+    
+    const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { 
+      headers, 
+      next: { revalidate: 3600 } 
+    });
     
     if (res.ok) {
       const json = await res.json();
@@ -53,19 +55,25 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
         const collectHandles = (cat: any) => {
           if (!cat) return;
-          if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-          if (cat.category_children) cat.category_children.forEach(collectHandles);
+          if (allowedHandles.length < 100) {
+            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
+            if (cat.category_children) cat.category_children.forEach(collectHandles);
+          }
         };
         collectHandles(currentCategory);
       }
     }
   } catch (error) {
-    console.warn("Błąd SEO Medusy");
+    console.warn("Błąd SEO Medusy, używam fallbacku");
   }
 
-  const breadcrumbs = slugArray.map((s, i) => ({ name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: slugArray.slice(0, i + 1).join('/') }));
+  const breadcrumbs = slugArray.map((s, i) => ({ 
+    name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: slugArray.slice(0, i + 1).join('/') 
+  }));
+
   const searchData = { category: dbCategoryData, breadcrumbs, subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [] };
 
+  // 🔥 INITIAL LOAD Z MEILISEARCHA (Dla SEO i pierwszego wyświetlenia)
   const index = meiliClient.index('products');
   const categoryFilterStr = allowedHandles.length > 0 
     ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
@@ -74,27 +82,15 @@ export default async function CategoryPage({ params, searchParams }: any) {
   let initialData = { filters: {}, narrowedFilters: {}, products: [], totalCount: 0 };
   
   try {
-    const baseFacetsResult = await index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryFilterStr, facets: OPTIMIZED_FACETS });
-    
-    const activeFilters = { ...resolvedSearchParams };
-    ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
-    
-    const filterArray: string[] = [categoryFilterStr];
-    Object.entries(activeFilters).forEach(([key, val]) => {
-      const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
-      if (values.length > 0) filterArray.push(`(${values.map(v => `'${key}' = ${JSON.stringify(v)}`).join(' OR ')})`);
-    });
-
-    let meiliSort = undefined;
-    if (resolvedSearchParams.sort === 'price_asc') meiliSort = ['price:asc'];
-    if (resolvedSearchParams.sort === 'price_desc') meiliSort = ['price:desc'];
-
-    const searchResult = await index.search(resolvedSearchParams.q || "", {
-      limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
-      filter: filterArray.join(' AND '),
-      sort: meiliSort,
-      facets: OPTIMIZED_FACETS
-    });
+    const [baseFacetsResult, searchResult] = await Promise.all([
+      index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryFilterStr, facets: OPTIMIZED_FACETS }),
+      index.search(resolvedSearchParams.q || "", {
+        limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
+        filter: categoryFilterStr,
+        sort: resolvedSearchParams.sort === 'price_asc' ? ['price:asc'] : resolvedSearchParams.sort === 'price_desc' ? ['price:desc'] : undefined,
+        facets: OPTIMIZED_FACETS
+      })
+    ]);
 
     initialData = {
       filters: baseFacetsResult.facetDistribution || {},
@@ -114,7 +110,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
       <Header />
       <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} /> 
       
-      {/* DELEGACJA DO KLIENTA */}
+      {/* 🔥 DELEGACJA DO KLIENTA (To zastępuje Twoje Suspense i CategoryDataLoader) */}
       <CategoryWorkspace initialData={initialData} fullPath={fullPath} />
 
       {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}

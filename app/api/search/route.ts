@@ -17,7 +17,7 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-// 🔥 TO ZAPEWNIA PRĘDKOŚĆ "MIGNIĘCIA OKIEM" (Zamiast '*')
+// 🔥 OPTYMALIZACJA PRĘDKOŚCI - Tylko te filtry będą liczone w locie!
 const OPTIMIZED_FACETS = [
   'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Producent', 
   'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy', 
@@ -39,7 +39,9 @@ export async function GET(request: Request) {
     }
   }
 
-  if (!fullPath) return NextResponse.json({ error: "Brak ścieżki" }, { status: 400, headers: corsHeaders });
+  if (!fullPath) {
+    return NextResponse.json({ error: "Brak ścieżki" }, { status: 400, headers: corsHeaders });
+  }
 
   const currentLimit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 250;
   const activeFilters = Object.fromEntries(searchParams.entries());
@@ -54,20 +56,20 @@ export async function GET(request: Request) {
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-    
-    // 🔥 TURBO CACHE - nie czekamy na Medusę!
-    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { 
-      headers, next: { revalidate: 3600 } 
-    });
+
+    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, next: { revalidate: 3600 } });
     
     if (currentCategoryRes.ok) {
         const currentCategoryJson = await currentCategoryRes.json();
         const currentCategory = currentCategoryJson.product_categories?.[0];
+
         if (currentCategory) {
           const collectHandles = (cat: any) => {
             if (!cat) return;
             if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-            if (cat.category_children && Array.isArray(cat.category_children)) cat.category_children.forEach(collectHandles);
+            if (cat.category_children && Array.isArray(cat.category_children)) {
+              cat.category_children.forEach(collectHandles);
+            }
           };
           collectHandles(currentCategory);
         }
@@ -75,14 +77,17 @@ export async function GET(request: Request) {
 
     const index = meiliClient.index('products');
     
-    // 🔥 TUTAJ BYŁ BŁĄD! Zmienione z category_handle na category_handles
     const categoryFilterStr = allowedHandles.length > 0 
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
 
+    const baseFacetsResult = await index.search(searchQ, {
+      limit: 0,
+      filter: categoryFilterStr,
+      facets: OPTIMIZED_FACETS // 🔥 ZAMIAST ['*']
+    });
+
     const filterArray: string[] = [categoryFilterStr];
-    
-    // Logika Multi-select dla checkboxów po przecinku (OR)
     Object.entries(activeFilters).forEach(([key, val]) => {
       const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
       if (values.length > 0) {
@@ -91,28 +96,37 @@ export async function GET(request: Request) {
       }
     });
 
-    let meiliSort: any = undefined;
-    if (searchParams.get('sort') === 'price_asc') meiliSort = ['price:asc'];
-    if (searchParams.get('sort') === 'price_desc') meiliSort = ['price:desc'];
+    const sortParam = searchParams.get('sort');
+    let meiliSort = undefined;
+    if (sortParam === 'price_asc') meiliSort = ['price:asc'];
+    if (sortParam === 'price_desc') meiliSort = ['price:desc'];
 
     const searchResult = await index.search(searchQ, {
-      limit: currentLimit, 
-      filter: filterArray.join(' AND '), 
-      sort: meiliSort, 
-      facets: OPTIMIZED_FACETS // 🔥 Zamiast ['*']
+      limit: currentLimit,
+      filter: filterArray.join(' AND '),
+      sort: meiliSort,
+      facets: OPTIMIZED_FACETS // 🔥 ZAMIAST ['*']
     });
 
     const mappedProducts = searchResult.hits.map((p: any) => ({
-      id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
-      category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
+      id: p.id,
+      sku: p.id,
+      name: p.title,
+      price: p.price || 0,
+      slug: p.handle,
+      category_text: p.Kategoria || '',
+      images: p.thumbnail ? [{ url: p.thumbnail }] : []
     }));
 
     return NextResponse.json({ 
       narrowedFilters: searchResult.facetDistribution || {}, 
-      products: mappedProducts, totalCount: searchResult.estimatedTotalHits || mappedProducts.length, 
+      products: mappedProducts,
+      totalCount: searchResult.estimatedTotalHits || mappedProducts.length, 
+      filters: baseFacetsResult.facetDistribution || {}
     }, { headers: corsHeaders });
 
   } catch (error: any) {
-    return NextResponse.json({ products: [], narrowedFilters: {}, totalCount: 0 }, { status: 500, headers: corsHeaders }); 
+    console.error("Błąd route Meilisearch:", error);
+    return NextResponse.json({ products: [], filters: {}, narrowedFilters: {}, totalCount: 0 }, { status: 500, headers: corsHeaders }); 
   }
 }
