@@ -53,32 +53,27 @@ export async function GET(request: Request) {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, cache: 'no-store' });
+    // Szybkie cache'owanie
+    const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, next: { revalidate: 3600 } });
     
-    if (currentCategoryRes.ok) {
-        const currentCategoryJson = await currentCategoryRes.json();
-        const currentCategory = currentCategoryJson.product_categories?.[0];
+    if (res.ok) {
+        const json = await res.json();
+        const cat = json.product_categories?.[0];
+        if (cat) {
+          dbCategoryData.name = cat.name;
+          dbCategoryData.h1_dynamic = cat.metadata?.h1_dynamic || cat.name.toUpperCase();
+          dbCategoryData.top_seo_text = cat.metadata?.top_seo_text || cat.description || "";
+          dbCategoryData.bottom_seo_text = cat.metadata?.bottom_seo_text || null;
+          dbCategoryData.faqs = cat.metadata?.faqs || cat.metadata?.faq || [];
 
-        if (currentCategory) {
-          const meta = currentCategory.metadata || {};
-          dbCategoryData.name = currentCategory.name;
-          dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
-          dbCategoryData.top_seo_text = meta.top_seo_text || currentCategory.description || "";
-          dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
-          dbCategoryData.faqs = meta.faqs || meta.faq || [];
+          if (cat.category_children) directSubcategories = cat.category_children.map((child: any) => child.name).sort();
 
-          if (currentCategory.category_children && currentCategory.category_children.length > 0) {
-            directSubcategories = currentCategory.category_children.map((child: any) => child.name).sort();
-          }
-
-          const collectHandles = (cat: any) => {
-            if (!cat) return;
-            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-            if (cat.category_children && Array.isArray(cat.category_children)) {
-              cat.category_children.forEach(collectHandles);
-            }
+          const collectHandles = (c: any) => {
+            if (!c) return;
+            if (!allowedHandles.includes(c.handle)) allowedHandles.push(c.handle);
+            if (c.category_children) c.category_children.forEach(collectHandles);
           };
-          collectHandles(currentCategory);
+          collectHandles(cat);
         }
     }
     
@@ -89,8 +84,6 @@ export async function GET(request: Request) {
     });
 
     const index = meiliClient.index('products');
-    
-    // 🔥 Używamy dynamicznej tablicy `category_handles`
     const categoryFilterStr = allowedHandles.length > 0 
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
@@ -102,8 +95,14 @@ export async function GET(request: Request) {
     });
 
     const filterArray: string[] = [categoryFilterStr];
+    
+    // 🔥 Multi-select wspierany dla API
     Object.entries(activeFilters).forEach(([key, val]) => {
-      if (val) filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
+      const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
+      if (values.length > 0) {
+        const orConditions = values.map(v => `'${key}' = ${JSON.stringify(v)}`);
+        filterArray.push(`(${orConditions.join(' OR ')})`);
+      }
     });
 
     const sortParam = searchParams.get('sort');

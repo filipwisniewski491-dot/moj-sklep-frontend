@@ -90,21 +90,29 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  useEffect(() => {
-    if (isGarageActive && garageBrand) {
-      if (searchParams.get('Pasuje do marki') !== garageBrand || searchParams.get('Pasuje do modelu') !== garageModel) {
-        const currentParams = new URLSearchParams(searchParams.toString());
-        currentParams.set('Pasuje do marki', garageBrand);
-        if (garageModel) currentParams.set('Pasuje do modelu', garageModel);
-        router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
-      }
-    }
-  }, [isGarageActive, garageBrand, garageModel, pathname, searchParams, router]);
-
-  const updateUrlParams = (key: string, value: string | null) => {
+  // Logika obsługująca wiele zaznaczeń po przecinku (Multi-select)
+  const toggleUrlParam = (key: string, value: string) => {
     const currentParams = new URLSearchParams(searchParams.toString());
-    if (value === null || value === '') currentParams.delete(key);
-    else currentParams.set(key, value);
+    const currentVal = currentParams.get(key);
+    let valuesArray = currentVal ? currentVal.split(',').map(v => v.trim()) : [];
+
+    if (valuesArray.includes(value)) {
+      valuesArray = valuesArray.filter(v => v !== value);
+    } else {
+      valuesArray.push(value);
+    }
+
+    if (valuesArray.length > 0) {
+      currentParams.set(key, valuesArray.join(','));
+    } else {
+      currentParams.delete(key);
+    }
+    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+  };
+
+  const clearUrlParam = (key: string) => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    currentParams.delete(key);
     router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
   };
 
@@ -155,13 +163,16 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
     const hasActiveSelection = !!searchParams.get(filterKey);
     
+    // Odczytywanie zaznaczonych opcji jako tablicy
+    const activeValuesArray = searchParams.get(filterKey)?.split(',') || [];
+    
     return (
       <div key={filterKey} className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
           {hasActiveSelection && (
             <button 
-              onClick={() => updateUrlParams(filterKey, null)}
+              onClick={() => clearUrlParam(filterKey)}
               className="text-[9px] font-black uppercase text-red-600 hover:text-white tracking-wider bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm"
             >
               ✕ Wyczyść
@@ -181,12 +192,12 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
             <div className="text-[9px] text-slate-500 uppercase font-black tracking-widest py-2">Brak wyników</div>
           ) : (
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, staticCount]) => {
-              const isChecked = searchParams.get(filterKey) === val;
+              const isChecked = activeValuesArray.includes(val);
               const dynamicCount = narrowedFilters[filterKey]?.[val] || 0;
               const isDisabled = dynamicCount === 0 && !isChecked;
 
               return (
-                <label key={val} className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 hover:opacity-100 cursor-pointer' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); updateUrlParams(filterKey, isChecked ? null : val); }}>
+                <label key={val} className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 hover:opacity-100 cursor-pointer' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); toggleUrlParam(filterKey, val); }}>
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-300 bg-white group-hover:border-red-400'}`}>
                       {isChecked && <div className="w-3 h-3 bg-red-600 rounded-[3px]"></div>}
@@ -210,10 +221,28 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   const FilterContent = () => (
     <div className="space-y-6">
+
+      {/* 🔥 BANER UX / KONWERSYJNY */}
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-16 h-16 bg-white opacity-20 rotate-45 transform translate-x-4 -translate-y-4 rounded-3xl"></div>
+        <div className="flex items-start gap-3 relative z-10">
+          <span className="text-xl leading-none pt-1">💡</span>
+          <div>
+            <h4 className="text-amber-900 font-black text-[11px] uppercase tracking-wider mb-1.5">Nie widzisz swojej części?</h4>
+            <p className="text-amber-800/80 text-xs font-medium leading-relaxed mb-3">
+              Filtry opierają się na uzupełnionych danych. Jeśli czegoś brakuje, wpisz <strong className="text-amber-900">numer OEM</strong> u góry lub skonsultuj się z nami.
+            </p>
+            <a href="tel:+48500600700" className="inline-block bg-white text-amber-900 text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg shadow-sm hover:bg-amber-100 transition-colors">
+              📞 Zadzwoń do eksperta
+            </a>
+          </div>
+        </div>
+      </div>
+
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
         <div className="relative flex items-center">
-          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} />
+          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && clearUrlParam('q')} />
           <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center">🔍</button>
         </div>
       </div>
@@ -221,8 +250,8 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
         <div className="space-y-3">
-          <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
-          <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
+          <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => clearUrlParam('Pasuje do marki')} />
+          <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => clearUrlParam('Pasuje do modelu')} />
         </div>
       </div>
 

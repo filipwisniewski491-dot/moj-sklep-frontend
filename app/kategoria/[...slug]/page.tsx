@@ -32,7 +32,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-    const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, cache: 'no-store' });
+    // 🔥 TURBO PRĘDKOŚĆ: Cache odpowiedzi Medusy na 1 godzinę. Nie opóźniamy Meilisearcha!
+    const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, next: { revalidate: 3600 } });
     if (res.ok) {
       const json = await res.json();
       currentCategory = json.product_categories?.[0];
@@ -66,7 +67,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
     ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
 
     const index = meiliClient.index('products');
-    
     const categoryFilterStr = allowedHandles.length > 0 
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
@@ -79,8 +79,14 @@ export default async function CategoryPage({ params, searchParams }: any) {
     baseFilters = baseFacetsResult.facetDistribution || {};
 
     const filterArray: string[] = [categoryFilterStr];
+    
+    // 🔥 LOGIKA MULTI-SELECT (OR): Jeśli ktoś zaznaczy Ursus i Zetor, wyszukiwarka połączy je spójnikiem LUB
     Object.entries(activeFilters).forEach(([key, val]) => {
-      if (val) filterArray.push(`'${key}' = ${JSON.stringify(val)}`);
+      const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
+      if (values.length > 0) {
+        const orConditions = values.map(v => `'${key}' = ${JSON.stringify(v)}`);
+        filterArray.push(`(${orConditions.join(' OR ')})`);
+      }
     });
 
     const sortParam = resolvedSearchParams.sort;
