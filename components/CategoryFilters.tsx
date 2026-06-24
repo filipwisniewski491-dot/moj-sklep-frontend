@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useTransition } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import React, { useEffect, useState, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { useGarage } from '@/store/useGarage'; 
 
 const cleanLabel = (label: string) => {
@@ -12,7 +12,6 @@ const cleanLabel = (label: string) => {
 };
 
 const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
-  // Ten komponent zostaje bez zmian, używa lokalnego stanu
   const [isOpen, setIsOpen] = useState(false); 
   const [searchTerm, setSearchTerm] = useState(''); 
   const wrapperRef = useRef<HTMLDivElement>(null); 
@@ -68,25 +67,33 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, totalCount = 0 }: any) {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, totalCount = 0, isPending, currentParams }: any) {
   const pathname = usePathname(); 
   
-  // 🔥 Używamy hooka useTransition, żeby strona nie zamarzała przy zmianie URL!
-  const [isPending, startTransition] = useTransition();
+  // 🚀 ZŁOTA FUNKCJA: Błyskawicznie zmienia URL i ładuje meili BEZ Next.js Server!
+  const updateUrlWithoutSSR = (newParams: URLSearchParams) => {
+    const newUrl = `${pathname}?${newParams.toString()}`;
+    window.history.pushState(null, '', newUrl);
+    window.dispatchEvent(new Event('pushstate')); 
+  };
 
   const { isActive: isGarageActive, brand: garageBrand, model: garageModel } = useGarage();
-  
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   
-  const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
-  const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
-  const [searchQ, setSearchQ] = useState(searchParams.get('q') || '');
+  const [minPrice, setMinPrice] = useState(currentParams.get('minPrice') || '');
+  const [maxPrice, setMaxPrice] = useState(currentParams.get('maxPrice') || '');
+  const [searchQ, setSearchQ] = useState(currentParams.get('q') || '');
   
   const [filterSearchQuery, setFilterSearchQuery] = useState<Record<string, string>>({});
   const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({});
+
+  // Synchronizacja po użyciu przycisku 'Wstecz' w przeglądarce
+  useEffect(() => {
+    setMinPrice(currentParams.get('minPrice') || '');
+    setMaxPrice(currentParams.get('maxPrice') || '');
+    setSearchQ(currentParams.get('q') || '');
+  }, [currentParams.toString()]);
 
   useEffect(() => {
     const checkScreenSize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -101,10 +108,9 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  // Logika Multi-select dla URL
   const toggleUrlParam = (key: string, value: string) => {
-    const currentParams = new URLSearchParams(searchParams.toString());
-    const currentVal = currentParams.get(key);
+    const params = new URLSearchParams(currentParams.toString());
+    const currentVal = params.get(key);
     let valuesArray = currentVal ? currentVal.split(',').map(v => v.trim()) : [];
 
     if (valuesArray.includes(value)) {
@@ -113,45 +119,33 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
       valuesArray.push(value);
     }
 
-    if (valuesArray.length > 0) {
-      currentParams.set(key, valuesArray.join(','));
-    } else {
-      currentParams.delete(key);
-    }
+    if (valuesArray.length > 0) params.set(key, valuesArray.join(','));
+    else params.delete(key);
     
-    // Zmiana w tle (nie blokuje UI)
-    startTransition(() => {
-      router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
-    });
+    updateUrlWithoutSSR(params);
   };
 
   const clearUrlParam = (key: string) => {
-    const currentParams = new URLSearchParams(searchParams.toString());
-    currentParams.delete(key);
-    startTransition(() => {
-      router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
-    });
+    const params = new URLSearchParams(currentParams.toString());
+    params.delete(key);
+    updateUrlWithoutSSR(params);
   };
 
   const applyPriceFilter = () => {
-    const currentParams = new URLSearchParams(searchParams.toString());
-    if (minPrice) currentParams.set('minPrice', minPrice); else currentParams.delete('minPrice');
-    if (maxPrice) currentParams.set('maxPrice', maxPrice); else currentParams.delete('maxPrice');
-    startTransition(() => {
-      router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
-    });
+    const params = new URLSearchParams(currentParams.toString());
+    if (minPrice) params.set('minPrice', minPrice); else params.delete('minPrice');
+    if (maxPrice) params.set('maxPrice', maxPrice); else params.delete('maxPrice');
+    updateUrlWithoutSSR(params);
     setIsMobileFiltersOpen(false);
   };
 
   const updateUrlParams = (key: string, value: string) => {
-    const currentParams = new URLSearchParams(searchParams.toString());
-    if (value) currentParams.set(key, value); else currentParams.delete(key);
-    startTransition(() => {
-      router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
-    });
+    const params = new URLSearchParams(currentParams.toString());
+    if (value) params.set(key, value); else params.delete(key);
+    updateUrlWithoutSSR(params);
   };
 
-  const isMarkaSelected = !!searchParams.get('Pasuje do marki');
+  const isMarkaSelected = !!currentParams.get('Pasuje do marki');
   const formatedGarageMake = baseFilters['Pasuje do marki'] || baseFilters['Marka'] || {};
   const formatedGarageModel = isMarkaSelected 
     ? (narrowedFilters['Pasuje do modelu'] || narrowedFilters['Model'] || {}) 
@@ -176,7 +170,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   const techFilterKeys = filterCoverage.slice(0, 4).map(f => f.key);
 
   let activeFiltersCount = 0;
-  searchParams.forEach((val, key) => { if (!['limit', 'sort', 'view', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
+  currentParams.forEach((val: any, key: any) => { if (!['limit', 'sort', 'view', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
 
   const renderFilterBlock = (filterKey: string) => {
     const filterValues = techFilters[filterKey] as Record<string, number>;
@@ -188,12 +182,12 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     
     const isLongList = sortedEntries.length > 5;
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
-    const hasActiveSelection = !!searchParams.get(filterKey);
+    const hasActiveSelection = !!currentParams.get(filterKey);
     
-    const activeValuesArray = searchParams.get(filterKey)?.split(',').map(v => v.trim()) || [];
+    const activeValuesArray = currentParams.get(filterKey)?.split(',').map((v: string) => v.trim()) || [];
     
     return (
-      <div key={filterKey} className={`space-y-3 transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+      <div key={filterKey} className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <div className="flex items-center justify-between">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
           {hasActiveSelection && (
@@ -226,7 +220,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
               return (
                 <label 
                   key={val} 
-                  // 🔥 Blokowanie klikania w puste filtry (pointer-events-none)
                   className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} 
                   onClick={(e) => { 
                     e.preventDefault(); 
@@ -264,10 +257,10 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           <div>
             <h4 className="text-amber-900 font-black text-xs uppercase tracking-widest mb-2">Nie widzisz swojej części?</h4>
             <p className="text-amber-800/90 text-xs font-medium leading-relaxed mb-4">
-              Filtry opierają się na uzupełnionych danych. Jeśli czegoś brakuje, wpisz <strong className="text-amber-900 bg-amber-100/50 px-1 rounded">numer OEM</strong> u góry lub skonsultuj się z doradcą.
+              Filtry opierają się na uzupełnionych danych. Jeśli czegoś brakuje, wpisz <strong className="text-amber-900 bg-amber-100/50 px-1 rounded">numer OEM</strong> u góry.
             </p>
             <a href="tel:+48500600700" className="inline-block bg-amber-600 text-white hover:bg-amber-700 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95">
-              📞 Zadzwoń do eksperta
+              📞 Zadzwoń
             </a>
           </div>
         </div>
@@ -283,13 +276,13 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
       
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
-        <div className={`space-y-3 transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
-          <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
-          <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
+        <div className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+          <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={currentParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
+          <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={currentParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
         </div>
       </div>
 
-      <div className={`mb-6 border-b border-slate-100 pb-6 transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+      <div className={`mb-6 border-b border-slate-100 pb-6 transition-opacity duration-150 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <div className="flex justify-between items-center mb-3">
           <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-600">Zakres Cenowy (zł)</h4>
           {(minPrice || maxPrice) && (
@@ -297,11 +290,9 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
                disabled={isPending}
                onClick={() => { 
                  setMinPrice(''); setMaxPrice(''); 
-                 const currentParams = new URLSearchParams(searchParams.toString()); 
-                 currentParams.delete('minPrice'); currentParams.delete('maxPrice'); 
-                 startTransition(() => {
-                    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false }); 
-                 });
+                 const params = new URLSearchParams(currentParams.toString()); 
+                 params.delete('minPrice'); params.delete('maxPrice'); 
+                 updateUrlWithoutSSR(params);
                }}
                className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm disabled:opacity-50"
              >
@@ -325,7 +316,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   return (
     <>
-      {/* Kod mobilny/desktopowy zostaje bez zmian w strukturze wizualnej, używa zaktualizowanego FilterContent */}
       <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
          <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
            <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
@@ -352,7 +342,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
       {isDesktop && (
         <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 relative">
-          {/* Delikatny wskaźnik ładowania w prawym górnym rogu panelu */}
           {isPending && (
              <div className="absolute top-4 right-4 animate-spin h-5 w-5 border-2 border-slate-300 border-t-red-600 rounded-full"></div>
           )}
