@@ -10,17 +10,24 @@ export default function CategoryWorkspace({ initialData, currentHandle, allowedH
   const [data, setData] = useState(initialData);
   const [isPending, setIsPending] = useState(false);
   
-  // Trzymamy parametry w stringu, aby reagować na nawigację bez wchodzenia w SSR
   const [searchString, setSearchString] = useState(
     typeof window !== 'undefined' ? window.location.search : ''
   );
 
   useEffect(() => {
-    const fetchMeiliDirectly = async () => {
+    const fetchMeiliDirectly = async (e?: Event) => {
       setIsPending(true);
       try {
-        const searchParams = new URLSearchParams(window.location.search);
-        setSearchString(window.location.search); // Poinformuj dzieci o nowym URL
+        // 🔥 Pobieramy parametry BEZPOŚREDNIO z naszego custom eventu (omijamy opóźnienia Next.js)
+        let currentSearch = window.location.search;
+        if (e && (e as CustomEvent).detail !== undefined) {
+           currentSearch = '?' + (e as CustomEvent).detail;
+        }
+        
+        const searchParams = new URLSearchParams(currentSearch);
+        setSearchString(currentSearch);
+
+        console.log("🚀 Meilisearch szuka dla:", currentSearch);
 
         const activeFilters = Object.fromEntries(searchParams.entries());
         ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
@@ -54,10 +61,12 @@ export default function CategoryWorkspace({ initialData, currentHandle, allowedH
 
         const index = meiliClient.index('products');
 
-        // 🚀 STRZAŁ BEZPOŚREDNIO Z PRZEGLĄDARKI W 20 MILISEKUND!
+        const filterString = filterArray.join(' AND ');
+
+        // 🚀 STRZAŁ DO BAZY
         const [baseFacetsResult, searchResult] = await Promise.all([
           index.search(q, { limit: 0, filter: categoryFilterStr, facets: ['*'] }),
-          index.search(q, { limit, filter: filterArray.join(' AND '), sort: meiliSort, facets: ['*'] })
+          index.search(q, { limit, filter: filterString, sort: meiliSort, facets: ['*'] })
         ]);
 
         const products = searchResult.hits.map((p: any) => ({
@@ -71,41 +80,53 @@ export default function CategoryWorkspace({ initialData, currentHandle, allowedH
           narrowedFilters: searchResult.facetDistribution || {},
           totalCount: searchResult.estimatedTotalHits || products.length
         });
+        
+        console.log("✅ Pobrano produktów:", products.length);
+
       } catch (e) {
-        console.error("Błąd połączenia klienckiego z Meilisearch:", e);
+        console.error("❌ Błąd połączenia z Meilisearch na froncie:", e);
       } finally {
         setIsPending(false);
       }
     };
 
-    const handleUrlChange = () => fetchMeiliDirectly();
-
-    // Nasłuchujemy na przycisk "Wstecz" oraz na nasze kliknięcia w filtry
-    window.addEventListener('popstate', handleUrlChange);
-    window.addEventListener('pushstate', handleUrlChange); 
+    // 🔥 Nasłuchujemy na WŁASNY event, którego Next.js nie zablokuje
+    const handlePopstate = () => fetchMeiliDirectly();
+    window.addEventListener('meili-update', fetchMeiliDirectly);
+    window.addEventListener('popstate', handlePopstate); 
 
     return () => {
-        window.removeEventListener('popstate', handleUrlChange);
-        window.removeEventListener('pushstate', handleUrlChange);
+        window.removeEventListener('meili-update', fetchMeiliDirectly);
+        window.removeEventListener('popstate', handlePopstate);
     };
   }, [currentHandle, allowedHandles]);
 
   const currentParams = new URLSearchParams(searchString);
 
   return (
-     <div className="flex flex-col lg:flex-row gap-8 w-full">
+     <div className="flex flex-col lg:flex-row gap-8 w-full relative min-h-[600px]">
+        {/* 🔥 GIGANTYCZNY WSKAŹNIK ŁADOWANIA (nałożony na zawartość) */}
+        {isPending && (
+          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/50 backdrop-blur-[2px] rounded-[32px] transition-all duration-200">
+             <div className="flex flex-col items-center bg-white p-6 rounded-2xl shadow-xl">
+               <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-100 border-t-red-600 mb-3"></div>
+               <span className="text-xs font-black uppercase tracking-widest text-slate-800">Szukam...</span>
+             </div>
+          </div>
+        )}
+        
         <aside className="w-full lg:w-80 flex-shrink-0">
           <CategoryFilters
             baseFilters={data.baseFilters}
             narrowedFilters={data.narrowedFilters}
             totalCount={data.totalCount}
             isPending={isPending}
-            currentParams={currentParams} // Przekazujemy stan URL do filtrów
+            currentParams={currentParams}
           />
         </aside>
-        <div className="flex-1 flex flex-col min-h-[500px]">
+        <div className="flex-1 flex flex-col">
           <CategoryToolbar totalCount={data.totalCount} />
-          <div className={`transition-opacity duration-150 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+          <div className={`transition-opacity duration-200 ${isPending ? 'opacity-30' : 'opacity-100'}`}>
             <ProductGrid
               initialProducts={data.products}
               totalCount={data.totalCount}

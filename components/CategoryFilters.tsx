@@ -71,12 +71,13 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
 export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, totalCount = 0, isPending, currentParams }: any) {
   const pathname = usePathname(); 
   
-  // 🔥 NAPRAWIONA ZŁOTA FUNKCJA
+  // 🔥 ZABÓJCZO SKUTECZNA AKTUALIZACJA
   const updateUrlWithoutSSR = (newParams: URLSearchParams) => {
     const newUrl = `${pathname}?${newParams.toString()}`;
-    // Przekazujemy window.history.state zamiast null, chroniąc stan Next.js przed crashem!
     window.history.pushState(window.history.state, '', newUrl);
-    window.dispatchEvent(new Event('pushstate')); 
+    
+    // Uderzamy w CustomEvent, przekazując nowe parametry w paczce (detail), żeby ominać lagi Next.js!
+    window.dispatchEvent(new CustomEvent('meili-update', { detail: newParams.toString() })); 
   };
 
   const { isActive: isGarageActive, brand: garageBrand, model: garageModel } = useGarage();
@@ -188,7 +189,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     const activeValuesArray = currentParams.get(filterKey)?.split(',').map((v: string) => v.trim()) || [];
     
     return (
-      <div key={filterKey} className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+      <div key={filterKey} className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         <div className="flex items-center justify-between">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
           {hasActiveSelection && (
@@ -278,13 +279,13 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
       
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
-        <div className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+        <div className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
           <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={currentParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
           <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={currentParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
         </div>
       </div>
 
-      <div className={`mb-6 border-b border-slate-100 pb-6 transition-opacity duration-150 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+      <div className={`mb-6 border-b border-slate-100 pb-6 transition-opacity duration-150 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         <div className="flex justify-between items-center mb-3">
           <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-600">Zakres Cenowy (zł)</h4>
           {(minPrice || maxPrice) && (
@@ -345,9 +346,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
       {isDesktop && (
         <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 relative">
-          {isPending && (
-             <div className="absolute top-4 right-4 animate-spin h-5 w-5 border-2 border-slate-300 border-t-red-600 rounded-full"></div>
-          )}
           <FilterContent />
         </div>
       )}
