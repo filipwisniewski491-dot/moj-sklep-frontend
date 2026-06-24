@@ -11,37 +11,51 @@ const DynamicFooter = dynamic(() => import('@/components/Footer'));
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
-export const revalidate = 3600; 
-const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
+export const revalidate = 3600;
+const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "https://panel.centrumrolnictwa.com";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
 const OPTIMIZED_FACETS = [
-  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 
-  'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy', 
+  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu',
+  'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy',
   'Ilość zębów', 'Wymiary', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Zastosowanie'
 ];
+
+// ✅ Poprawna składnia filtra Meilisearch: cudzysłowy wokół nazwy atrybutu
+function buildFilterValue(key: string, val: string): string {
+  const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
+  if (values.length === 0) return '';
+  const orConditions = values.map(v => `"${key}" = "${v.replace(/"/g, '\\"')}"`);
+  return orConditions.length === 1 ? orConditions[0] : `(${orConditions.join(' OR ')})`;
+}
 
 export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
-  
+
   const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
   const fullPath = slugArray.join('/');
   const currentHandle = slugArray.length > 0 ? slugArray[slugArray.length - 1] : '';
 
-  let dbCategoryData = { h1_dynamic: currentHandle.toUpperCase().replace(/-/g, ' '), name: currentHandle.replace(/-/g, ' '), top_seo_text: "", bottom_seo_text: "", faqs: [] };
+  let dbCategoryData: any = {
+    h1_dynamic: currentHandle.toUpperCase().replace(/-/g, ' '),
+    name: currentHandle.replace(/-/g, ' '),
+    top_seo_text: "",
+    bottom_seo_text: "",
+    faqs: []
+  };
   let allowedHandles: string[] = [currentHandle];
   let currentCategory: any = null;
 
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-    
-    const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { 
-      headers, 
-      next: { revalidate: 3600 } 
+
+    const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, {
+      headers,
+      next: { revalidate: 3600 }
     });
-    
+
     if (res.ok) {
       const json = await res.json();
       currentCategory = json.product_categories?.[0];
@@ -67,19 +81,23 @@ export default async function CategoryPage({ params, searchParams }: any) {
     console.warn("Błąd SEO Medusy, używam fallbacku");
   }
 
-  const breadcrumbs = slugArray.map((s, i) => ({ 
-    name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: slugArray.slice(0, i + 1).join('/') 
+  const breadcrumbs = slugArray.map((s: string, i: number) => ({
+    name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: slugArray.slice(0, i + 1).join('/')
   }));
 
-  const searchData = { category: dbCategoryData, breadcrumbs, subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [] };
+  const searchData = {
+    category: dbCategoryData,
+    breadcrumbs,
+    subcategories: currentCategory?.category_children?.map((c: any) => c.name) || []
+  };
 
   const index = meiliClient.index('products');
-  const categoryFilterStr = allowedHandles.length > 0 
-    ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
-    : `category_handles = ${JSON.stringify(currentHandle)}`;
 
-  let initialData = { filters: {}, narrowedFilters: {}, products: [], totalCount: 0 };
-  
+  // ✅ Poprawna składnia IN z cudzysłowami
+  const categoryFilterStr = `category_handles IN [${allowedHandles.map(h => `"${h}"`).join(', ')}]`;
+
+  let initialData: any = { filters: {}, narrowedFilters: {}, products: [], totalCount: 0 };
+
   try {
     const filterArray: string[] = [categoryFilterStr];
     const activeFilters = { ...resolvedSearchParams };
@@ -87,12 +105,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
     Object.entries(activeFilters).forEach(([key, val]) => {
       if (!val) return;
-      const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
-      if (values.length > 0) {
-        // 🔥 Zawsze pojedyncze apostrofy w Meili!
-        const orConditions = values.map(v => `'${key}' = ${JSON.stringify(v)}`);
-        filterArray.push(`(${orConditions.join(' OR ')})`);
-      }
+      const f = buildFilterValue(key, val as string);
+      if (f) filterArray.push(f);
     });
 
     if (resolvedSearchParams.minPrice) filterArray.push(`price >= ${resolvedSearchParams.minPrice}`);
@@ -118,7 +132,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
       narrowedFilters: searchResult.facetDistribution || {},
       products: searchResult.hits.map((p: any) => ({
         id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
-        category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
+        category_text: p.Kategoria || p['Typ produktu'] || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
       })),
       totalCount: searchResult.estimatedTotalHits || 0
     };
@@ -129,15 +143,14 @@ export default async function CategoryPage({ params, searchParams }: any) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
-      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} /> 
-      
-      {/* 🔥 MAGIA SPA: Dodany klucz (key), dzięki czemu produkty podkategorii ładują się bez opóźnienia */}
-      <CategoryWorkspace 
-        key={fullPath} 
-        initialData={initialData} 
-        fullPath={fullPath} 
-        currentHandle={currentHandle} 
-        allowedHandles={allowedHandles} 
+      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} />
+
+      <CategoryWorkspace
+        key={fullPath}
+        initialData={initialData}
+        fullPath={fullPath}
+        currentHandle={currentHandle}
+        allowedHandles={allowedHandles}
       />
 
       {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}
