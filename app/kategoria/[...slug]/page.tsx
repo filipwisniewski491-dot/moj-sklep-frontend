@@ -15,6 +15,12 @@ export const revalidate = 3600;
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
+const OPTIMIZED_FACETS = [
+  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Producent', 
+  'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy', 
+  'Ilość zębów', 'Wymiary', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Zastosowanie'
+];
+
 export default async function CategoryPage({ params, searchParams }: any) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
@@ -49,8 +55,10 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
         const collectHandles = (cat: any) => {
           if (!cat) return;
-          if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-          if (cat.category_children) cat.category_children.forEach(collectHandles);
+          if (allowedHandles.length < 100) {
+            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
+            if (cat.category_children) cat.category_children.forEach(collectHandles);
+          }
         };
         collectHandles(currentCategory);
       }
@@ -59,22 +67,21 @@ export default async function CategoryPage({ params, searchParams }: any) {
     console.warn("Błąd SEO Medusy, używam fallbacku");
   }
 
-  const searchData = { 
-    category: dbCategoryData, 
-    breadcrumbs: slugArray.map((s, i) => ({ name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: slugArray.slice(0, i + 1).join('/') })), 
-    subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [] 
-  };
+  const breadcrumbs = slugArray.map((s, i) => ({ 
+    name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: slugArray.slice(0, i + 1).join('/') 
+  }));
 
-  // --- PIERWSZE POBRANIE MEILISEARCH (TYLKO DLA SEO / STARTU STRONY) ---
-  let initialData = { products: [], baseFilters: {}, narrowedFilters: {}, totalCount: 0 };
+  const searchData = { category: dbCategoryData, breadcrumbs, subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [] };
+
+  const index = meiliClient.index('products');
+  const categoryFilterStr = allowedHandles.length > 0 
+    ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
+    : `category_handles = ${JSON.stringify(currentHandle)}`;
+
+  let initialData = { filters: {}, narrowedFilters: {}, products: [], totalCount: 0 };
   
   try {
-    const index = meiliClient.index('products');
-    const safeHandles = allowedHandles?.filter(Boolean) || [currentHandle];
-    const categoryFilterStr = `category_handles IN [${safeHandles.map((h: string) => JSON.stringify(h)).join(', ')}]`;
-
     const filterArray: string[] = [categoryFilterStr];
-    
     const activeFilters = { ...resolvedSearchParams };
     ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
 
@@ -82,7 +89,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
       if (!val) return;
       const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
       if (values.length > 0) {
-        const orConditions = values.map(v => `"${key}" = ${JSON.stringify(v)}`);
+        // 🔥 Zawsze pojedyncze apostrofy w Meili!
+        const orConditions = values.map(v => `'${key}' = ${JSON.stringify(v)}`);
         filterArray.push(`(${orConditions.join(' OR ')})`);
       }
     });
@@ -95,40 +103,43 @@ export default async function CategoryPage({ params, searchParams }: any) {
     if (sortParam === 'price_asc') meiliSort = ['price:asc'];
     if (sortParam === 'price_desc') meiliSort = ['price:desc'];
 
-    const finalFilterString = filterArray.join(' AND ');
-
     const [baseFacetsResult, searchResult] = await Promise.all([
-      index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryFilterStr, facets: ['*'] }),
-      index.search(resolvedSearchParams.q || "", { limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250, filter: finalFilterString, sort: meiliSort, facets: ['*'] })
+      index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryFilterStr, facets: OPTIMIZED_FACETS }),
+      index.search(resolvedSearchParams.q || "", {
+        limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
+        filter: filterArray.join(' AND '),
+        sort: meiliSort,
+        facets: OPTIMIZED_FACETS
+      })
     ]);
 
-    initialData.products = searchResult.hits.map((p: any) => ({
-      id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle, category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
-    })) as any;
-    
-    initialData.baseFilters = baseFacetsResult.facetDistribution || {};
-    initialData.narrowedFilters = searchResult.facetDistribution || {};
-    initialData.totalCount = searchResult.estimatedTotalHits || initialData.products.length;
-  } catch (err) {
-    console.error("Błąd początkowego pobierania z Meili", err);
+    initialData = {
+      filters: baseFacetsResult.facetDistribution || {},
+      narrowedFilters: searchResult.facetDistribution || {},
+      products: searchResult.hits.map((p: any) => ({
+        id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
+        category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
+      })),
+      totalCount: searchResult.estimatedTotalHits || 0
+    };
+  } catch (e) {
+    console.error("Meilisearch server error:", e);
   }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} /> 
-      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
-        
-        {/* Przekazujemy dowodzenie na front (SPA) */}
-        <CategoryWorkspace 
-          initialData={initialData} 
-          currentHandle={currentHandle}
-          allowedHandles={allowedHandles}
-          fullPath={fullPath}
-          initialSearchParams={resolvedSearchParams}
-        />
+      
+      {/* 🔥 MAGIA SPA: Dodany klucz (key), dzięki czemu produkty podkategorii ładują się bez opóźnienia */}
+      <CategoryWorkspace 
+        key={fullPath} 
+        initialData={initialData} 
+        fullPath={fullPath} 
+        currentHandle={currentHandle} 
+        allowedHandles={allowedHandles} 
+      />
 
-      </main>
       {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}
       {dbCategoryData.faqs && dbCategoryData.faqs.length > 0 && <DynamicFaqSection faqs={dbCategoryData.faqs} />}
       <MobileBottomNav />
