@@ -33,6 +33,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
         <h3 className="text-slate-600 font-black uppercase text-[10px] tracking-widest">{label}</h3> 
         {value && (
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); onChange(''); setIsOpen(false); }}
             className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm"
           >
@@ -40,7 +41,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
           </button>
         )}
       </div>
-      <button aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3.5 min-h-[48px] flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> 
+      <button type="button" aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3.5 min-h-[48px] flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> 
         <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value ? cleanLabel(value) : placeholder}</span> 
         <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg> 
       </button> 
@@ -54,7 +55,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
               <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div> 
             ) : ( 
               filteredOptions.map(([val, count]) => ( 
-                <button aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}> 
+                <button type="button" aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}> 
                   <span className="line-clamp-1 pr-2">{cleanLabel(val)}</span> 
                   <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">{count as number}</span> 
                 </button> 
@@ -70,10 +71,11 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
 export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, totalCount = 0, isPending, currentParams }: any) {
   const pathname = usePathname(); 
   
-  // 🚀 ZŁOTA FUNKCJA: Błyskawicznie zmienia URL i ładuje meili BEZ Next.js Server!
+  // 🔥 NAPRAWIONA ZŁOTA FUNKCJA
   const updateUrlWithoutSSR = (newParams: URLSearchParams) => {
     const newUrl = `${pathname}?${newParams.toString()}`;
-    window.history.pushState(null, '', newUrl);
+    // Przekazujemy window.history.state zamiast null, chroniąc stan Next.js przed crashem!
+    window.history.pushState(window.history.state, '', newUrl);
     window.dispatchEvent(new Event('pushstate')); 
   };
 
@@ -88,7 +90,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   const [filterSearchQuery, setFilterSearchQuery] = useState<Record<string, string>>({});
   const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({});
 
-  // Synchronizacja po użyciu przycisku 'Wstecz' w przeglądarce
   useEffect(() => {
     setMinPrice(currentParams.get('minPrice') || '');
     setMaxPrice(currentParams.get('maxPrice') || '');
@@ -192,6 +193,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
           {hasActiveSelection && (
             <button 
+              type="button"
               onClick={() => clearUrlParam(filterKey)}
               disabled={isPending}
               className="text-[9px] font-black uppercase text-red-600 hover:text-white tracking-wider bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm disabled:opacity-50"
@@ -241,8 +243,8 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           )}
         </div>
 
-        {isLongList && !isExpanded && (<button aria-label="Pokaż więcej opcji filtru" onClick={() => setExpandedFilters(prev => ({ ...prev, [filterKey]: true }))} className="text-[11px] p-2 min-h-[48px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center justify-center w-full pt-2 border-t border-slate-50">+ Pokaż więcej ({sortedEntries.length - 5})</button>)}
-        {isLongList && isExpanded && (<button aria-label="Zwiń opcje filtru" onClick={() => { setExpandedFilters(prev => ({ ...prev, [filterKey]: false })); setFilterSearchQuery(prev => ({ ...prev, [filterKey]: '' })); }} className="text-[11px] p-2 min-h-[48px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center justify-center w-full pt-2 border-t border-slate-50">- Zwiń listę</button>)}
+        {isLongList && !isExpanded && (<button type="button" aria-label="Pokaż więcej opcji filtru" onClick={() => setExpandedFilters(prev => ({ ...prev, [filterKey]: true }))} className="text-[11px] p-2 min-h-[48px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center justify-center w-full pt-2 border-t border-slate-50">+ Pokaż więcej ({sortedEntries.length - 5})</button>)}
+        {isLongList && isExpanded && (<button type="button" aria-label="Zwiń opcje filtru" onClick={() => { setExpandedFilters(prev => ({ ...prev, [filterKey]: false })); setFilterSearchQuery(prev => ({ ...prev, [filterKey]: '' })); }} className="text-[11px] p-2 min-h-[48px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 mt-2 flex items-center justify-center w-full pt-2 border-t border-slate-50">- Zwiń listę</button>)}
       </div>
     );
   };
@@ -270,7 +272,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
         <div className="relative flex items-center">
           <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} disabled={isPending} />
-          <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} disabled={isPending} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center disabled:opacity-50">🔍</button>
+          <button type="button" aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} disabled={isPending} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center disabled:opacity-50">🔍</button>
         </div>
       </div>
       
@@ -287,6 +289,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-600">Zakres Cenowy (zł)</h4>
           {(minPrice || maxPrice) && (
              <button 
+               type="button"
                disabled={isPending}
                onClick={() => { 
                  setMinPrice(''); setMaxPrice(''); 
@@ -305,7 +308,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           <span className="text-slate-500 font-black">-</span>
           <input aria-label="Cena maksymalna" type="number" placeholder="Do" disabled={isPending} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px] disabled:opacity-50" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPriceFilter()} />
         </div>
-        <button aria-label="Zastosuj filtr cenowy" disabled={isPending} onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[48px] disabled:opacity-50">Zastosuj cenę</button>
+        <button type="button" aria-label="Zastosuj filtr cenowy" disabled={isPending} onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[48px] disabled:opacity-50">Zastosuj cenę</button>
       </div>
 
       <div className="space-y-8">
@@ -317,7 +320,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   return (
     <>
       <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
-         <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
+         <button type="button" aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
            <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
            {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] ml-1 shadow-inner">{activeFiltersCount}</span>}
          </button>
@@ -327,13 +330,13 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
               <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
-              <button aria-label="Zamknij filtry" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[48px] min-h-[48px]">✕ Zamknij</button>
+              <button type="button" aria-label="Zamknij filtry" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[48px] min-h-[48px]">✕ Zamknij</button>
            </div>
            <div className="flex-1 overflow-y-auto p-5 pb-24 custom-scrollbar bg-white">
               <FilterContent />
            </div>
            <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-               <button aria-label="Zastosuj i pokaż wyniki" disabled={isPending} onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[56px] disabled:opacity-50">
+               <button type="button" aria-label="Zastosuj i pokaż wyniki" disabled={isPending} onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[56px] disabled:opacity-50">
                   {isPending ? 'ŁADOWANIE...' : `Pokaż ${totalCount} wyników ➔`}
                </button>
            </div>
