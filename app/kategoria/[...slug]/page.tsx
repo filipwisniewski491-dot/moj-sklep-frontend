@@ -9,9 +9,10 @@ import CategoryFilters from '@/components/CategoryFilters';
 import CategoryToolbar from '@/components/CategoryToolbar';
 import ProductGrid from '@/components/ProductGrid';
 
-const DynamicFooter = dynamic(() => import('@components/Footer'));
-const DynamicFaqSection = dynamic(() => import('@components/FaqSection'));
-const DynamicSeoSection = dynamic(() => import('@components/SeoSection'));
+// 🔥 POPRAWKA: Dodane brakujące ukośniki w ścieżkach "@/components/..."
+const DynamicFooter = dynamic(() => import('@/components/Footer'));
+const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
+const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
 export const revalidate = 0; 
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
@@ -69,7 +70,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
     const index = meiliClient.index('products');
     
-    // 🔥 ZMIANA: używamy 'category_handles'
+    // ZMIANA: używamy 'category_handles' z Meilisearch (tablica powiązań)
     const categoryFilterStr = allowedHandles.length > 0 
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
