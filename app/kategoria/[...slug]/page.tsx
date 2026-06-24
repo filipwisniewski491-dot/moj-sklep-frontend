@@ -6,14 +6,16 @@ import { meiliClient } from '@/lib/meilisearch-client';
 import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import CategoryHeader from '@/components/CategoryHeader';
-import CategoryWorkspace from '@/components/CategoryWorkspace';
+import CategoryFilters from '@/components/CategoryFilters';
+import CategoryToolbar from '@/components/CategoryToolbar';
+import ProductGrid from '@/components/ProductGrid';
 import ProductGridSkeleton from '@/components/ProductGridSkeleton';
 
 const DynamicFooter = dynamic(() => import('@/components/Footer'));
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
-export const revalidate = 3600; // 🔥 TURBO CACHE: Medusa trzyma wynik w pamięci przez 1h!
+export const revalidate = 3600; 
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
@@ -51,8 +53,12 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
         const collectHandles = (cat: any) => {
           if (!cat) return;
-          if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-          if (cat.category_children) cat.category_children.forEach(collectHandles);
+          // 🔥 BLOKADA ZABÓJCZEGO ZAPYTANIA: Ograniczamy do max 100 podkategorii
+          // Zapobiegnie to generowaniu zapytań trwających 4 sekundy!
+          if (allowedHandles.length < 100) {
+            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
+            if (cat.category_children) cat.category_children.forEach(collectHandles);
+          }
         };
         collectHandles(currentCategory);
       }
@@ -73,7 +79,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
       <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} /> 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         
-        {/* 🔥 SUSPENSE: Błyskawiczne ładowanie. Meilisearch wstrzyknie dane gdy tylko będą gotowe */}
         <Suspense fallback={<CategoryLoadingSkeleton />}>
           <CategoryDataLoader 
             currentHandle={currentHandle} 
@@ -92,10 +97,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
   );
 }
 
-// ----------------------------------------------------
-// KOMPONENTY WEWNĘTRZNE DO SZYBKIEGO RENDEROWANIA
-// ----------------------------------------------------
-
 function CategoryLoadingSkeleton() {
   return (
      <>
@@ -111,33 +112,37 @@ function CategoryLoadingSkeleton() {
 }
 
 async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearchParams, fullPath }: any) {
-  // 1. INICJALNE POBRANIE TYLKO DLA SEO / PIERWSZEGO WEJŚCIA
-  const index = meiliClient.index('products');
-  
-  const categoryFilterStr = allowedHandles.length > 0 
-    ? `category_handles IN [${allowedHandles.map((h: string) => JSON.stringify(h)).join(', ')}]`
-    : `category_handles = ${JSON.stringify(currentHandle)}`;
-
-  const filterArray: string[] = [categoryFilterStr];
-  const activeFilters = { ...resolvedSearchParams };
-  ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
-
-  Object.entries(activeFilters).forEach(([key, val]) => {
-    const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
-    if (values.length > 0) {
-      const orConditions = values.map(v => `'${key}' = ${JSON.stringify(v)}`);
-      filterArray.push(`(${orConditions.join(' OR ')})`);
-    }
-  });
-
-  const sortParam = resolvedSearchParams.sort;
-  let meiliSort = undefined;
-  if (sortParam === 'price_asc') meiliSort = ['price:asc'];
-  if (sortParam === 'price_desc') meiliSort = ['price:desc'];
-
-  let initialData = { products: [], baseFilters: {}, narrowedFilters: {}, totalCount: 0 };
+  let products: any[] = [];
+  let baseFilters: any = {};
+  let narrowedFilters: any = {};
+  let totalCount = 0;
 
   try {
+    const activeFilters = { ...resolvedSearchParams };
+    ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
+
+    const index = meiliClient.index('products');
+    
+    const categoryFilterStr = allowedHandles.length > 1
+      ? `category_handles IN [${allowedHandles.map((h: string) => JSON.stringify(h)).join(', ')}]`
+      : `category_handles = ${JSON.stringify(currentHandle)}`;
+
+    const filterArray: string[] = [categoryFilterStr];
+    
+    Object.entries(activeFilters).forEach(([key, val]) => {
+      const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
+      if (values.length > 0) {
+        const orConditions = values.map(v => `'${key}' = ${JSON.stringify(v)}`);
+        filterArray.push(`(${orConditions.join(' OR ')})`);
+      }
+    });
+
+    const sortParam = resolvedSearchParams.sort;
+    let meiliSort = undefined;
+    if (sortParam === 'price_asc') meiliSort = ['price:asc'];
+    if (sortParam === 'price_desc') meiliSort = ['price:desc'];
+
+    // 🔥 Szybkie zrównoleglone zapytanie do bazy
     const [baseFacetsResult, searchResult] = await Promise.all([
       index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryFilterStr, facets: ['*'] }),
       index.search(resolvedSearchParams.q || "", {
@@ -146,28 +151,39 @@ async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearc
       })
     ]);
 
-    const products = searchResult.hits.map((p: any) => ({
+    baseFilters = baseFacetsResult.facetDistribution || {};
+    narrowedFilters = searchResult.facetDistribution || {};
+
+    products = searchResult.hits.map((p: any) => ({
       id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
       category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
     }));
 
-    initialData = {
-      products,
-      baseFilters: baseFacetsResult.facetDistribution || {},
-      narrowedFilters: searchResult.facetDistribution || {},
-      totalCount: searchResult.estimatedTotalHits || products.length
-    };
+    totalCount = searchResult.estimatedTotalHits || products.length;
+
   } catch (error) {
-    console.error("Błąd początkowego pobierania Meilisearch na serwerze:", error);
+    console.error("Błąd zapytania Meilisearch:", error);
   }
 
-  // PRZEKAZANIE DANYCH DO KOMPONENTU KLIENCKIEGO (MÓZGU OPERACJI)
   return (
-     <CategoryWorkspace 
-        initialData={initialData} 
-        currentHandle={currentHandle}
-        allowedHandles={allowedHandles}
-        fullPath={fullPath}
-     />
+     <>
+        <aside className="w-full lg:w-80 flex-shrink-0">
+          <CategoryFilters 
+            baseFilters={baseFilters} 
+            narrowedFilters={narrowedFilters}
+            totalCount={totalCount} 
+            currentParams={new URLSearchParams(resolvedSearchParams as any)}
+          />
+        </aside>
+        <div className="flex-1 flex flex-col min-h-[500px]">
+          <CategoryToolbar totalCount={totalCount} />
+          <ProductGrid 
+            initialProducts={products} 
+            totalCount={totalCount} 
+            fullPath={fullPath} 
+            isListView={resolvedSearchParams?.view === 'list'}
+          />
+        </div>
+     </>
   );
 }

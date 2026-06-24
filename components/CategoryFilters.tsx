@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useEffect, useState, useRef, useTransition } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useGarage } from '@/store/useGarage'; 
 
 const cleanLabel = (label: string) => {
@@ -68,16 +68,17 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, totalCount = 0, isPending, currentParams }: any) {
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, totalCount = 0, currentParams }: any) {
+  const router = useRouter();
   const pathname = usePathname(); 
   
-  // 🔥 ZABÓJCZO SKUTECZNA AKTUALIZACJA
-  const updateUrlWithoutSSR = (newParams: URLSearchParams) => {
-    const newUrl = `${pathname}?${newParams.toString()}`;
-    window.history.pushState(window.history.state, '', newUrl);
-    
-    // Uderzamy w CustomEvent, przekazując nowe parametry w paczce (detail), żeby ominać lagi Next.js!
-    window.dispatchEvent(new CustomEvent('meili-update', { detail: newParams.toString() })); 
+  // 🔥 Next.js magic: Płynne ładowanie bez twardego restartu strony
+  const [isPending, startTransition] = useTransition();
+
+  const updateUrl = (newParams: URLSearchParams) => {
+    startTransition(() => {
+      router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
+    });
   };
 
   const { isActive: isGarageActive, brand: garageBrand, model: garageModel } = useGarage();
@@ -113,7 +114,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   const toggleUrlParam = (key: string, value: string) => {
     const params = new URLSearchParams(currentParams.toString());
     const currentVal = params.get(key);
-    let valuesArray = currentVal ? currentVal.split(',').map(v => v.trim()) : [];
+    let valuesArray = currentVal ? currentVal.split(',').map((v: string) => v.trim()) : [];
 
     if (valuesArray.includes(value)) {
       valuesArray = valuesArray.filter(v => v !== value);
@@ -124,27 +125,27 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     if (valuesArray.length > 0) params.set(key, valuesArray.join(','));
     else params.delete(key);
     
-    updateUrlWithoutSSR(params);
+    updateUrl(params);
   };
 
   const clearUrlParam = (key: string) => {
     const params = new URLSearchParams(currentParams.toString());
     params.delete(key);
-    updateUrlWithoutSSR(params);
+    updateUrl(params);
   };
 
   const applyPriceFilter = () => {
     const params = new URLSearchParams(currentParams.toString());
     if (minPrice) params.set('minPrice', minPrice); else params.delete('minPrice');
     if (maxPrice) params.set('maxPrice', maxPrice); else params.delete('maxPrice');
-    updateUrlWithoutSSR(params);
+    updateUrl(params);
     setIsMobileFiltersOpen(false);
   };
 
   const updateUrlParams = (key: string, value: string) => {
     const params = new URLSearchParams(currentParams.toString());
     if (value) params.set(key, value); else params.delete(key);
-    updateUrlWithoutSSR(params);
+    updateUrl(params);
   };
 
   const isMarkaSelected = !!currentParams.get('Pasuje do marki');
@@ -296,7 +297,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
                  setMinPrice(''); setMaxPrice(''); 
                  const params = new URLSearchParams(currentParams.toString()); 
                  params.delete('minPrice'); params.delete('maxPrice'); 
-                 updateUrlWithoutSSR(params);
+                 updateUrl(params);
                }}
                className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm disabled:opacity-50"
              >
@@ -346,6 +347,10 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
       {isDesktop && (
         <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 relative">
+          {/* Elegancki kręcący się wskaźnik podczas aktualizowania URL */}
+          {isPending && (
+             <div className="absolute top-4 right-4 animate-spin h-5 w-5 border-2 border-slate-300 border-t-red-600 rounded-full"></div>
+          )}
           <FilterContent />
         </div>
       )}
