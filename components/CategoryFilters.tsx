@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useGarage } from '@/store/useGarage'; 
 
-// 🔥 SANITYZATOR FRONTENDOWY: Czyści wyświetlane nazwy z brudów bazy (np. nawiasów [])
 const cleanLabel = (label: string) => {
   if (!label) return '';
   let cleaned = label.replace(/[\[\]]/g, '').trim(); 
@@ -13,6 +12,7 @@ const cleanLabel = (label: string) => {
 };
 
 const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
+  // Ten komponent zostaje bez zmian, używa lokalnego stanu
   const [isOpen, setIsOpen] = useState(false); 
   const [searchTerm, setSearchTerm] = useState(''); 
   const wrapperRef = useRef<HTMLDivElement>(null); 
@@ -73,6 +73,9 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   const router = useRouter();
   const pathname = usePathname(); 
   
+  // 🔥 Używamy hooka useTransition, żeby strona nie zamarzała przy zmianie URL!
+  const [isPending, startTransition] = useTransition();
+
   const { isActive: isGarageActive, brand: garageBrand, model: garageModel } = useGarage();
   
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
@@ -98,7 +101,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  // Logika Multi-select dla URL (po przecinku)
+  // Logika Multi-select dla URL
   const toggleUrlParam = (key: string, value: string) => {
     const currentParams = new URLSearchParams(searchParams.toString());
     const currentVal = currentParams.get(key);
@@ -115,21 +118,37 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     } else {
       currentParams.delete(key);
     }
-    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+    
+    // Zmiana w tle (nie blokuje UI)
+    startTransition(() => {
+      router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+    });
   };
 
   const clearUrlParam = (key: string) => {
     const currentParams = new URLSearchParams(searchParams.toString());
     currentParams.delete(key);
-    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+    });
   };
 
   const applyPriceFilter = () => {
     const currentParams = new URLSearchParams(searchParams.toString());
     if (minPrice) currentParams.set('minPrice', minPrice); else currentParams.delete('minPrice');
     if (maxPrice) currentParams.set('maxPrice', maxPrice); else currentParams.delete('maxPrice');
-    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+    });
     setIsMobileFiltersOpen(false);
+  };
+
+  const updateUrlParams = (key: string, value: string) => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    if (value) currentParams.set(key, value); else currentParams.delete(key);
+    startTransition(() => {
+      router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+    });
   };
 
   const isMarkaSelected = !!searchParams.get('Pasuje do marki');
@@ -154,7 +173,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  // 🔥 4 FILTRY TECHNICZNE
   const techFilterKeys = filterCoverage.slice(0, 4).map(f => f.key);
 
   let activeFiltersCount = 0;
@@ -175,13 +193,14 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     const activeValuesArray = searchParams.get(filterKey)?.split(',').map(v => v.trim()) || [];
     
     return (
-      <div key={filterKey} className="space-y-3">
+      <div key={filterKey} className={`space-y-3 transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <div className="flex items-center justify-between">
           <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
           {hasActiveSelection && (
             <button 
               onClick={() => clearUrlParam(filterKey)}
-              className="text-[9px] font-black uppercase text-red-600 hover:text-white tracking-wider bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm"
+              disabled={isPending}
+              className="text-[9px] font-black uppercase text-red-600 hover:text-white tracking-wider bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm disabled:opacity-50"
             >
               ✕ Wyczyść
             </button>
@@ -201,12 +220,19 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           ) : (
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, staticCount]) => {
               const isChecked = activeValuesArray.includes(val);
-              // 🔥 WYSZARZANIE: Jeżeli dla danej kombinacji brakuje produktów
               const dynamicCount = narrowedFilters[filterKey]?.[val] || 0;
               const isDisabled = dynamicCount === 0 && !isChecked;
 
               return (
-                <label key={val} className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 hover:opacity-100 cursor-pointer' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} onClick={(e) => { e.preventDefault(); toggleUrlParam(filterKey, val); }}>
+                <label 
+                  key={val} 
+                  // 🔥 Blokowanie klikania w puste filtry (pointer-events-none)
+                  className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} 
+                  onClick={(e) => { 
+                    e.preventDefault(); 
+                    if (!isDisabled && !isPending) toggleUrlParam(filterKey, val); 
+                  }}
+                >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-300 bg-white group-hover:border-red-400'}`}>
                       {isChecked && <div className="w-3 h-3 bg-red-600 rounded-[3px]"></div>}
@@ -231,7 +257,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   const FilterContent = () => (
     <div className="space-y-6">
 
-      {/* 🔥 BANER UX / KONWERSYJNY */}
       <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-40 rotate-12 transform translate-x-8 -translate-y-8 rounded-full blur-xl group-hover:opacity-60 transition-opacity"></div>
         <div className="flex items-start gap-3 relative z-10">
@@ -251,37 +276,45 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
         <div className="relative flex items-center">
-          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} />
-          <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center">🔍</button>
+          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} disabled={isPending} />
+          <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} disabled={isPending} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center disabled:opacity-50">🔍</button>
         </div>
       </div>
       
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
-        <div className="space-y-3">
+        <div className={`space-y-3 transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
           <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
           <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
         </div>
       </div>
 
-      <div className="mb-6 border-b border-slate-100 pb-6">
+      <div className={`mb-6 border-b border-slate-100 pb-6 transition-opacity duration-200 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <div className="flex justify-between items-center mb-3">
           <h4 className="font-black text-[10px] uppercase tracking-wider text-slate-600">Zakres Cenowy (zł)</h4>
           {(minPrice || maxPrice) && (
              <button 
-               onClick={() => { setMinPrice(''); setMaxPrice(''); const currentParams = new URLSearchParams(searchParams.toString()); currentParams.delete('minPrice'); currentParams.delete('maxPrice'); router.push(`${pathname}?${currentParams.toString()}`, { scroll: false }); }}
-               className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm"
+               disabled={isPending}
+               onClick={() => { 
+                 setMinPrice(''); setMaxPrice(''); 
+                 const currentParams = new URLSearchParams(searchParams.toString()); 
+                 currentParams.delete('minPrice'); currentParams.delete('maxPrice'); 
+                 startTransition(() => {
+                    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false }); 
+                 });
+               }}
+               className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm disabled:opacity-50"
              >
                ✕ Wyczyść
              </button>
           )}
         </div>
         <div className="flex gap-2 items-center">
-          <input aria-label="Cena minimalna" type="number" placeholder="Od" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={minPrice} onChange={e => setMinPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPriceFilter()} />
+          <input aria-label="Cena minimalna" type="number" placeholder="Od" disabled={isPending} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px] disabled:opacity-50" value={minPrice} onChange={e => setMinPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPriceFilter()} />
           <span className="text-slate-500 font-black">-</span>
-          <input aria-label="Cena maksymalna" type="number" placeholder="Do" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px]" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPriceFilter()} />
+          <input aria-label="Cena maksymalna" type="number" placeholder="Do" disabled={isPending} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[48px] disabled:opacity-50" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPriceFilter()} />
         </div>
-        <button aria-label="Zastosuj filtr cenowy" onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[48px]">Zastosuj cenę</button>
+        <button aria-label="Zastosuj filtr cenowy" disabled={isPending} onClick={applyPriceFilter} className="w-full mt-3 bg-slate-100 text-slate-800 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors min-h-[48px] disabled:opacity-50">Zastosuj cenę</button>
       </div>
 
       <div className="space-y-8">
@@ -292,6 +325,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   return (
     <>
+      {/* Kod mobilny/desktopowy zostaje bez zmian w strukturze wizualnej, używa zaktualizowanego FilterContent */}
       <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
          <button aria-label="Otwórz opcje filtrowania" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
            <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
@@ -309,13 +343,19 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
               <FilterContent />
            </div>
            <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-               <button aria-label="Zastosuj i pokaż wyniki" onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[56px]">Pokaż {totalCount} wyników ➔</button>
+               <button aria-label="Zastosuj i pokaż wyniki" disabled={isPending} onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[56px] disabled:opacity-50">
+                  {isPending ? 'ŁADOWANIE...' : `Pokaż ${totalCount} wyników ➔`}
+               </button>
            </div>
         </div>
       )}
 
       {isDesktop && (
-        <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
+        <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 relative">
+          {/* Delikatny wskaźnik ładowania w prawym górnym rogu panelu */}
+          {isPending && (
+             <div className="absolute top-4 right-4 animate-spin h-5 w-5 border-2 border-slate-300 border-t-red-600 rounded-full"></div>
+          )}
           <FilterContent />
         </div>
       )}

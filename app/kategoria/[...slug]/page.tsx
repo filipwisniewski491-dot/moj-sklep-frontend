@@ -109,7 +109,7 @@ function CategoryLoadingSkeleton() {
            <ProductGridSkeleton />
         </div>
      </>
-  )
+  );
 }
 
 async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearchParams, fullPath }: any) {
@@ -129,14 +129,6 @@ async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearc
       ? `category_handles IN [${allowedHandles.map((h: string) => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
 
-    // Zapytanie #1: Liczniki dla całego drzewa
-    const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
-      limit: 0,
-      filter: categoryFilterStr,
-      facets: ['*'] 
-    });
-    baseFilters = baseFacetsResult.facetDistribution || {};
-
     const filterArray: string[] = [categoryFilterStr];
     
     // Logika OR dla multi-select
@@ -153,13 +145,25 @@ async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearc
     if (sortParam === 'price_asc') meiliSort = ['price:asc'];
     if (sortParam === 'price_desc') meiliSort = ['price:desc'];
 
-    // Zapytanie #2: Zwężone produkty
-    const searchResult = await index.search(resolvedSearchParams.q || "", {
-      limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
-      filter: filterArray.join(' AND '),
-      sort: meiliSort,
-      facets: ['*']
-    });
+    // 🔥 OPTYMALIZACJA WYDAJNOŚCI: Odpalamy oba ciężkie zapytania RÓWNOLEGLE zamiast jedno po drugim
+    const [baseFacetsResult, searchResult] = await Promise.all([
+      // Zapytanie #1: Liczniki dla całego drzewa (do wyświetlenia wszystkich opcji filtrów)
+      index.search(resolvedSearchParams.q || "", {
+        limit: 0,
+        filter: categoryFilterStr,
+        facets: ['*'] 
+      }),
+      // Zapytanie #2: Zwężone produkty po zaznaczeniu filtrów przez użytkownika
+      index.search(resolvedSearchParams.q || "", {
+        limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
+        filter: filterArray.join(' AND '),
+        sort: meiliSort,
+        facets: ['*']
+      })
+    ]);
+
+    baseFilters = baseFacetsResult.facetDistribution || {};
+    narrowedFilters = searchResult.facetDistribution || {};
 
     // Zdjęcia poprawnie zmapowane (images czeka na url)
     products = searchResult.hits.map((p: any) => ({
@@ -169,7 +173,6 @@ async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearc
     }));
 
     totalCount = searchResult.estimatedTotalHits || products.length;
-    narrowedFilters = searchResult.facetDistribution || {};
 
   } catch (error) {
     console.error("Błąd zapytania Meilisearch:", error);
@@ -194,5 +197,5 @@ async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearc
           />
         </div>
      </>
-  )
+  );
 }
