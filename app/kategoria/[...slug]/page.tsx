@@ -15,7 +15,8 @@ const DynamicFooter = dynamic(() => import('@/components/Footer'));
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
 
-export const revalidate = 3600; // 🔥 TURBO CACHE: Medusa trzyma wynik w pamięci przez 1h!
+// 🔥 USUNIĘTO `export const revalidate = 3600;` z tego miejsca, żeby odblokować filtry (URL)!
+
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
@@ -35,6 +36,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
     
+    // 🔥 TUTAJ ZOSTAWILIŚMY CACHE: Czasochłonne drzewo Medusy wciąż ładuje się w 0.05 sekundy!
     const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { 
       headers, 
       next: { revalidate: 3600 } 
@@ -69,14 +71,17 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
   const searchData = { category: dbCategoryData, breadcrumbs, subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [] };
 
+  // Tworzymy unikalny klucz dla Suspense na podstawie parametrów URL (żeby Next.js wiedział, że filtry się zmieniły)
+  const searchParamsString = new URLSearchParams(resolvedSearchParams as Record<string, string>).toString();
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
       <Header />
       <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} /> 
       <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
         
-        {/* 🔥 SUSPENSE: Błyskawiczne ładowanie. Meilisearch wstrzyknie dane gdy tylko będą gotowe */}
-        <Suspense fallback={<CategoryLoadingSkeleton />}>
+        {/* 🔥 SUSPENSE KEY: Błyskawiczne ładowanie z reakcją na filtry URL */}
+        <Suspense key={searchParamsString} fallback={<CategoryLoadingSkeleton />}>
           <CategoryDataLoader 
             currentHandle={currentHandle} 
             allowedHandles={allowedHandles} 
@@ -161,7 +166,7 @@ async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearc
       facets: ['*']
     });
 
-    // Zdjęcia poprawnie zmapowane (images czeka na url)
+    // Zdjęcia poprawnie zmapowane
     products = searchResult.hits.map((p: any) => ({
       id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
       category_text: p.Kategoria || '', 
