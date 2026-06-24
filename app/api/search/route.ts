@@ -53,7 +53,6 @@ export async function GET(request: Request) {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    // 🔥 Cache na 1 godzinę - eliminuje wąskie gardło Medusy
     const currentCategoryRes = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, next: { revalidate: 3600 } });
     
     if (currentCategoryRes.ok) {
@@ -83,11 +82,9 @@ export async function GET(request: Request) {
         }
     }
     
-    let tempPath = "";
-    breadcrumbs = segments.map(s => {
-      tempPath = tempPath ? `${tempPath}/${s}` : s;
-      return { name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: tempPath };
-    });
+    breadcrumbs = segments.map((s, i) => ({ 
+      name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: segments.slice(0, i + 1).join('/') 
+    }));
 
     const index = meiliClient.index('products');
     
@@ -102,8 +99,6 @@ export async function GET(request: Request) {
     });
 
     const filterArray: string[] = [categoryFilterStr];
-    
-    // 🔥 Multi-select wsparcie dla OR
     Object.entries(activeFilters).forEach(([key, val]) => {
       const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
       if (values.length > 0) {

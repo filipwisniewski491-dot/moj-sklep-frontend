@@ -4,6 +4,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useGarage } from '@/store/useGarage'; 
 
+// 🔥 SANITYZATOR FRONTENDOWY: Czyści wyświetlane nazwy z brudów bazy (np. nawiasów [])
+const cleanLabel = (label: string) => {
+  if (!label) return '';
+  let cleaned = label.replace(/[\[\]]/g, '').trim(); 
+  if (/^uniwersaln[aey]$/i.test(cleaned)) return 'Uniwersalna';
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
 const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
   const [isOpen, setIsOpen] = useState(false); 
   const [searchTerm, setSearchTerm] = useState(''); 
@@ -34,7 +42,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
         )}
       </div>
       <button aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3.5 min-h-[48px] flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> 
-        <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value || placeholder}</span> 
+        <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value ? cleanLabel(value) : placeholder}</span> 
         <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg> 
       </button> 
       {isOpen && ( 
@@ -48,7 +56,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
             ) : ( 
               filteredOptions.map(([val, count]) => ( 
                 <button aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}> 
-                  <span className="line-clamp-1 pr-2">{val}</span> 
+                  <span className="line-clamp-1 pr-2">{cleanLabel(val)}</span> 
                   <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">{count as number}</span> 
                 </button> 
               )) 
@@ -90,25 +98,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  useEffect(() => {
-    if (isGarageActive && garageBrand) {
-      if (searchParams.get('Pasuje do marki') !== garageBrand || searchParams.get('Pasuje do modelu') !== garageModel) {
-        const currentParams = new URLSearchParams(searchParams.toString());
-        currentParams.set('Pasuje do marki', garageBrand);
-        if (garageModel) currentParams.set('Pasuje do modelu', garageModel);
-        router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
-      }
-    }
-  }, [isGarageActive, garageBrand, garageModel, pathname, searchParams, router]);
-
-  const updateUrlParams = (key: string, value: string | null) => {
-    const currentParams = new URLSearchParams(searchParams.toString());
-    if (value === null || value === '') currentParams.delete(key);
-    else currentParams.set(key, value);
-    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
-  };
-
-  // 🔥 Logika Multi-select dla checkboxów
+  // Logika Multi-select dla URL (po przecinku)
   const toggleUrlParam = (key: string, value: string) => {
     const currentParams = new URLSearchParams(searchParams.toString());
     const currentVal = currentParams.get(key);
@@ -164,7 +154,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  // 🔥 4 Największe Filtry
+  // 🔥 4 FILTRY TECHNICZNE
   const techFilterKeys = filterCoverage.slice(0, 4).map(f => f.key);
 
   let activeFiltersCount = 0;
@@ -182,7 +172,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
     const hasActiveSelection = !!searchParams.get(filterKey);
     
-    // Zbieramy aktualnie wybrane wartości w tablicę do multi-select
     const activeValuesArray = searchParams.get(filterKey)?.split(',').map(v => v.trim()) || [];
     
     return (
@@ -212,7 +201,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           ) : (
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, staticCount]) => {
               const isChecked = activeValuesArray.includes(val);
-              // 🔥 Wyszarzanie: Jeśli w narrowedFilters dana opcja ma 0, i nie jest wybrana -> opacity-40
+              // 🔥 WYSZARZANIE: Jeżeli dla danej kombinacji brakuje produktów
               const dynamicCount = narrowedFilters[filterKey]?.[val] || 0;
               const isDisabled = dynamicCount === 0 && !isChecked;
 
@@ -222,7 +211,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
                     <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-300 bg-white group-hover:border-red-400'}`}>
                       {isChecked && <div className="w-3 h-3 bg-red-600 rounded-[3px]"></div>}
                     </div>
-                    <span className={`text-sm transition-colors truncate ${isChecked ? 'text-red-700 font-black' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{val}</span>
+                    <span className={`text-sm transition-colors truncate ${isChecked ? 'text-red-700 font-black' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{cleanLabel(val)}</span>
                   </div>
                   <div className="flex items-center gap-2 pl-2 flex-shrink-0">
                     <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{staticCount as number}</span>
@@ -242,17 +231,17 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   const FilterContent = () => (
     <div className="space-y-6">
 
-      {/* 🔥 UX BANER KONWERSYJNY */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-16 h-16 bg-white opacity-20 rotate-45 transform translate-x-4 -translate-y-4 rounded-3xl"></div>
+      {/* 🔥 BANER UX / KONWERSYJNY */}
+      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-40 rotate-12 transform translate-x-8 -translate-y-8 rounded-full blur-xl group-hover:opacity-60 transition-opacity"></div>
         <div className="flex items-start gap-3 relative z-10">
-          <span className="text-xl leading-none pt-1">💡</span>
+          <span className="text-2xl leading-none pt-0.5 animate-pulse drop-shadow-md">💡</span>
           <div>
-            <h4 className="text-amber-900 font-black text-[11px] uppercase tracking-wider mb-1.5">Nie widzisz swojej części?</h4>
-            <p className="text-amber-800/80 text-xs font-medium leading-relaxed mb-3">
-              Filtry opierają się na uzupełnionych danych. Jeśli czegoś brakuje, wpisz <strong className="text-amber-900">numer OEM</strong> u góry lub skonsultuj się z nami.
+            <h4 className="text-amber-900 font-black text-xs uppercase tracking-widest mb-2">Nie widzisz swojej części?</h4>
+            <p className="text-amber-800/90 text-xs font-medium leading-relaxed mb-4">
+              Filtry opierają się na uzupełnionych danych. Jeśli czegoś brakuje, wpisz <strong className="text-amber-900 bg-amber-100/50 px-1 rounded">numer OEM</strong> u góry lub skonsultuj się z doradcą.
             </p>
-            <a href="tel:+48500600700" className="inline-block bg-white text-amber-900 text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg shadow-sm hover:bg-amber-100 transition-colors">
+            <a href="tel:+48500600700" className="inline-block bg-amber-600 text-white hover:bg-amber-700 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95">
               📞 Zadzwoń do eksperta
             </a>
           </div>
