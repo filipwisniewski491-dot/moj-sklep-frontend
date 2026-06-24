@@ -90,7 +90,25 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileFiltersOpen]);
 
-  // Logika obsługująca wiele zaznaczeń po przecinku (Multi-select)
+  useEffect(() => {
+    if (isGarageActive && garageBrand) {
+      if (searchParams.get('Pasuje do marki') !== garageBrand || searchParams.get('Pasuje do modelu') !== garageModel) {
+        const currentParams = new URLSearchParams(searchParams.toString());
+        currentParams.set('Pasuje do marki', garageBrand);
+        if (garageModel) currentParams.set('Pasuje do modelu', garageModel);
+        router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+      }
+    }
+  }, [isGarageActive, garageBrand, garageModel, pathname, searchParams, router]);
+
+  const updateUrlParams = (key: string, value: string | null) => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    if (value === null || value === '') currentParams.delete(key);
+    else currentParams.set(key, value);
+    router.push(`${pathname}?${currentParams.toString()}`, { scroll: false });
+  };
+
+  // 🔥 Logika Multi-select dla checkboxów
   const toggleUrlParam = (key: string, value: string) => {
     const currentParams = new URLSearchParams(searchParams.toString());
     const currentVal = currentParams.get(key);
@@ -146,7 +164,8 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  const techFilterKeys = filterCoverage.slice(0, 3).map(f => f.key);
+  // 🔥 4 Największe Filtry
+  const techFilterKeys = filterCoverage.slice(0, 4).map(f => f.key);
 
   let activeFiltersCount = 0;
   searchParams.forEach((val, key) => { if (!['limit', 'sort', 'view', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) activeFiltersCount++; });
@@ -163,8 +182,8 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
     const hasActiveSelection = !!searchParams.get(filterKey);
     
-    // Odczytywanie zaznaczonych opcji jako tablicy
-    const activeValuesArray = searchParams.get(filterKey)?.split(',') || [];
+    // Zbieramy aktualnie wybrane wartości w tablicę do multi-select
+    const activeValuesArray = searchParams.get(filterKey)?.split(',').map(v => v.trim()) || [];
     
     return (
       <div key={filterKey} className="space-y-3">
@@ -193,6 +212,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           ) : (
             (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, staticCount]) => {
               const isChecked = activeValuesArray.includes(val);
+              // 🔥 Wyszarzanie: Jeśli w narrowedFilters dana opcja ma 0, i nie jest wybrana -> opacity-40
               const dynamicCount = narrowedFilters[filterKey]?.[val] || 0;
               const isDisabled = dynamicCount === 0 && !isChecked;
 
@@ -222,7 +242,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   const FilterContent = () => (
     <div className="space-y-6">
 
-      {/* 🔥 BANER UX / KONWERSYJNY */}
+      {/* 🔥 UX BANER KONWERSYJNY */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-16 h-16 bg-white opacity-20 rotate-45 transform translate-x-4 -translate-y-4 rounded-3xl"></div>
         <div className="flex items-start gap-3 relative z-10">
@@ -242,7 +262,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Znasz numer OEM?</h3>
         <div className="relative flex items-center">
-          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && clearUrlParam('q')} />
+          <input aria-label="Wyszukaj po numerze OEM" type="text" placeholder="Wpisz numer lub nazwę..." className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3.5 min-h-[48px] text-sm font-bold outline-none focus:border-red-600 transition-colors placeholder:text-slate-500" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && updateUrlParams('q', searchQ)} />
           <button aria-label="Szukaj" onClick={() => updateUrlParams('q', searchQ)} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center">🔍</button>
         </div>
       </div>
@@ -250,8 +270,8 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
         <div className="space-y-3">
-          <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => clearUrlParam('Pasuje do marki')} />
-          <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => clearUrlParam('Pasuje do modelu')} />
+          <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={searchParams.get('Pasuje do marki') || ''} onChange={(val: string) => updateUrlParams('Pasuje do marki', val)} />
+          <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={searchParams.get('Pasuje do modelu') || ''} onChange={(val: string) => updateUrlParams('Pasuje do modelu', val)} />
         </div>
       </div>
 
