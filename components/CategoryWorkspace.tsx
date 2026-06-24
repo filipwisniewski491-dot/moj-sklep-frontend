@@ -115,47 +115,39 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
     return () => window.removeEventListener('popstate', handleUrlChange);
   }, []);
 
-  const isListView = activeFilters.view === 'list';
+  const fetchFromMeiliDirectly = async () => {
+  setLoading(true);
+  try {
+    const index = meiliClient.index('products');
+    const safeHandles = allowedHandles?.filter(Boolean) || [currentHandle];
+    const categoryFilterStr = `category_handles IN [${safeHandles.map((h: string) => JSON.stringify(h)).join(', ')}]`;
+    
+    // --- DIAGNOSTYKA ---
+    console.log("DEBUG: Czy zapytanie ma filtry:", categoryFilterStr);
+    
+    const searchResult = await index.search(activeFilters.q || "", {
+      filter: categoryFilterStr, // NA RAZ TYLKO FILTR KATEGORII
+      limit: 250
+    });
 
-  return (
-    <div className="flex flex-col lg:flex-row gap-8 w-full relative min-h-[600px]">
-      <aside className="w-full lg:w-80 flex-shrink-0">
-         <CategoryFilters 
-            baseFilters={data.filters} 
-            narrowedFilters={data.narrowedFilters} 
-            totalCount={data.totalCount} 
-            isPending={loading} 
-            activeFilters={activeFilters}
-            setActiveFilters={setActiveFilters}
-         />
-      </aside>
-      
-      <div className="flex-1 flex flex-col min-h-[500px] relative">
-         {loading && (
-          <div className="absolute inset-0 z-[100] flex items-start pt-32 justify-center bg-white/40 backdrop-blur-[1px] rounded-3xl transition-opacity">
-             <div className="flex flex-col items-center bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
-               <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-100 border-t-red-600 mb-3"></div>
-               <span className="text-xs font-black uppercase tracking-widest text-slate-800 animate-pulse">Aktualizuję filtry...</span>
-             </div>
-          </div>
-         )}
+    console.log("DEBUG: Czy Meili zwrócił jakiekolwiek produkty:", searchResult.hits.length);
+    
+    if (searchResult.hits.length === 0) {
+       console.warn("UWAGA: Meilisearch nie znalazł produktów dla tego zapytania!");
+    }
 
-         {/* 🔥 Przekazujemy dowodzenie do paska narzędzi */}
-         <CategoryToolbar 
-           totalCount={data.totalCount} 
-           activeFilters={activeFilters} 
-           updateFilter={updateFilter} 
-         />
-         
-         <div className={`transition-opacity duration-150 ${loading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-            <ProductGrid 
-              initialProducts={data.products} 
-              totalCount={data.totalCount} 
-              fullPath={fullPath} 
-              isListView={isListView} 
-            />
-         </div>
-      </div>
-    </div>
-  );
+    setData({
+      products: searchResult.hits.map((p: any) => ({
+        id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
+        category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
+      })),
+      totalCount: searchResult.estimatedTotalHits || 0,
+      filters: {}, narrowedFilters: {}
+    });
+  } catch (e) {
+    console.error("❌ BŁĄD MEILISEARCH:", e);
+  } finally {
+    setLoading(false);
+  }
+};
 }
