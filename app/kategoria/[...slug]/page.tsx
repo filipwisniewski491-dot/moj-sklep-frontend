@@ -1,15 +1,11 @@
 import { Metadata } from 'next';
 import dynamic from 'next/dynamic';
-import { Suspense } from 'react';
 import { meiliClient } from '@/lib/meilisearch-client';
 
 import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import CategoryHeader from '@/components/CategoryHeader';
-import CategoryFilters from '@/components/CategoryFilters';
-import CategoryToolbar from '@/components/CategoryToolbar';
-import ProductGrid from '@/components/ProductGrid';
-import ProductGridSkeleton from '@/components/ProductGridSkeleton';
+import CategoryWorkspace from '@/components/CategoryWorkspace';
 
 const DynamicFooter = dynamic(() => import('@/components/Footer'));
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
@@ -51,7 +47,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
         dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
         dbCategoryData.faqs = meta.faqs || meta.faq || [];
 
-        // Rekurencyjne pobieranie wszystkich podkategorii - BEZ limitu!
         const collectHandles = (cat: any) => {
           if (!cat) return;
           if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
@@ -64,58 +59,18 @@ export default async function CategoryPage({ params, searchParams }: any) {
     console.warn("Błąd SEO Medusy, używam fallbacku");
   }
 
-  const breadcrumbs = slugArray.map((s, i) => ({ 
-    name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: slugArray.slice(0, i + 1).join('/') 
-  }));
+  const searchData = { 
+    category: dbCategoryData, 
+    breadcrumbs: slugArray.map((s, i) => ({ name: s.replace(/-/g, ' ').toUpperCase(), slug: s, path: slugArray.slice(0, i + 1).join('/') })), 
+    subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [] 
+  };
 
-  const searchData = { category: dbCategoryData, breadcrumbs, subcategories: currentCategory?.category_children?.map((c: any) => c.name) || [] };
-
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
-      <Header />
-      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} /> 
-      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
-        
-        <Suspense fallback={<CategoryLoadingSkeleton />}>
-          <CategoryDataLoader 
-            currentHandle={currentHandle} 
-            allowedHandles={allowedHandles} 
-            resolvedSearchParams={resolvedSearchParams} 
-            fullPath={fullPath} 
-          />
-        </Suspense>
-
-      </main>
-      {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}
-      {dbCategoryData.faqs && dbCategoryData.faqs.length > 0 && <DynamicFaqSection faqs={dbCategoryData.faqs} />}
-      <MobileBottomNav />
-      <DynamicFooter />
-    </div>
-  );
-}
-
-function CategoryLoadingSkeleton() {
-  return (
-     <>
-        <aside className="w-full lg:w-80 flex-shrink-0">
-           <div className="h-[600px] bg-slate-200/50 rounded-[32px] w-full animate-pulse border border-slate-100"></div>
-        </aside>
-        <div className="flex-1 flex flex-col gap-6">
-           <div className="h-16 bg-slate-200/50 rounded-2xl w-full animate-pulse"></div>
-           <ProductGridSkeleton />
-        </div>
-     </>
-  );
-}
-
-async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearchParams, fullPath }: any) {
+  // --- PIERWSZE POBRANIE MEILISEARCH (TYLKO DLA SEO / STARTU STRONY) ---
+  let initialData = { products: [], baseFilters: {}, narrowedFilters: {}, totalCount: 0 };
+  
   try {
     const index = meiliClient.index('products');
-    
-    // Zabezpieczenie przed błędnymi danymi
     const safeHandles = allowedHandles?.filter(Boolean) || [currentHandle];
-    
-    // Używamy zawsze operatora IN - jest najstabilniejszy dla tablic
     const categoryFilterStr = `category_handles IN [${safeHandles.map((h: string) => JSON.stringify(h)).join(', ')}]`;
 
     const filterArray: string[] = [categoryFilterStr];
@@ -127,20 +82,13 @@ async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearc
       if (!val) return;
       const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
       if (values.length > 0) {
-        // 🔥 KRYTYCZNA POPRAWKA: Meilisearch wymaga podwójnych cudzysłowów dla kluczy ze spacjami!
-        // Zamiast '${key}', używamy "${key}"
         const orConditions = values.map(v => `"${key}" = ${JSON.stringify(v)}`);
         filterArray.push(`(${orConditions.join(' OR ')})`);
       }
     });
 
-    // 🔥 PRZYWRÓCONA CENA: Filtrowanie po cenie min/max
-    if (resolvedSearchParams.minPrice) {
-      filterArray.push(`price >= ${resolvedSearchParams.minPrice}`);
-    }
-    if (resolvedSearchParams.maxPrice) {
-      filterArray.push(`price <= ${resolvedSearchParams.maxPrice}`);
-    }
+    if (resolvedSearchParams.minPrice) filterArray.push(`price >= ${resolvedSearchParams.minPrice}`);
+    if (resolvedSearchParams.maxPrice) filterArray.push(`price <= ${resolvedSearchParams.maxPrice}`);
 
     const sortParam = resolvedSearchParams.sort;
     let meiliSort = undefined;
@@ -148,59 +96,43 @@ async function CategoryDataLoader({ currentHandle, allowedHandles, resolvedSearc
     if (sortParam === 'price_desc') meiliSort = ['price:desc'];
 
     const finalFilterString = filterArray.join(' AND ');
-    
-    // Jeśli chcesz sprawdzić poprawność zapytania, zajrzyj do konsoli gdzie odpalasz Next.js:
-    console.log("👉 Zapytanie do Meilisearch:", finalFilterString);
 
     const [baseFacetsResult, searchResult] = await Promise.all([
-      index.search(resolvedSearchParams.q || "", { 
-        limit: 0, 
-        filter: categoryFilterStr, 
-        facets: ['*'] 
-      }),
-      index.search(resolvedSearchParams.q || "", {
-        limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
-        filter: finalFilterString, 
-        sort: meiliSort, 
-        facets: ['*']
-      })
+      index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryFilterStr, facets: ['*'] }),
+      index.search(resolvedSearchParams.q || "", { limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250, filter: finalFilterString, sort: meiliSort, facets: ['*'] })
     ]);
 
-    const products = searchResult.hits.map((p: any) => ({
-      id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
-      category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
-    }));
-
-    return (
-       <>
-          <aside className="w-full lg:w-80 flex-shrink-0">
-            <CategoryFilters 
-              baseFilters={baseFacetsResult.facetDistribution || {}} 
-              narrowedFilters={searchResult.facetDistribution || {}}
-              totalCount={searchResult.estimatedTotalHits || products.length} 
-              currentParams={new URLSearchParams(resolvedSearchParams as any)}
-            />
-          </aside>
-          <div className="flex-1 flex flex-col min-h-[500px]">
-            <CategoryToolbar totalCount={searchResult.estimatedTotalHits || products.length} />
-            <ProductGrid 
-              initialProducts={products} 
-              totalCount={searchResult.estimatedTotalHits || products.length} 
-              fullPath={fullPath} 
-              isListView={resolvedSearchParams?.view === 'list'}
-            />
-          </div>
-       </>
-    );
-
-  } catch (error) {
-    console.error("❌ KRYTYCZNY BŁĄD KATEGORII:", error);
+    initialData.products = searchResult.hits.map((p: any) => ({
+      id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle, category_text: p.Kategoria || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
+    })) as any;
     
-    return (
-      <div className="w-full text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
-        <h2 className="text-xl font-black text-slate-800 uppercase tracking-widest">Wystąpił błąd ładowania produktów</h2>
-        <p className="text-slate-500 mt-2 font-medium">Nasze serwery napotkały mały problem. Spróbuj odświeżyć stronę.</p>
-      </div>
-    );
+    initialData.baseFilters = baseFacetsResult.facetDistribution || {};
+    initialData.narrowedFilters = searchResult.facetDistribution || {};
+    initialData.totalCount = searchResult.estimatedTotalHits || initialData.products.length;
+  } catch (err) {
+    console.error("Błąd początkowego pobierania z Meili", err);
   }
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
+      <Header />
+      <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} /> 
+      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12 relative z-10">
+        
+        {/* Przekazujemy dowodzenie na front (SPA) */}
+        <CategoryWorkspace 
+          initialData={initialData} 
+          currentHandle={currentHandle}
+          allowedHandles={allowedHandles}
+          fullPath={fullPath}
+          initialSearchParams={resolvedSearchParams}
+        />
+
+      </main>
+      {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}
+      {dbCategoryData.faqs && dbCategoryData.faqs.length > 0 && <DynamicFaqSection faqs={dbCategoryData.faqs} />}
+      <MobileBottomNav />
+      <DynamicFooter />
+    </div>
+  );
 }
