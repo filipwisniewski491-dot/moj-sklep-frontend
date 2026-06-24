@@ -124,8 +124,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   let techFilters = { ...baseFilters };
   
-  // 🚀 ZASADA: Wycynamy wszystkie śmieciowe i powielone filtry!
-  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle', 'model', 'typ'];
+  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle', 'category_handles', 'model', 'typ'];
 
   Object.keys(techFilters).forEach(key => {
     const lowerKey = key.toLowerCase();
@@ -139,7 +138,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  // 🚀 TOP 3 FILTRÓW TECHNICZNYCH
   const techFilterKeys = filterCoverage.slice(0, 3).map(f => f.key);
 
   let activeFiltersCount = 0;

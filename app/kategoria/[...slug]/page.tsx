@@ -9,9 +9,9 @@ import CategoryFilters from '@/components/CategoryFilters';
 import CategoryToolbar from '@/components/CategoryToolbar';
 import ProductGrid from '@/components/ProductGrid';
 
-const DynamicFooter = dynamic(() => import('@/components/Footer'));
-const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
-const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
+const DynamicFooter = dynamic(() => import('@components/Footer'));
+const DynamicFaqSection = dynamic(() => import('@components/FaqSection'));
+const DynamicSeoSection = dynamic(() => import('@components/SeoSection'));
 
 export const revalidate = 0; 
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
@@ -68,9 +68,11 @@ export default async function CategoryPage({ params, searchParams }: any) {
     ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
 
     const index = meiliClient.index('products');
+    
+    // 🔥 ZMIANA: używamy 'category_handles'
     const categoryFilterStr = allowedHandles.length > 0 
-      ? `category_handle IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
-      : `category_handle = ${JSON.stringify(currentHandle)}`;
+      ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
+      : `category_handles = ${JSON.stringify(currentHandle)}`;
 
     // ZAPYTANIE 1: Struktura całej kategorii (żeby liczniki w menu miały sens i nie wynosiły "1")
     const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {

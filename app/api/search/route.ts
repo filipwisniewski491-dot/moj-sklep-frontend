@@ -90,15 +90,16 @@ export async function GET(request: Request) {
 
     const index = meiliClient.index('products');
     
+    // 🔥 ZMIANA: używamy 'category_handles'
     const categoryFilterStr = allowedHandles.length > 0 
-      ? `category_handle IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
-      : `category_handle = ${JSON.stringify(currentHandle)}`;
+      ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
+      : `category_handles = ${JSON.stringify(currentHandle)}`;
 
     // 🚀 ZAPYTANIE NR 1: WSZYSTKIE FILTRY DLA KATEGORII BAZOWEJ
     const baseFacetsResult = await index.search(searchQ, {
       limit: 0,
       filter: categoryFilterStr,
-      facets: ['*'] // 👈 Wyciąga całą Twoją specyfikację techniczną!
+      facets: ['*'] 
     });
 
     const filterArray: string[] = [categoryFilterStr];
@@ -116,7 +117,7 @@ export async function GET(request: Request) {
       limit: currentLimit,
       filter: filterArray.join(' AND '),
       sort: meiliSort,
-      facets: ['*'] // 👈
+      facets: ['*'] 
     });
 
     const mappedProducts = searchResult.hits.map((p: any) => ({
