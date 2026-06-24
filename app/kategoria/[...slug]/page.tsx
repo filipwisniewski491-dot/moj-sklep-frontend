@@ -9,7 +9,6 @@ import CategoryFilters from '@/components/CategoryFilters';
 import CategoryToolbar from '@/components/CategoryToolbar';
 import ProductGrid from '@/components/ProductGrid';
 
-// 🔥 POPRAWKA: Dodane brakujące ukośniki w ścieżkach "@/components/..."
 const DynamicFooter = dynamic(() => import('@/components/Footer'));
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
 const DynamicSeoSection = dynamic(() => import('@/components/SeoSection'));
@@ -30,7 +29,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
   let allowedHandles: string[] = [currentHandle];
   let currentCategory: any = null;
 
-  // 1. SZYBKIE POBRANIE SEO Z MEDUSY
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
@@ -58,7 +56,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
     console.warn("Błąd SEO Medusy, używam fallbacku");
   }
 
-  // 2. LOGIKA FILTRÓW I PRODUKTÓW Z MEILISEARCH (DIRECT SERVER CALL)
   let products: any[] = [];
   let baseFilters: any = {};
   let narrowedFilters: any = {};
@@ -70,12 +67,10 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
     const index = meiliClient.index('products');
     
-    // ZMIANA: używamy 'category_handles' z Meilisearch (tablica powiązań)
     const categoryFilterStr = allowedHandles.length > 0 
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
 
-    // ZAPYTANIE 1: Struktura całej kategorii (żeby liczniki w menu miały sens i nie wynosiły "1")
     const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
       limit: 0,
       filter: categoryFilterStr,
@@ -83,7 +78,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
     });
     baseFilters = baseFacetsResult.facetDistribution || {};
 
-    // ZAPYTANIE 2: Właściwe produkty po filtrach
     const filterArray: string[] = [categoryFilterStr];
     Object.entries(activeFilters).forEach(([key, val]) => {
       if (val) filterArray.push(`'${key}' = ${JSON.stringify(val)}`);

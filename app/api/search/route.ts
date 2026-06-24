@@ -90,12 +90,11 @@ export async function GET(request: Request) {
 
     const index = meiliClient.index('products');
     
-    // 🔥 ZMIANA: używamy 'category_handles'
+    // 🔥 Używamy dynamicznej tablicy `category_handles`
     const categoryFilterStr = allowedHandles.length > 0 
       ? `category_handles IN [${allowedHandles.map(h => JSON.stringify(h)).join(', ')}]`
       : `category_handles = ${JSON.stringify(currentHandle)}`;
 
-    // 🚀 ZAPYTANIE NR 1: WSZYSTKIE FILTRY DLA KATEGORII BAZOWEJ
     const baseFacetsResult = await index.search(searchQ, {
       limit: 0,
       filter: categoryFilterStr,
@@ -112,7 +111,6 @@ export async function GET(request: Request) {
     if (sortParam === 'price_asc') meiliSort = ['price:asc'];
     if (sortParam === 'price_desc') meiliSort = ['price:desc'];
 
-    // 🚀 ZAPYTANIE NR 2: ZAWĘŻONE WYNIKI DLA UŻYTKOWNIKA
     const searchResult = await index.search(searchQ, {
       limit: currentLimit,
       filter: filterArray.join(' AND '),
