@@ -23,7 +23,7 @@ const OPTIMIZED_FACETS = [
   'Ilość zębów', 'Wymiary', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Zastosowanie'
 ];
 
-const MIN_PRODUCTS_FOR_INDEX = 3; // próg anty-thin-content dla SEO
+const MIN_PRODUCTS_FOR_INDEX = 3;
 
 function buildFilterValue(key: string, val: string): string {
   const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
@@ -32,18 +32,8 @@ function buildFilterValue(key: string, val: string): string {
   return orConditions.length === 1 ? orConditions[0] : `(${orConditions.join(' OR ')})`;
 }
 
-/**
- * Rozdziela slugArray na: segmenty kategorii + marka + model.
- * Używa drzewa kategorii (handle) i listy marek z Meili.
- */
 async function resolvePath(slugArray: string[]) {
-  // pobierz mapę marek (cache 1h)
   const brandsMap = await getBrandsSet();
-
-  // Najpierw musimy wiedzieć które segmenty to kategorie.
-  // Kategoria = handle istnieje w Medusie. Sprawdzamy od końca który segment
-  // jest "ostatnią kategorią" - reszta po niej to marka/model.
-  // Strategia: marka to pierwszy segment będący w brandsMap (i NIE wcześniej niż kategorie).
 
   let categorySegments: string[] = [];
   let brandSlug: string | null = null;
@@ -54,42 +44,33 @@ async function resolvePath(slugArray: string[]) {
   for (let i = 0; i < slugArray.length; i++) {
     const seg = slugArray[i];
     if (!brandSlug && brandsMap[seg]) {
-      // ten segment to marka
       brandSlug = seg;
       brandName = brandsMap[seg];
     } else if (brandSlug && !modelSlug) {
-      // pierwszy segment po marce to model (rozwiążemy nazwę niżej)
       modelSlug = seg;
     } else if (!brandSlug) {
-      // przed marką = kategoria
       categorySegments.push(seg);
     }
   }
 
-  // Jeśli mamy markę i modelSlug - rozwiąż nazwę modelu z listy modeli marki
   if (brandName && modelSlug) {
     const modelsMap = await getModelsForBrand(brandName);
     modelName = modelsMap[modelSlug] || null;
-    // jeśli model nie pasuje do żadnego znanego - traktuj jak brak modelu (bezpieczeństwo)
     if (!modelName) modelSlug = null;
   }
 
   return { categorySegments, brandSlug, brandName, modelSlug, modelName };
 }
 
-// ════════════════════════════════════════════════════════════
-//  METADATA (SEO) - dynamiczne title/description/canonical/robots
-// ════════════════════════════════════════════════════════════
 export async function generateMetadata({ params }: any): Promise<Metadata> {
   const resolvedParams = await params;
   const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
 
-  const { categorySegments, brandSlug, brandName, modelSlug, modelName } = await resolvePath(slugArray);
+  const { categorySegments, brandName, modelName } = await resolvePath(slugArray);
 
   const categoryHandle = categorySegments[categorySegments.length - 1] || '';
   let categoryName = categoryHandle.replace(/-/g, ' ');
 
-  // pobierz nazwę kategorii z Medusy (dla ładnego tytułu)
   try {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
@@ -102,7 +83,6 @@ export async function generateMetadata({ params }: any): Promise<Metadata> {
     }
   } catch {}
 
-  // policz produkty (dla decyzji index/noindex)
   let productCount = 0;
   try {
     const index = meiliClient.index('products');
@@ -114,23 +94,24 @@ export async function generateMetadata({ params }: any): Promise<Metadata> {
     productCount = (r as any).totalHits ?? r.estimatedTotalHits ?? 0;
   } catch {}
 
-  // Buduj tytuł i opis
+  const baseStartsWithCzesci = /^części/i.test(categoryName);
+  const prefix = baseStartsWithCzesci ? '' : 'Części do ';
+
   let title: string;
   let description: string;
   let canonicalPath = '/kategoria/' + slugArray.join('/');
 
   if (brandName && modelName) {
-    title = `Części do ${categoryName} ${brandName} ${modelName} | CentrumRolnictwa.pl`;
-    description = `Części zamienne do ${categoryName.toLowerCase()} ${brandName} ${modelName}. Gwarancja dopasowania, szybka wysyłka. Sprawdź ofertę ${productCount > 0 ? `(${productCount} produktów)` : ''}.`;
+    title = `${prefix}${categoryName} ${brandName} ${modelName} | CentrumRolnictwa.pl`;
+    description = `Części zamienne do ${categoryName.toLowerCase()} ${brandName} ${modelName}. Gwarancja dopasowania, szybka wysyłka.${productCount > 0 ? ` ${productCount} produktów.` : ''}`;
   } else if (brandName) {
-    title = `Części do ${categoryName} ${brandName} | CentrumRolnictwa.pl`;
-    description = `Części zamienne do ${categoryName.toLowerCase()} ${brandName}. Szeroki wybór, gwarancja dopasowania, szybka wysyłka. ${productCount > 0 ? `${productCount} produktów w ofercie.` : ''}`;
+    title = `${prefix}${categoryName} ${brandName} | CentrumRolnictwa.pl`;
+    description = `Części zamienne do ${categoryName.toLowerCase()} ${brandName}. Szeroki wybór, gwarancja dopasowania, szybka wysyłka.${productCount > 0 ? ` ${productCount} produktów w ofercie.` : ''}`;
   } else {
     title = `${categoryName} | CentrumRolnictwa.pl`;
     description = `Części zamienne - ${categoryName.toLowerCase()}. Szeroki wybór komponentów zgodnych z OEM. Gwarancja dopasowania i niezawodności.`;
   }
 
-  // Decyzja indeksowania: strony marka/model z małą liczbą produktów -> noindex
   const isBrandOrModelPage = !!brandName;
   const shouldIndex = !isBrandOrModelPage || productCount >= MIN_PRODUCTS_FOR_INDEX;
 
@@ -138,15 +119,8 @@ export async function generateMetadata({ params }: any): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: canonicalPath },
-    robots: shouldIndex
-      ? { index: true, follow: true }
-      : { index: false, follow: true },
-    openGraph: {
-      title,
-      description,
-      url: SITE_URL + canonicalPath,
-      type: 'website',
-    },
+    robots: shouldIndex ? { index: true, follow: true } : { index: false, follow: true },
+    openGraph: { title, description, url: SITE_URL + canonicalPath, type: 'website' },
   };
 }
 
@@ -157,10 +131,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
   const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
   const fullPath = slugArray.join('/');
 
-  // 🔍 Rozpoznaj markę/model w ścieżce
   const { categorySegments, brandSlug, brandName, modelSlug, modelName } = await resolvePath(slugArray);
 
-  // currentHandle = ostatni segment KATEGORII (nie marka/model)
   const currentHandle = categorySegments.length > 0 ? categorySegments[categorySegments.length - 1] : '';
 
   let dbCategoryData: any = {
@@ -207,14 +179,17 @@ export default async function CategoryPage({ params, searchParams }: any) {
     console.warn("Błąd SEO Medusy, używam fallbacku");
   }
 
-  // 🔥 DYNAMICZNY H1 i tekst SEO dla marka/model
-  const baseName = dbCategoryData.name || currentHandle.replace(/-/g, ' ');
+  // 🔥 DYNAMICZNY H1 i tekst SEO - bez dublowania "Części do"
+  const baseName = (dbCategoryData.name || currentHandle.replace(/-/g, ' ')).trim();
+  const baseStartsWithCzesci = /^części/i.test(baseName);
+  const prefix = baseStartsWithCzesci ? '' : 'Części do ';
+
   if (brandName && modelName) {
-    dbCategoryData.h1_dynamic = `Części do ${baseName} ${brandName} ${modelName}`;
-    dbCategoryData.top_seo_text = `Szukasz części do ${baseName.toLowerCase()} ${brandName} ${modelName}? Mamy szeroki wybór komponentów dopasowanych do tego modelu. ${dbCategoryData.top_seo_text}`;
+    dbCategoryData.h1_dynamic = `${prefix}${baseName} ${brandName} ${modelName}`.trim();
+    dbCategoryData.top_seo_text = `Szukasz części do ${baseName.toLowerCase()} ${brandName} ${modelName}? Mamy szeroki wybór komponentów dopasowanych do tego modelu, zgodnych z OEM. Gwarancja dopasowania i szybka wysyłka.`;
   } else if (brandName) {
-    dbCategoryData.h1_dynamic = `Części do ${baseName} ${brandName}`;
-    dbCategoryData.top_seo_text = `Części zamienne do ${baseName.toLowerCase()} marki ${brandName}. Gwarancja dopasowania i niezawodności. ${dbCategoryData.top_seo_text}`;
+    dbCategoryData.h1_dynamic = `${prefix}${baseName} ${brandName}`.trim();
+    dbCategoryData.top_seo_text = `Części zamienne do ${baseName.toLowerCase()} marki ${brandName}. Szeroki wybór komponentów zgodnych z OEM, gwarancja dopasowania i niezawodności. Szybka wysyłka i wsparcie techniczne.`;
   }
 
   // Breadcrumby: kategorie + marka + model
@@ -250,7 +225,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
     ? `category_handles IN [${allowedHandles.map(h => `"${h}"`).join(', ')}]`
     : '';
 
-  // 🔥 Filtr bazowy = kategoria + marka + model (dla landing page)
   const baseFilterParts: string[] = [];
   if (categoryFilterStr) baseFilterParts.push(categoryFilterStr);
   if (brandName) baseFilterParts.push(`"Pasuje do marki" = "${brandName.replace(/"/g, '\\"')}"`);
@@ -301,7 +275,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
     console.error("Meilisearch server error:", e);
   }
 
-  // Schema.org BreadcrumbList
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
