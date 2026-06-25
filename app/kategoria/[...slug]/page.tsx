@@ -186,10 +186,10 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
   if (brandName && modelName) {
     dbCategoryData.h1_dynamic = `${prefix}${baseName} ${brandName} ${modelName}`.trim();
-    dbCategoryData.top_seo_text = `Szukasz części do ${baseName.toLowerCase()} ${brandName} ${modelName}? Mamy szeroki wybór komponentów dopasowanych do tego modelu, zgodnych z OEM. Gwarancja dopasowania i szybka wysyłka.`;
+    dbCategoryData.top_seo_text = `Szukasz części do maszyny ${brandName} ${modelName}? W kategorii ${baseName.toLowerCase()} mamy szeroki wybór komponentów dopasowanych do tego modelu, zgodnych z OEM. Gwarancja dopasowania i szybka wysyłka.`;
   } else if (brandName) {
     dbCategoryData.h1_dynamic = `${prefix}${baseName} ${brandName}`.trim();
-    dbCategoryData.top_seo_text = `Części zamienne do ${baseName.toLowerCase()} marki ${brandName}. Szeroki wybór komponentów zgodnych z OEM, gwarancja dopasowania i niezawodności. Szybka wysyłka i wsparcie techniczne.`;
+    dbCategoryData.top_seo_text = `Części zamienne do maszyn ${brandName} w kategorii ${baseName.toLowerCase()}. Szeroki wybór komponentów zgodnych z OEM, gwarancja dopasowania i niezawodności. Szybka wysyłka i wsparcie techniczne.`;
   }
 
   const breadcrumbs: any[] = categorySegments.map((s: string, i: number) => ({

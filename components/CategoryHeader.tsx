@@ -1,11 +1,10 @@
-'use client'; // 🚀 Kluczowa zmiana: pozwala nam czytać adres URL na żywo
+'use client';
 
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import SubcategoryNav from './SubcategoryNav';
 
-// 📚 Słownik głównych kategorii (aby zapewnić idealne polskie znaki dla L1 i L2)
 const BREADCRUMB_DICTIONARY: Record<string, string> = {
   'czesci-do-ciagnikow': 'Części do ciągników',
   'czesci-do-maszyn': 'Części do maszyn',
@@ -35,56 +34,45 @@ const parseMarkdown = (text: string) => {
 };
 
 export default function CategoryHeader({ initialData, searchParams, topSeoText }: { initialData: any, searchParams: any, fullPath?: string, topSeoText?: string }) {
-  const pathname = usePathname(); // Pobieramy pełny adres, np. "/kategoria/czesci-do-ciagnikow/uklad-chlodzenia"
+  const pathname = usePathname();
   const categoryData = initialData?.category || null;
-  
+
   let subcategories = initialData?.subcategories;
   if (!subcategories || subcategories.length === 0) {
     subcategories = categoryData?.category_children || categoryData?.children || [];
   }
-  
-  // 🚀 ZMIANA: Tniemy URL prosto z przeglądarki, wyrzucając słowo "kategoria"
-  const pathSegments = pathname.split('/').filter(p => p && p !== 'kategoria');
-  
-  const breadcrumbs = pathSegments.map((slugPart: string, index: number) => {
-    // Budujemy link narastająco: kategoria1 -> kategoria1/kategoria2
-    const cumulativePath = pathSegments.slice(0, index + 1).join('/');
-    
-    let prettyName = '';
-    // Jeśli to ostatni okruszek (czyli kategoria, na której właśnie jesteśmy),
-    // bierzemy jej idealną nazwę wprost z bazy danych Medusy.
-    if (index === pathSegments.length - 1 && categoryData?.name) {
-      prettyName = categoryData.name;
-    } else {
-      // Dla wcześniejszych kategorii używamy słownika lub kapitalizujemy
-      prettyName = BREADCRUMB_DICTIONARY[slugPart.toLowerCase()] || slugPart
-        .replace(/-/g, ' ')
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-    }
 
-    return {
-      name: prettyName,
-      path: cumulativePath
-    };
-  });
+  // 🔥 PRIORYTET: użyj breadcrumbów z page.tsx (mają poprawnie kategorie + marka + model).
+  // Fallback: zbuduj z URL (stare zachowanie) jeśli page.tsx nic nie przekazał.
+  let breadcrumbs: any[] = [];
+  if (Array.isArray(initialData?.breadcrumbs) && initialData.breadcrumbs.length > 0) {
+    breadcrumbs = initialData.breadcrumbs.map((b: any) => ({
+      name: b.name,
+      path: b.path
+    }));
+  } else {
+    const pathSegments = pathname.split('/').filter(p => p && p !== 'kategoria');
+    breadcrumbs = pathSegments.map((slugPart: string, index: number) => {
+      const cumulativePath = pathSegments.slice(0, index + 1).join('/');
+      let prettyName = '';
+      if (index === pathSegments.length - 1 && categoryData?.name) {
+        prettyName = categoryData.name;
+      } else {
+        prettyName = BREADCRUMB_DICTIONARY[slugPart.toLowerCase()] || slugPart
+          .replace(/-/g, ' ')
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+      }
+      return { name: prettyName, path: cumulativePath };
+    });
+  }
 
-  const rawBrandLabel = searchParams?.['Pasuje do marki'];
-  const rawModelLabel = searchParams?.['Pasuje do modelu'];
-  const brandLabel = rawBrandLabel ? capitalizeWords(rawBrandLabel) : null;
-  const modelLabel = rawModelLabel ? capitalizeWords(rawModelLabel) : null;
-  
+  // 🔥 H1: bierz wprost z page.tsx (h1_dynamic jest już poprawny dla marka/model).
+  // NIE doklejaj już "DO {marka}" - page.tsx zrobił to poprawnie.
   let displayH1 = categoryData?.h1_dynamic;
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
   if (!displayH1) displayH1 = "Kategoria";
-  
-  if (brandLabel) {
-    if (!displayH1.toLowerCase().includes(brandLabel.toLowerCase())) {
-      displayH1 += ` DO ${brandLabel.toUpperCase()}`;
-      if (modelLabel) displayH1 += ` ${modelLabel.toUpperCase()}`;
-    }
-  }
 
   return (
     <div className="bg-white border-b pt-8 pb-6 px-6 relative z-20">
@@ -100,13 +88,13 @@ export default function CategoryHeader({ initialData, searchParams, topSeoText }
             ))}
           </nav>
         )}
-        
+
         <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase text-slate-900 mb-2 max-w-4xl leading-tight">
           {displayH1}
         </h1>
-        
+
         {topSeoText && (
-          <div 
+          <div
             className="text-sm md:text-base text-slate-600 max-w-4xl mb-6 mt-4 leading-relaxed prose prose-slate"
             dangerouslySetInnerHTML={{ __html: parseMarkdown(topSeoText) }}
           />
