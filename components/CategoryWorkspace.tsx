@@ -1,11 +1,36 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import CategoryFilters from './CategoryFilters';
 import CategoryToolbar from './CategoryToolbar';
 import ProductGrid from './ProductGrid';
 
-export default function CategoryWorkspace({ initialData, fullPath, currentHandle, allowedHandles }: any) {
+// Slugify - identyczny jak w lib/brand-utils.ts (marka/model -> URL)
+function toSlug(s: string): string {
+  return String(s)
+    .toLowerCase()
+    .trim()
+    .replace(/[ąàáâ]/g, 'a').replace(/[ćč]/g, 'c').replace(/[ęèé]/g, 'e')
+    .replace(/[łl]/g, 'l').replace(/[ńñ]/g, 'n').replace(/[óòôö]/g, 'o')
+    .replace(/[śš]/g, 's').replace(/[źżž]/g, 'z').replace(/[üû]/g, 'u')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export default function CategoryWorkspace({
+  initialData,
+  fullPath,
+  currentHandle,
+  allowedHandles,
+  // 🔥 NOWE propsy z page.tsx (z domyślnymi wartościami dla bezpieczeństwa):
+  categoryPath = '',      // ścieżka samej kategorii, np. "czesci-do-ciagnikow/silnik-i-osprzet"
+  currentBrandSlug = null, // slug aktualnej marki (jeśli na stronie marki)
+  currentBrandName = null, // nazwa aktualnej marki
+  currentModelSlug = null, // slug aktualnego modelu
+}: any) {
+  const router = useRouter();
+
   const [data, setData] = useState(() => ({
     products: initialData?.products || [],
     filters: initialData?.filters || {},
@@ -53,11 +78,9 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
     }
   }, [fullPath]);
 
-  // ✅ KLUCZOWA ZMIANA: przy pierwszym renderze fetchuj jeśli initialData jest puste
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
-      // Jeśli serwer nie dał produktów — pobierz przez API
       if (!initialData?.products?.length) {
         fetchProducts(activeFilters);
       }
@@ -66,24 +89,86 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
     fetchProducts(activeFilters);
   }, [activeFilters]);
 
+  // 🔥 Buduje URL landing page z zachowaniem pozostałych filtrów jako ?param
+  const buildLandingUrl = useCallback((brandSlug: string | null, modelSlug: string | null) => {
+    const segments = [categoryPath].filter(Boolean);
+    if (brandSlug) segments.push(brandSlug);
+    if (brandSlug && modelSlug) segments.push(modelSlug);
+    let url = '/kategoria/' + segments.join('/');
+
+    // zachowaj pozostałe filtry techniczne (bez marki/modelu/limitu) jako query
+    const qp = new URLSearchParams();
+    Object.entries(activeFilters).forEach(([k, v]) => {
+      if (!v) return;
+      if (k === 'Pasuje do marki' || k === 'Pasuje do modelu' || k === 'limit' || k === 'fullPath') return;
+      qp.set(k, v);
+    });
+    const qs = qp.toString();
+    if (qs) url += '?' + qs;
+    return url;
+  }, [categoryPath, activeFilters]);
+
   const updateFilter = useCallback((key: string, value: string | null) => {
+    // 🔥 MARKA -> przekierowanie na /kategoria/.../marka
+    if (key === 'Pasuje do marki') {
+      if (value) {
+        router.push(buildLandingUrl(toSlug(value), null));
+      } else {
+        // odznaczenie marki -> wróć do samej kategorii
+        router.push(buildLandingUrl(null, null));
+      }
+      return;
+    }
+    // 🔥 MODEL -> przekierowanie na /kategoria/.../marka/model
+    if (key === 'Pasuje do modelu') {
+      if (value && currentBrandSlug) {
+        router.push(buildLandingUrl(currentBrandSlug, toSlug(value)));
+      } else if (currentBrandSlug) {
+        // odznaczenie modelu -> zostań na stronie marki
+        router.push(buildLandingUrl(currentBrandSlug, null));
+      }
+      return;
+    }
+    // pozostałe filtry -> stary mechanizm (stan + ?param)
     setActiveFilters(prev => {
       const next = { ...prev };
       if (value) next[key] = value;
       else delete next[key];
       return next;
     });
-  }, []);
+  }, [router, buildLandingUrl, currentBrandSlug]);
 
   const clearFilter = useCallback((key: string) => {
+    // odznaczenie marki/modelu też przez URL
+    if (key === 'Pasuje do marki') {
+      router.push(buildLandingUrl(null, null));
+      return;
+    }
+    if (key === 'Pasuje do modelu') {
+      router.push(buildLandingUrl(currentBrandSlug, null));
+      return;
+    }
     setActiveFilters(prev => {
       const next = { ...prev };
       delete next[key];
       return next;
     });
-  }, []);
+  }, [router, buildLandingUrl, currentBrandSlug]);
 
   const toggleFilter = useCallback((key: string, value: string) => {
+    // marka/model -> przez URL (toggle = ustaw lub zdejmij)
+    if (key === 'Pasuje do marki') {
+      const isActive = currentBrandSlug === toSlug(value);
+      router.push(isActive ? buildLandingUrl(null, null) : buildLandingUrl(toSlug(value), null));
+      return;
+    }
+    if (key === 'Pasuje do modelu') {
+      if (!currentBrandSlug) return;
+      const isActive = currentModelSlug === toSlug(value);
+      router.push(isActive ? buildLandingUrl(currentBrandSlug, null) : buildLandingUrl(currentBrandSlug, toSlug(value)));
+      return;
+    }
+    // pozostałe -> multi-select w stanie
     setActiveFilters(prev => {
       const next = { ...prev };
       const current = next[key] ? next[key].split(',') : [];
@@ -94,9 +179,13 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
       else next[key] = current.join(',');
       return next;
     });
-  }, []);
+  }, [router, buildLandingUrl, currentBrandSlug, currentModelSlug]);
 
   const isListView = activeFilters.view === 'list';
+
+  // 🔥 Wstrzyknij aktualną markę/model do activeFilters (żeby filtry pokazywały zaznaczenie)
+  const displayFilters = { ...activeFilters };
+  if (currentBrandName) displayFilters['Pasuje do marki'] = currentBrandName;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -117,7 +206,7 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
             narrowedFilters={data.narrowedFilters}
             totalCount={data.totalCount}
             isPending={loading}
-            activeFilters={activeFilters}
+            activeFilters={displayFilters}
             updateFilter={updateFilter}
             toggleFilter={toggleFilter}
             clearFilter={clearFilter}
@@ -127,7 +216,7 @@ export default function CategoryWorkspace({ initialData, fullPath, currentHandle
         <div className="flex-1 flex flex-col min-h-[500px] relative">
           <CategoryToolbar
             totalCount={data.totalCount}
-            activeFilters={activeFilters}
+            activeFilters={displayFilters}
             updateFilter={updateFilter}
           />
 

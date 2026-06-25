@@ -192,7 +192,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
     dbCategoryData.top_seo_text = `Części zamienne do ${baseName.toLowerCase()} marki ${brandName}. Szeroki wybór komponentów zgodnych z OEM, gwarancja dopasowania i niezawodności. Szybka wysyłka i wsparcie techniczne.`;
   }
 
-  // Breadcrumby: kategorie + marka + model
   const breadcrumbs: any[] = categorySegments.map((s: string, i: number) => ({
     name: s.replace(/-/g, ' ').toUpperCase(),
     slug: s,
@@ -304,6 +303,10 @@ export default async function CategoryPage({ params, searchParams }: any) {
         fullPath={fullPath}
         currentHandle={currentHandle}
         allowedHandles={allowedHandles}
+        categoryPath={categorySegments.join('/')}
+        currentBrandSlug={brandSlug}
+        currentBrandName={brandName}
+        currentModelSlug={modelSlug}
       />
 
       {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}
