@@ -4,7 +4,7 @@ import { Meilisearch } from 'meilisearch';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
+const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "https://panel.centrumrolnictwa.com";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
 const meiliClient = new Meilisearch({
@@ -17,8 +17,6 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-// ✅ POPRAWKA: Usunięto 'Producent' - nie istnieje w filterableAttributes Meilisearch
-// Meilisearch rzuca błąd na CAŁE zapytanie gdy choć jeden facet nie istnieje
 const OPTIMIZED_FACETS = [
   'Pasuje do marki',
   'Pasuje do modelu',
@@ -34,7 +32,6 @@ const OPTIMIZED_FACETS = [
   'Zastosowanie'
 ];
 
-// ✅ Poprawna składnia filtrów: cudzysłowy wokół nazwy atrybutu
 function buildFilterValue(key: string, val: string): string {
   const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
   if (values.length === 0) return '';
@@ -66,7 +63,6 @@ export async function GET(request: Request) {
   const segments = fullPath.split('/').filter(Boolean);
   const currentHandle = segments[segments.length - 1];
 
-  // Zbieramy handle bieżącej kategorii + wszystkich dzieci z Medusy
   let allowedHandles: string[] = [currentHandle];
 
   try {
@@ -94,7 +90,6 @@ export async function GET(request: Request) {
     console.warn("Nie udało się pobrać kategorii z Medusy:", error);
   }
 
-  // ✅ Filtr kategorii z cudzysłowami
   const categoryFilterStr = `category_handles IN [${allowedHandles.map(h => `"${h}"`).join(', ')}]`;
 
   // Aktywne filtry użytkownika (bez systemowych kluczy)
@@ -104,18 +99,23 @@ export async function GET(request: Request) {
     if (!SYSTEM_KEYS.has(key) && val) activeFilters[key] = val;
   });
 
-  const filterArray: string[] = [categoryFilterStr];
-  Object.entries(activeFilters).forEach(([key, val]) => {
-    const f = buildFilterValue(key, val);
-    if (f) filterArray.push(f);
-  });
-
   const minPrice = searchParams.get('minPrice');
   const maxPrice = searchParams.get('maxPrice');
-  if (minPrice) filterArray.push(`price >= ${minPrice}`);
-  if (maxPrice) filterArray.push(`price <= ${maxPrice}`);
 
-  const finalFilter = filterArray.join(' AND ');
+  // Pomocnik: buduje tablicę filtrów z OPCJONALNYM pominięciem jednego klucza
+  const buildFilters = (skipKey?: string): string[] => {
+    const arr: string[] = [categoryFilterStr];
+    Object.entries(activeFilters).forEach(([key, val]) => {
+      if (skipKey && key === skipKey) return; // pomiń ten filtr (disjunctive)
+      const f = buildFilterValue(key, val);
+      if (f) arr.push(f);
+    });
+    if (minPrice) arr.push(`price >= ${minPrice}`);
+    if (maxPrice) arr.push(`price <= ${maxPrice}`);
+    return arr;
+  };
+
+  const finalFilter = buildFilters().join(' AND ');
 
   const sortParam = searchParams.get('sort');
   let meiliSort: string[] | undefined;
@@ -127,21 +127,47 @@ export async function GET(request: Request) {
   try {
     const index = meiliClient.index('products');
 
-    const [baseFacetsResult, searchResult] = await Promise.all([
-      index.search(searchQ, {
-        limit: 0,
-        filter: categoryFilterStr,
-        facets: OPTIMIZED_FACETS,
-      }),
+    // 1) Główne wyszukiwanie (produkty + facety zawężone wszystkim)
+    // 2) Facety bazowe (tylko kategoria - dla pełnej listy wartości)
+    const mainSearches: Promise<any>[] = [
       index.search(searchQ, {
         limit: currentLimit,
         filter: finalFilter,
         sort: meiliSort,
         facets: OPTIMIZED_FACETS,
       }),
+      index.search(searchQ, {
+        limit: 0,
+        filter: categoryFilterStr,
+        facets: OPTIMIZED_FACETS,
+      }),
+    ];
+
+    // 3) DISJUNCTIVE: dla każdego AKTYWNEGO filtra osobne liczenie
+    //    facetów z pominięciem tego filtra (żeby nie gasił sam siebie).
+    //    Liczymy tylko dla aktywnych filtrów - dla nieaktywnych narrowed=zawężone wystarcza.
+    const activeKeys = Object.keys(activeFilters);
+    const disjunctivePromises = activeKeys.map(key =>
+      index.search(searchQ, {
+        limit: 0,
+        filter: buildFilters(key).join(' AND '),  // wszystkie filtry OPRÓCZ "key"
+        facets: [key],  // liczymy tylko facet tego jednego klucza
+      })
+    );
+
+    const [searchResult, baseFacetsResult, ...disjunctiveResults] = await Promise.all([
+      ...mainSearches,
+      ...disjunctivePromises,
     ]);
 
-    console.log(`[search] handle=${currentHandle} handles=${allowedHandles.length} hits=${searchResult.hits.length}`);
+    // Zbuduj mapę disjunctive: { "Napięcie [V]": {...wartości dla kontekstu bez napięcia} }
+    const disjunctiveFacets: Record<string, any> = {};
+    activeKeys.forEach((key, i) => {
+      const res = disjunctiveResults[i];
+      if (res?.facetDistribution?.[key]) {
+        disjunctiveFacets[key] = res.facetDistribution[key];
+      }
+    });
 
     const mappedProducts = searchResult.hits.map((p: any) => ({
       id: p.id,
@@ -158,12 +184,13 @@ export async function GET(request: Request) {
       totalCount: searchResult.estimatedTotalHits || mappedProducts.length,
       filters: baseFacetsResult.facetDistribution || {},
       narrowedFilters: searchResult.facetDistribution || {},
+      disjunctiveFacets,  // 🔥 NOWE: właściwe wartości per aktywny filtr
     }, { headers: corsHeaders });
 
   } catch (error: any) {
     console.error("Błąd Meilisearch route:", error?.message || error);
     return NextResponse.json(
-      { products: [], filters: {}, narrowedFilters: {}, totalCount: 0, error: error?.message },
+      { products: [], filters: {}, narrowedFilters: {}, disjunctiveFacets: {}, totalCount: 0, error: error?.message },
       { status: 500, headers: corsHeaders }
     );
   }

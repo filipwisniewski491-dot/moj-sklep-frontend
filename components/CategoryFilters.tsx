@@ -4,33 +4,33 @@ import React, { useEffect, useState, useRef } from 'react';
 
 const cleanLabel = (label: string) => {
   if (!label) return '';
-  let cleaned = label.replace(/[\[\]]/g, '').trim(); 
+  let cleaned = label.replace(/[\[\]]/g, '').trim();
   if (/^uniwersaln[aey]$/i.test(cleaned)) return 'Uniwersalna';
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 };
 
-const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => { 
-  const [isOpen, setIsOpen] = useState(false); 
-  const [searchTerm, setSearchTerm] = useState(''); 
-  const wrapperRef = useRef<HTMLDivElement>(null); 
+const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }: any) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { 
-    function handleClickOutside(event: MouseEvent) { 
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setIsOpen(false); 
-    } 
-    document.addEventListener("mousedown", handleClickOutside); 
-    return () => document.removeEventListener("mousedown", handleClickOutside); 
-  }, []); 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setIsOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const sortedOptions = Object.entries(options).sort((a, b) => (b[1] as number) - (a[1] as number)); 
-  const filteredOptions = sortedOptions.filter(([val]) => val.toLowerCase().includes(searchTerm.toLowerCase())); 
+  const sortedOptions = Object.entries(options).sort((a, b) => (b[1] as number) - (a[1] as number));
+  const filteredOptions = sortedOptions.filter(([val]) => val.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  return ( 
-    <div className="w-full relative" ref={wrapperRef}> 
+  return (
+    <div className="w-full relative" ref={wrapperRef}>
       <div className="flex justify-between items-center mb-2">
-        <h3 className="text-slate-600 font-black uppercase text-[10px] tracking-widest">{label}</h3> 
+        <h3 className="text-slate-600 font-black uppercase text-[10px] tracking-widest">{label}</h3>
         {value && (
-          <button 
+          <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onChange(''); setIsOpen(false); }}
             className="text-[9px] font-black uppercase tracking-widest text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm"
@@ -39,41 +39,41 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
           </button>
         )}
       </div>
-      <button type="button" aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3.5 min-h-[48px] flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}> 
-        <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value ? cleanLabel(value) : placeholder}</span> 
-        <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg> 
-      </button> 
-      {isOpen && ( 
-        <div className="absolute z-[99] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"> 
-          <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md"> 
-            <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-3 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors min-h-[48px]" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} /> 
-          </div> 
-          <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white"> 
-            {filteredOptions.length === 0 ? ( 
-              <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div> 
-            ) : ( 
-              filteredOptions.map(([val, count]) => ( 
-                <button type="button" aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}> 
-                  <span className="line-clamp-1 pr-2">{cleanLabel(val)}</span> 
-                  <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">{count as number}</span> 
-                </button> 
-              )) 
-            )} 
-          </div> 
-        </div> 
-      )} 
-    </div> 
+      <button type="button" aria-label={`Wybierz ${label}`} className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-4 py-3.5 min-h-[48px] flex justify-between items-center cursor-pointer transition-colors hover:border-red-500 shadow-sm" onClick={() => setIsOpen(!isOpen)}>
+        <span className={value ? "text-slate-900 line-clamp-1 text-left" : "text-slate-500 text-left"}>{value ? cleanLabel(value) : placeholder}</span>
+        <svg className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+      </button>
+      {isOpen && (
+        <div className="absolute z-[99] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-2 border-b border-slate-100 bg-slate-50/90 backdrop-blur-md">
+            <input aria-label={`Szukaj w ${label}`} type="text" className="w-full bg-white border border-slate-200 text-slate-900 text-xs px-3 py-3 rounded-lg outline-none focus:border-red-600 placeholder:text-slate-400 transition-colors min-h-[48px]" placeholder="Wpisz, aby wyszukać..." value={searchTerm} onClick={(e) => e.stopPropagation()} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <div className="max-h-56 overflow-y-auto custom-scrollbar bg-white">
+            {filteredOptions.length === 0 ? (
+              <div className="px-4 py-4 text-xs text-slate-500 italic text-center">Brak wyników</div>
+            ) : (
+              filteredOptions.map(([val, count]) => (
+                <button type="button" aria-label={`Wybierz opcję ${val}`} key={val} className={`w-full text-left px-4 py-4 min-h-[48px] text-xs font-bold cursor-pointer transition-colors flex justify-between items-center border-t border-slate-50 ${value === val ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`} onClick={() => { onChange(val); setIsOpen(false); setSearchTerm(''); }}>
+                  <span className="line-clamp-1 pr-2">{cleanLabel(val)}</span>
+                  <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">{count as number}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
-export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter }: any) {
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter }: any) {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  
+
   const [minPrice, setMinPrice] = useState(activeFilters.minPrice || '');
   const [maxPrice, setMaxPrice] = useState(activeFilters.maxPrice || '');
   const [searchQ, setSearchQ] = useState(activeFilters.q || '');
-  
+
   const [filterSearchQuery, setFilterSearchQuery] = useState<Record<string, string>>({});
   const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({});
 
@@ -98,13 +98,12 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   const isMarkaSelected = !!activeFilters['Pasuje do marki'];
   const formatedGarageMake = baseFilters['Pasuje do marki'] || baseFilters['Marka'] || {};
-  const formatedGarageModel = isMarkaSelected 
-    ? (narrowedFilters['Pasuje do modelu'] || narrowedFilters['Model'] || {}) 
+  const formatedGarageModel = isMarkaSelected
+    ? (narrowedFilters['Pasuje do modelu'] || narrowedFilters['Model'] || {})
     : (baseFilters['Pasuje do modelu'] || baseFilters['Model'] || {});
 
-  // Głębokie kopiowanie chroniące oryginalne dane
   let techFilters = JSON.parse(JSON.stringify(baseFilters));
-  
+
   const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle', 'category_handles', 'model', 'typ'];
 
   Object.keys(techFilters).forEach(key => {
@@ -128,21 +127,43 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     }
   });
 
+  // 🔥 Wybór właściwego źródła liczb dla danego filtra:
+  // - filtr AKTYWNY (user coś w nim wybrał) -> disjunctiveFacets (nie gasi sam siebie)
+  // - filtr NIEAKTYWNY -> narrowedFilters (zawężony wszystkim, pokazuje co dostępne)
+  const getAvailabilityMap = (filterKey: string): Record<string, number> => {
+    const isActive = !!activeFilters[filterKey];
+    if (isActive && disjunctiveFacets[filterKey]) {
+      return disjunctiveFacets[filterKey];
+    }
+    return narrowedFilters[filterKey] || {};
+  };
+
   const renderFilterBlock = (filterKey: string) => {
     const filterValues = techFilters[filterKey] as Record<string, number>;
     if (!filterValues) return null;
     const searchQuery = filterSearchQuery[filterKey]?.toLowerCase() || '';
-    
-    const sortedEntries = Object.entries(filterValues).sort((a, b) => b[1] - a[1]);
+
+    // mapa dostępności: ile produktów ma każda wartość w aktualnym kontekście
+    const availMap = getAvailabilityMap(filterKey);
+
+    // 🔥 SORTOWANIE: dostępne (>0) na górze wg liczby, niedostępne (szare) na dole
+    const sortedEntries = Object.entries(filterValues).sort((a, b) => {
+      const aAvail = availMap[a[0]] || 0;
+      const bAvail = availMap[b[0]] || 0;
+      const aHas = aAvail > 0;
+      const bHas = bAvail > 0;
+      if (aHas !== bHas) return aHas ? -1 : 1;   // dostępne pierwsze
+      return bAvail - aAvail;                      // potem wg liczby (malejąco)
+    });
+
     const matchedEntries = sortedEntries.filter(([val]) => val.toLowerCase().includes(searchQuery));
-    
+
     const isLongList = sortedEntries.length > 5;
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
-    
-    // Tablica obecnie zaznaczonych wartości
+
     const activeValuesArray = Array.isArray(activeFilters[filterKey]) ? activeFilters[filterKey] : (activeFilters[filterKey] ? [activeFilters[filterKey]] : []);
     const hasActiveSelection = activeValuesArray.length > 0;
-    
+
     return (
       <div key={filterKey} className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         <div className="flex items-center justify-between">
@@ -151,40 +172,41 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
             <button type="button" onClick={() => clearFilter(filterKey)} disabled={isPending} className="text-[9px] font-black uppercase text-red-600 hover:text-white tracking-wider bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm disabled:opacity-50">✕ Wyczyść</button>
           )}
         </div>
-        
+
         {isLongList && (
           <div className="relative mb-3">
             <input aria-label={`Szukaj w filtrze ${filterKey}`} type="text" placeholder={`Szukaj w ${filterKey.toLowerCase()}...`} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-3 min-h-[48px] text-[11px] font-bold text-slate-700 outline-none focus:border-red-600 transition-colors" value={filterSearchQuery[filterKey] || ''} onChange={(e) => setFilterSearchQuery(prev => ({ ...prev, [filterKey]: e.target.value }))} />
             <span className="absolute right-3 top-3 text-slate-500 text-sm">🔍</span>
           </div>
         )}
-        
+
         <div className={`space-y-2 ${isExpanded ? 'max-h-[300px] overflow-y-auto pr-2 custom-scrollbar' : ''}`}>
           {matchedEntries.length === 0 ? (
             <div className="text-[9px] text-slate-500 uppercase font-black tracking-widest py-2">Brak wyników</div>
           ) : (
-            (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val, staticCount]) => {
+            (isExpanded ? matchedEntries : matchedEntries.slice(0, 5)).map(([val]) => {
               const isChecked = activeValuesArray.includes(val);
-              const dynamicCount = narrowedFilters[filterKey]?.[val] || 0;
-              const isDisabled = dynamicCount === 0 && !isChecked;
+              // 🔥 LICZNIK: realna liczba dostępnych produktów w aktualnym kontekście
+              const availCount = availMap[val] || 0;
+              const isDisabled = availCount === 0 && !isChecked;
 
               return (
-                <label 
-                  key={val} 
-                  className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`} 
-                  onClick={(e) => { 
-                    e.preventDefault(); 
-                    if (!isDisabled && !isPending) toggleFilter(filterKey, val); 
+                <label
+                  key={val}
+                  className={`flex items-center justify-between py-2 px-2 min-h-[48px] rounded-lg transition-colors group ${isDisabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer hover:bg-slate-50'} ${isChecked ? 'bg-red-50/60' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (!isDisabled && !isPending) toggleFilter(filterKey, val);
                   }}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center transition-all flex-shrink-0 ${isChecked ? 'border-red-600 bg-red-50' : 'border-slate-300 bg-white group-hover:border-red-400'}`}>
                       {isChecked && <div className="w-3 h-3 bg-red-600 rounded-[3px]"></div>}
                     </div>
-                    <span className={`text-sm transition-colors truncate ${isChecked ? 'text-red-700 font-black' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{cleanLabel(val)}</span>
+                    <span className={`text-sm transition-colors truncate ${isChecked ? 'text-red-700 font-black' : isDisabled ? 'text-slate-400 font-medium' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{cleanLabel(val)}</span>
                   </div>
                   <div className="flex items-center gap-2 pl-2 flex-shrink-0">
-                    <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{staticCount as number}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isDisabled ? 'text-slate-300 bg-slate-50 border-slate-100' : 'text-slate-500 bg-white border-slate-200'}`}>{availCount}</span>
                   </div>
                 </label>
               );
@@ -220,7 +242,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
           <button type="button" onClick={() => updateFilter('q', searchQ)} disabled={isPending} className="absolute right-2 bg-slate-900 hover:bg-red-600 text-white px-4 rounded-lg transition-colors shadow-md min-w-[48px] min-h-[40px] flex items-center justify-center disabled:opacity-50">🔍</button>
         </div>
       </div>
-      
+
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
         <div className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>

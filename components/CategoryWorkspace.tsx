@@ -35,6 +35,7 @@ export default function CategoryWorkspace({
     products: initialData?.products || [],
     filters: initialData?.filters || {},
     narrowedFilters: initialData?.narrowedFilters || {},
+    disjunctiveFacets: initialData?.disjunctiveFacets || {},
     totalCount: initialData?.totalCount || 0,
   }));
 
@@ -69,6 +70,7 @@ export default function CategoryWorkspace({
         products: json.products || [],
         filters: json.filters || {},
         narrowedFilters: json.narrowedFilters || {},
+        disjunctiveFacets: json.disjunctiveFacets || {},
         totalCount: json.totalCount || 0,
       });
     } catch (e) {
@@ -204,6 +206,7 @@ export default function CategoryWorkspace({
           <CategoryFilters
             baseFilters={data.filters}
             narrowedFilters={data.narrowedFilters}
+            disjunctiveFacets={data.disjunctiveFacets}
             totalCount={data.totalCount}
             isPending={loading}
             activeFilters={displayFilters}
