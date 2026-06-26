@@ -355,6 +355,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
         brands={initialData.filters?.['Pasuje do marki'] || {}}
         categoryPath={categorySegments.join('/')}
         showBrands={!brandName}
+        brandSlug={brandSlug}
+        modelSlug={modelSlug}
       />
 
       <CategoryWorkspace

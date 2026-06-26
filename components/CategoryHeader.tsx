@@ -35,7 +35,7 @@ const parseMarkdown = (text: string) => {
   return html;
 };
 
-export default function CategoryHeader({ initialData, searchParams, topSeoText, brands, categoryPath, showBrands }: { initialData: any, searchParams: any, fullPath?: string, topSeoText?: string, brands?: Record<string, number>, categoryPath?: string, showBrands?: boolean }) {
+export default function CategoryHeader({ initialData, searchParams, topSeoText, brands, categoryPath, showBrands, brandSlug = null, modelSlug = null }: { initialData: any, searchParams: any, fullPath?: string, topSeoText?: string, brands?: Record<string, number>, categoryPath?: string, showBrands?: boolean, brandSlug?: string | null, modelSlug?: string | null }) {
   const pathname = usePathname();
   const categoryData = initialData?.category || null;
 
@@ -98,7 +98,13 @@ export default function CategoryHeader({ initialData, searchParams, topSeoText, 
         )}
 
         {subcategories && subcategories.length > 0 && (
-          <SubcategoryNav subcategories={subcategories} fullPath={pathname.replace('/kategoria/', '')} />
+          <SubcategoryNav
+            subcategories={subcategories}
+            fullPath={pathname.replace('/kategoria/', '')}
+            categoryPath={categoryPath}
+            brandSlug={brandSlug}
+            modelSlug={modelSlug}
+          />
         )}
 
         {/* Popularne marki - tuż pod podkategoriami, w tym samym bloku wyboru */}
