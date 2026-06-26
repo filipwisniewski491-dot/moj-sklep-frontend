@@ -179,6 +179,31 @@ export default async function CategoryPage({ params, searchParams }: any) {
     console.warn("Błąd SEO Medusy, używam fallbacku");
   }
 
+  // 🔥 POLSKIE ZNAKI W BREADCRUMBACH: pobierz prawdziwe nazwy WSZYSTKICH kategorii
+  // ze ścieżki (z Medusy mają polskie znaki). Jedno zapytanie z filtrem handle[].
+  const categoryNames: Record<string, string> = {};
+  if (categorySegments.length > 0) {
+    try {
+      const headers: any = { "Content-Type": "application/json" };
+      if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
+      const handleQuery = categorySegments.map((h) => `handle[]=${encodeURIComponent(h)}`).join('&');
+      const namesRes = await fetch(`${MEDUSA_URL}/store/product-categories?${handleQuery}&limit=100&fields=name,handle`, {
+        headers,
+        next: { revalidate: 3600 }
+      });
+      if (namesRes.ok) {
+        const namesJson = await namesRes.json();
+        (namesJson.product_categories || []).forEach((c: any) => {
+          if (c.handle && c.name) categoryNames[c.handle] = c.name;
+        });
+      }
+    } catch (e) {
+      console.warn("Nie udało się pobrać nazw kategorii ścieżki - fallback do slug");
+    }
+  }
+  // Bieżąca kategoria - nazwę już mamy z głównego zapytania (pewniejsze)
+  if (currentHandle && dbCategoryData.name) categoryNames[currentHandle] = dbCategoryData.name;
+
   // 🔥 DYNAMICZNY H1 i tekst SEO - bez dublowania "Części do"
   const baseName = (dbCategoryData.name || currentHandle.replace(/-/g, ' ')).trim();
   const baseStartsWithCzesci = /^części/i.test(baseName);
@@ -193,7 +218,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
   }
 
   const breadcrumbs: any[] = categorySegments.map((s: string, i: number) => ({
-    name: s.replace(/-/g, ' ').toUpperCase(),
+    name: (categoryNames[s] || s.replace(/-/g, ' ')).toUpperCase(),
     slug: s,
     path: categorySegments.slice(0, i + 1).join('/')
   }));
