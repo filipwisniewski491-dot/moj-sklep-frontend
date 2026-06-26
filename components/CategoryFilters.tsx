@@ -165,7 +165,11 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     const isLongList = sortedEntries.length > 5;
     const isExpanded = expandedFilters[filterKey] || searchQuery.length > 0;
 
-    const activeValuesArray = Array.isArray(activeFilters[filterKey]) ? activeFilters[filterKey] : (activeFilters[filterKey] ? [activeFilters[filterKey]] : []);
+    // 🔥 NAPRAWA sklejania: wartości multi-select trzymane jako string "A,B,C" - dzielimy po przecinku
+    const rawValue = activeFilters[filterKey];
+    const activeValuesArray: string[] = Array.isArray(rawValue)
+      ? rawValue
+      : (rawValue ? String(rawValue).split(',').map((v: string) => v.trim()).filter(Boolean) : []);
     const hasActiveSelection = activeValuesArray.length > 0;
 
     return (
