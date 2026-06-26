@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import CategoryFilters from './CategoryFilters';
 import CategoryToolbar from './CategoryToolbar';
 import ProductGrid from './ProductGrid';
@@ -29,8 +29,18 @@ export default function CategoryWorkspace({
   currentModelName = null,
 }: any) {
   const router = useRouter();
-  
+  const searchParams = useSearchParams();
   const [isPendingRoute, startTransition] = useTransition();
+
+  // STABILNY STAN MODALA MOBILNEGO
+  const isMobileFiltersOpen = searchParams.get('m_filters') === '1';
+  
+  const setIsMobileFiltersOpen = useCallback((open: boolean) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (open) params.set('m_filters', '1');
+    else params.delete('m_filters');
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
 
   const [data, setData] = useState(() => ({
     products: initialData?.products || [],
@@ -73,7 +83,7 @@ export default function CategoryWorkspace({
       params.set('limit', '250');
       
       Object.entries(filters).forEach(([key, val]) => {
-        if (val) params.set(key, val);
+        if (val && key !== 'm_filters') params.set(key, val);
       });
 
       const res = await fetch(`/api/search?${params.toString()}`);
@@ -114,26 +124,32 @@ export default function CategoryWorkspace({
     const qp = new URLSearchParams();
     Object.entries(activeFilters).forEach(([k, v]) => {
       if (!v) return;
-      if (k === 'Pasuje do marki' || k === 'Pasuje do modelu' || k === 'limit' || k === 'fullPath') return;
+      if (k === 'Pasuje do marki' || k === 'Pasuje do modelu' || k === 'limit' || k === 'fullPath' || k === 'm_filters') return;
       qp.set(k, v);
     });
+    
+    // GWARANCJA, ŻE MODAL SIĘ NIE ZAMKNIE PO KLIKNIĘCIU MARKI
+    if (isMobileFiltersOpen) {
+       qp.set('m_filters', '1');
+    }
+    
     const qs = qp.toString();
     if (qs) url += '?' + qs;
     return url;
-  }, [categoryPath, activeFilters]);
+  }, [categoryPath, activeFilters, isMobileFiltersOpen]);
 
   const updateFilter = useCallback((key: string, value: string | null) => {
     if (key === 'Pasuje do marki') {
       startTransition(() => {
-        if (value) router.push(buildLandingUrl(toSlug(value), null));
-        else router.push(buildLandingUrl(null, null));
+        if (value) router.push(buildLandingUrl(toSlug(value), null), { scroll: false });
+        else router.push(buildLandingUrl(null, null), { scroll: false });
       });
       return;
     }
     if (key === 'Pasuje do modelu') {
       startTransition(() => {
-        if (value && currentBrandSlug) router.push(buildLandingUrl(currentBrandSlug, toSlug(value)));
-        else if (currentBrandSlug) router.push(buildLandingUrl(currentBrandSlug, null));
+        if (value && currentBrandSlug) router.push(buildLandingUrl(currentBrandSlug, toSlug(value)), { scroll: false });
+        else if (currentBrandSlug) router.push(buildLandingUrl(currentBrandSlug, null), { scroll: false });
       });
       return;
     }
@@ -147,11 +163,11 @@ export default function CategoryWorkspace({
 
   const clearFilter = useCallback((key: string) => {
     if (key === 'Pasuje do marki') {
-      startTransition(() => router.push(buildLandingUrl(null, null)));
+      startTransition(() => router.push(buildLandingUrl(null, null), { scroll: false }));
       return;
     }
     if (key === 'Pasuje do modelu') {
-      startTransition(() => router.push(buildLandingUrl(currentBrandSlug, null)));
+      startTransition(() => router.push(buildLandingUrl(currentBrandSlug, null), { scroll: false }));
       return;
     }
     setActiveFilters(prev => {
@@ -164,13 +180,13 @@ export default function CategoryWorkspace({
   const toggleFilter = useCallback((key: string, value: string) => {
     if (key === 'Pasuje do marki') {
       const isActive = currentBrandSlug === toSlug(value);
-      startTransition(() => router.push(isActive ? buildLandingUrl(null, null) : buildLandingUrl(toSlug(value), null)));
+      startTransition(() => router.push(isActive ? buildLandingUrl(null, null) : buildLandingUrl(toSlug(value), null), { scroll: false }));
       return;
     }
     if (key === 'Pasuje do modelu') {
       if (!currentBrandSlug) return;
       const isActive = currentModelSlug === toSlug(value);
-      startTransition(() => router.push(isActive ? buildLandingUrl(currentBrandSlug, null) : buildLandingUrl(currentBrandSlug, toSlug(value))));
+      startTransition(() => router.push(isActive ? buildLandingUrl(currentBrandSlug, null) : buildLandingUrl(currentBrandSlug, toSlug(value)), { scroll: false }));
       return;
     }
     setActiveFilters(prev => {
@@ -217,6 +233,8 @@ export default function CategoryWorkspace({
             updateFilter={updateFilter}
             toggleFilter={toggleFilter}
             clearFilter={clearFilter}
+            isMobileFiltersOpen={isMobileFiltersOpen}
+            setIsMobileFiltersOpen={setIsMobileFiltersOpen}
           />
         </aside>
 
