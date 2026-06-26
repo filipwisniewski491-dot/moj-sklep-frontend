@@ -274,9 +274,9 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
         <div className="flex items-start gap-3 relative z-10">
           <span className="text-2xl leading-none pt-0.5 animate-pulse drop-shadow-md">💡</span>
           <div>
-            <h4 className="text-amber-900 font-black text-xs uppercase tracking-widest mb-2">Nie widzisz swojej części?</h4>
-            <p className="text-amber-800/90 text-xs font-medium leading-relaxed mb-4">Wpisz <strong className="text-amber-900 bg-amber-100/50 px-1 rounded">numer OEM</strong> u góry.</p>
-            <a href="tel:+48500600700" className="inline-block bg-amber-600 text-white hover:bg-amber-700 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95">📞 Zadzwoń</a>
+            <h4 className="text-amber-900 font-black text-xs uppercase tracking-widest mb-2">Nie widzisz swojej części? Pamiętaj filtry nie pokrywają wszystkich części.</h4>
+            <p className="text-amber-800/90 text-xs font-medium leading-relaxed mb-4">Wpisz <strong className="text-amber-900 bg-amber-100/50 px-1 rounded">numer OEM</strong> poniżej lub </p>
+            <a href="tel:+48500600700" className="inline-block bg-amber-600 text-white hover:bg-amber-700 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95">📞 Zadzwoń - dopasujemy część </a>
           </div>
         </div>
       </div>
