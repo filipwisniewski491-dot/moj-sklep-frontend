@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import SubcategoryNav from './SubcategoryNav';
+import PopularBrands from './PopularBrands';
 
 const BREADCRUMB_DICTIONARY: Record<string, string> = {
   'czesci-do-ciagnikow': 'Części do ciągników',
@@ -27,13 +28,14 @@ const capitalizeWords = (str: string) => {
 const parseMarkdown = (text: string) => {
   if (!text) return '';
   let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-4 mb-2 text-slate-900">$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h2 class="text-xl font-bold mt-4 mb-2 text-slate-900">$1</h2>');
   html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" class="text-red-600 hover:underline font-bold">$1</a>');
   html = html.replace(/\n\n/gim, '<br /><br />');
   return html;
 };
 
-export default function CategoryHeader({ initialData, searchParams, topSeoText }: { initialData: any, searchParams: any, fullPath?: string, topSeoText?: string }) {
+export default function CategoryHeader({ initialData, searchParams, topSeoText, brands, categoryPath, showBrands }: { initialData: any, searchParams: any, fullPath?: string, topSeoText?: string, brands?: Record<string, number>, categoryPath?: string, showBrands?: boolean }) {
   const pathname = usePathname();
   const categoryData = initialData?.category || null;
 
@@ -42,14 +44,10 @@ export default function CategoryHeader({ initialData, searchParams, topSeoText }
     subcategories = categoryData?.category_children || categoryData?.children || [];
   }
 
-  // 🔥 PRIORYTET: użyj breadcrumbów z page.tsx (mają poprawnie kategorie + marka + model).
-  // Fallback: zbuduj z URL (stare zachowanie) jeśli page.tsx nic nie przekazał.
+  // PRIORYTET: breadcrumby z page.tsx (kategorie + marka + model). Fallback: z URL.
   let breadcrumbs: any[] = [];
   if (Array.isArray(initialData?.breadcrumbs) && initialData.breadcrumbs.length > 0) {
-    breadcrumbs = initialData.breadcrumbs.map((b: any) => ({
-      name: b.name,
-      path: b.path
-    }));
+    breadcrumbs = initialData.breadcrumbs.map((b: any) => ({ name: b.name, path: b.path }));
   } else {
     const pathSegments = pathname.split('/').filter(p => p && p !== 'kategoria');
     breadcrumbs = pathSegments.map((slugPart: string, index: number) => {
@@ -68,8 +66,7 @@ export default function CategoryHeader({ initialData, searchParams, topSeoText }
     });
   }
 
-  // 🔥 H1: bierz wprost z page.tsx (h1_dynamic jest już poprawny dla marka/model).
-  // NIE doklejaj już "DO {marka}" - page.tsx zrobił to poprawnie.
+  // H1 wprost z page.tsx (h1_dynamic poprawny dla marka/model)
   let displayH1 = categoryData?.h1_dynamic;
   if (!displayH1 && breadcrumbs.length > 0) displayH1 = breadcrumbs[breadcrumbs.length - 1].name;
   if (!displayH1) displayH1 = "Kategoria";
@@ -102,6 +99,11 @@ export default function CategoryHeader({ initialData, searchParams, topSeoText }
 
         {subcategories && subcategories.length > 0 && (
           <SubcategoryNav subcategories={subcategories} fullPath={pathname.replace('/kategoria/', '')} />
+        )}
+
+        {/* Popularne marki - tuż pod podkategoriami, w tym samym bloku wyboru */}
+        {showBrands && brands && categoryPath && (
+          <PopularBrands brands={brands} categoryPath={categoryPath} />
         )}
       </div>
     </div>

@@ -7,13 +7,31 @@ export default function FaqSection({ faqs }: { faqs: any[] }) {
 
   if (!faqs || faqs.length === 0) return null;
 
+  // Schema.org FAQPage - rich snippet (rozwijane pytania w Google)
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map((faq: any) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  };
+
   return (
-    <div className="mt-12 mb-12">
+    <div className="max-w-7xl mx-auto px-6 mt-12 mb-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
       <h3 className="text-2xl font-black text-slate-900 mb-6">Najczęściej zadawane pytania (FAQ)</h3>
       <div className="space-y-4">
         {faqs.map((faq: any, idx: number) => (
           <div key={idx} className="bg-white border border-slate-200 rounded-2xl overflow-hidden transition-all shadow-sm hover:shadow-md">
-            <button 
+            <button
               aria-label={activeFaq === idx ? "Zwiń odpowiedź" : "Rozwiń odpowiedź"}
               aria-expanded={activeFaq === idx}
               onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
@@ -23,7 +41,7 @@ export default function FaqSection({ faqs }: { faqs: any[] }) {
               <span className={`text-red-600 font-black text-2xl transition-transform ${activeFaq === idx ? 'rotate-45' : ''}`}>+</span>
             </button>
             {activeFaq === idx && (
-              <div className="px-6 pb-5 pt-0 text-slate-700 text-sm leading-relaxed border-t border-slate-50 mt-2 pt-4">
+              <div className="px-6 pb-5 text-slate-700 text-sm leading-relaxed border-t border-slate-50 pt-4">
                 {faq.answer}
               </div>
             )}
