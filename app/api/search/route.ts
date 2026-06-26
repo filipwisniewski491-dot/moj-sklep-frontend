@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Meilisearch } from 'meilisearch';
+import { getBrandsSet, getModelsForBrand } from '@/lib/brand-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +40,35 @@ function buildFilterValue(key: string, val: string): string {
   return orConditions.length === 1 ? orConditions[0] : `(${orConditions.join(' OR ')})`;
 }
 
+// 🔥 Rozpoznaje markę/model w ścieżce (identycznie jak page.tsx resolvePath)
+async function resolvePath(slugArray: string[]) {
+  const brandsMap = await getBrandsSet();
+  let categorySegments: string[] = [];
+  let brandName: string | null = null;
+  let modelSlug: string | null = null;
+  let modelName: string | null = null;
+  let brandSlug: string | null = null;
+
+  for (let i = 0; i < slugArray.length; i++) {
+    const seg = slugArray[i];
+    if (!brandSlug && brandsMap[seg]) {
+      brandSlug = seg;
+      brandName = brandsMap[seg];
+    } else if (brandSlug && !modelSlug) {
+      modelSlug = seg;
+    } else if (!brandSlug) {
+      categorySegments.push(seg);
+    }
+  }
+
+  if (brandName && modelSlug) {
+    const modelsMap = await getModelsForBrand(brandName);
+    modelName = modelsMap[modelSlug] || null;
+  }
+
+  return { categorySegments, brandName, modelName };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const searchQ = searchParams.get('q') || "";
@@ -60,39 +90,52 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Brak ścieżki" }, { status: 400, headers: corsHeaders });
   }
 
-  const segments = fullPath.split('/').filter(Boolean);
-  const currentHandle = segments[segments.length - 1];
+  // 🔥 Rozpoznaj markę/model w ścieżce, oddziel od kategorii
+  const slugArray = fullPath.split('/').filter(Boolean);
+  const { categorySegments, brandName, modelName } = await resolvePath(slugArray);
 
-  let allowedHandles: string[] = [currentHandle];
+  // Kategoria = ostatni segment kategorii (BEZ marki/modelu)
+  const currentHandle = categorySegments.length > 0 ? categorySegments[categorySegments.length - 1] : '';
 
-  try {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
+  // Zbieramy handle kategorii + dzieci z Medusy
+  let allowedHandles: string[] = currentHandle ? [currentHandle] : [];
 
-    const catRes = await fetch(
-      `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`,
-      { headers, next: { revalidate: 3600 } }
-    );
+  if (currentHandle) {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
 
-    if (catRes.ok) {
-      const catJson = await catRes.json();
-      const currentCategory = catJson.product_categories?.[0];
-      if (currentCategory) {
-        const collectHandles = (cat: any) => {
-          if (!cat) return;
-          if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-          if (cat.category_children?.length) cat.category_children.forEach(collectHandles);
-        };
-        collectHandles(currentCategory);
+      const catRes = await fetch(
+        `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`,
+        { headers, next: { revalidate: 3600 } }
+      );
+
+      if (catRes.ok) {
+        const catJson = await catRes.json();
+        const currentCategory = catJson.product_categories?.[0];
+        if (currentCategory) {
+          const collectHandles = (cat: any) => {
+            if (!cat) return;
+            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
+            if (cat.category_children?.length) cat.category_children.forEach(collectHandles);
+          };
+          collectHandles(currentCategory);
+        }
       }
+    } catch (error) {
+      console.warn("Nie udało się pobrać kategorii z Medusy:", error);
     }
-  } catch (error) {
-    console.warn("Nie udało się pobrać kategorii z Medusy:", error);
   }
 
-  const categoryFilterStr = `category_handles IN [${allowedHandles.map(h => `"${h}"`).join(', ')}]`;
+  // Filtr bazowy: kategoria + marka + model (marka/model z URL, NIE category_handle)
+  const baseFilterParts: string[] = [];
+  if (allowedHandles.length > 0) {
+    baseFilterParts.push(`category_handles IN [${allowedHandles.map(h => `"${h}"`).join(', ')}]`);
+  }
+  if (brandName) baseFilterParts.push(`"Pasuje do marki" = "${brandName.replace(/"/g, '\\"')}"`);
+  if (modelName) baseFilterParts.push(`"Pasuje do modelu" = "${modelName.replace(/"/g, '\\"')}"`);
 
-  // Aktywne filtry użytkownika (bez systemowych kluczy)
+  // Aktywne filtry użytkownika (techniczne, bez systemowych)
   const SYSTEM_KEYS = new Set(['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view']);
   const activeFilters: Record<string, string> = {};
   searchParams.forEach((val, key) => {
@@ -102,11 +145,11 @@ export async function GET(request: Request) {
   const minPrice = searchParams.get('minPrice');
   const maxPrice = searchParams.get('maxPrice');
 
-  // Pomocnik: buduje tablicę filtrów z OPCJONALNYM pominięciem jednego klucza
+  // Buduje filtry z OPCJONALNYM pominięciem jednego klucza (disjunctive)
   const buildFilters = (skipKey?: string): string[] => {
-    const arr: string[] = [categoryFilterStr];
+    const arr: string[] = baseFilterParts.slice();
     Object.entries(activeFilters).forEach(([key, val]) => {
-      if (skipKey && key === skipKey) return; // pomiń ten filtr (disjunctive)
+      if (skipKey && key === skipKey) return;
       const f = buildFilterValue(key, val);
       if (f) arr.push(f);
     });
@@ -115,6 +158,7 @@ export async function GET(request: Request) {
     return arr;
   };
 
+  const baseFilter = baseFilterParts.join(' AND ');
   const finalFilter = buildFilters().join(' AND ');
 
   const sortParam = searchParams.get('sort');
@@ -127,31 +171,27 @@ export async function GET(request: Request) {
   try {
     const index = meiliClient.index('products');
 
-    // 1) Główne wyszukiwanie (produkty + facety zawężone wszystkim)
-    // 2) Facety bazowe (tylko kategoria - dla pełnej listy wartości)
     const mainSearches: Promise<any>[] = [
       index.search(searchQ, {
         limit: currentLimit,
-        filter: finalFilter,
+        filter: finalFilter || undefined,
         sort: meiliSort,
         facets: OPTIMIZED_FACETS,
       }),
       index.search(searchQ, {
         limit: 0,
-        filter: categoryFilterStr,
+        filter: baseFilter || undefined,
         facets: OPTIMIZED_FACETS,
       }),
     ];
 
-    // 3) DISJUNCTIVE: dla każdego AKTYWNEGO filtra osobne liczenie
-    //    facetów z pominięciem tego filtra (żeby nie gasił sam siebie).
-    //    Liczymy tylko dla aktywnych filtrów - dla nieaktywnych narrowed=zawężone wystarcza.
+    // Disjunctive: osobne facety per aktywny filtr (z pominięciem siebie)
     const activeKeys = Object.keys(activeFilters);
     const disjunctivePromises = activeKeys.map(key =>
       index.search(searchQ, {
         limit: 0,
-        filter: buildFilters(key).join(' AND '),  // wszystkie filtry OPRÓCZ "key"
-        facets: [key],  // liczymy tylko facet tego jednego klucza
+        filter: buildFilters(key).join(' AND ') || undefined,
+        facets: [key],
       })
     );
 
@@ -160,7 +200,6 @@ export async function GET(request: Request) {
       ...disjunctivePromises,
     ]);
 
-    // Zbuduj mapę disjunctive: { "Napięcie [V]": {...wartości dla kontekstu bez napięcia} }
     const disjunctiveFacets: Record<string, any> = {};
     activeKeys.forEach((key, i) => {
       const res = disjunctiveResults[i];
@@ -168,6 +207,8 @@ export async function GET(request: Request) {
         disjunctiveFacets[key] = res.facetDistribution[key];
       }
     });
+
+    console.log(`[search] handle=${currentHandle} brand=${brandName} model=${modelName} hits=${searchResult.hits.length}`);
 
     const mappedProducts = searchResult.hits.map((p: any) => ({
       id: p.id,
@@ -184,7 +225,7 @@ export async function GET(request: Request) {
       totalCount: searchResult.estimatedTotalHits || mappedProducts.length,
       filters: baseFacetsResult.facetDistribution || {},
       narrowedFilters: searchResult.facetDistribution || {},
-      disjunctiveFacets,  // 🔥 NOWE: właściwe wartości per aktywny filtr
+      disjunctiveFacets,
     }, { headers: corsHeaders });
 
   } catch (error: any) {
