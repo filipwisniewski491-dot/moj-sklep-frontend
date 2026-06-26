@@ -230,12 +230,15 @@ export default async function CategoryPage({ params, searchParams }: any) {
   if (modelName) baseFilterParts.push(`"Pasuje do modelu" = "${modelName.replace(/"/g, '\\"')}"`);
   const baseFilter = baseFilterParts.join(' AND ');
 
-  let initialData: any = { filters: {}, narrowedFilters: {}, products: [], totalCount: 0 };
+  let initialData: any = { filters: {}, narrowedFilters: {}, disjunctiveFacets: {}, products: [], totalCount: 0 };
 
   try {
     const filterArray: string[] = baseFilterParts.slice();
-    const activeFilters = { ...resolvedSearchParams };
-    ['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].forEach(k => delete activeFilters[k]);
+    const activeFilters: Record<string, string> = {};
+    Object.entries({ ...resolvedSearchParams }).forEach(([k, v]) => {
+      if (['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view'].includes(k)) return;
+      if (v) activeFilters[k] = v as string;
+    });
 
     Object.entries(activeFilters).forEach(([key, val]) => {
       if (!val) return;
@@ -251,19 +254,52 @@ export default async function CategoryPage({ params, searchParams }: any) {
     if (sortParam === 'price_asc') meiliSort = ['price:asc'];
     if (sortParam === 'price_desc') meiliSort = ['price:desc'];
 
-    const [baseFacetsResult, searchResult] = await Promise.all([
+    // 🔥 Pomocnik disjunctive: filtry z pominięciem jednego klucza (do osobnych facetów)
+    const buildFiltersSkip = (skipKey?: string): string => {
+      const arr: string[] = baseFilterParts.slice();
+      Object.entries(activeFilters).forEach(([key, val]) => {
+        if (skipKey && key === skipKey) return;
+        const f = buildFilterValue(key, val as string);
+        if (f) arr.push(f);
+      });
+      if (resolvedSearchParams.minPrice) arr.push(`price >= ${resolvedSearchParams.minPrice}`);
+      if (resolvedSearchParams.maxPrice) arr.push(`price <= ${resolvedSearchParams.maxPrice}`);
+      return arr.join(' AND ');
+    };
+
+    const activeKeys = Object.keys(activeFilters);
+    const disjunctivePromises = activeKeys.map(key =>
+      index.search(resolvedSearchParams.q || "", {
+        limit: 0,
+        filter: buildFiltersSkip(key) || undefined,
+        facets: [key],
+      })
+    );
+
+    const [baseFacetsResult, searchResult, ...disjunctiveResults] = await Promise.all([
       index.search(resolvedSearchParams.q || "", { limit: 0, filter: baseFilter || undefined, facets: OPTIMIZED_FACETS }),
       index.search(resolvedSearchParams.q || "", {
         limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
         filter: filterArray.join(' AND ') || undefined,
         sort: meiliSort,
         facets: OPTIMIZED_FACETS
-      })
+      }),
+      ...disjunctivePromises,
     ]);
+
+    // Zbuduj mapę disjunctive per aktywny filtr
+    const disjunctiveFacets: Record<string, any> = {};
+    activeKeys.forEach((key, i) => {
+      const res: any = disjunctiveResults[i];
+      if (res?.facetDistribution?.[key]) {
+        disjunctiveFacets[key] = res.facetDistribution[key];
+      }
+    });
 
     initialData = {
       filters: baseFacetsResult.facetDistribution || {},
       narrowedFilters: searchResult.facetDistribution || {},
+      disjunctiveFacets,
       products: searchResult.hits.map((p: any) => ({
         id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
         category_text: p.Kategoria || p['Typ produktu'] || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []
@@ -315,6 +351,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
         currentBrandSlug={brandSlug}
         currentBrandName={brandName}
         currentModelSlug={modelSlug}
+        currentModelName={modelName}
       />
 
       {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}
