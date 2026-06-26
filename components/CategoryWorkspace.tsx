@@ -22,14 +22,14 @@ export default function CategoryWorkspace({
   fullPath,
   currentHandle,
   allowedHandles,
-  categoryPath = '',      
-  currentBrandSlug = null, 
-  currentBrandName = null, 
-  currentModelSlug = null, 
+  categoryPath = '',
+  currentBrandSlug = null,
+  currentBrandName = null,
+  currentModelSlug = null,
   currentModelName = null,
 }: any) {
   const router = useRouter();
-  
+
   const [isPendingRoute, startTransition] = useTransition();
 
   const [data, setData] = useState(() => ({
@@ -63,17 +63,20 @@ export default function CategoryWorkspace({
 
   const isFirstRender = useRef(true);
 
+  // 🔥 NAPRAWA: API oczekuje 'fullPath' (ścieżka z kategorią + marką + modelem), NIE 'categoryHandle'.
+  // Marka/model są częścią ścieżki URL (SEO), więc fullPath już je zawiera.
   const fetchProducts = useCallback(async (filters: Record<string, string>) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set('categoryHandle', currentHandle || '');
-      if (currentBrandName) params.set('brandName', currentBrandName);
-      if (currentModelName) params.set('modelName', currentModelName);
+      params.set('fullPath', fullPath);
       params.set('limit', '250');
-      
+
+      // Filtry techniczne (NIE marka/model - te są w ścieżce fullPath)
       Object.entries(filters).forEach(([key, val]) => {
-        if (val) params.set(key, val);
+        if (!val) return;
+        if (key === 'Pasuje do marki' || key === 'Pasuje do modelu') return; // w ścieżce
+        params.set(key, val);
       });
 
       const res = await fetch(`/api/search?${params.toString()}`);
@@ -92,7 +95,7 @@ export default function CategoryWorkspace({
     } finally {
       setLoading(false);
     }
-  }, [currentHandle, currentBrandName, currentModelName]);
+  }, [fullPath]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -123,6 +126,7 @@ export default function CategoryWorkspace({
   }, [categoryPath, activeFilters]);
 
   const updateFilter = useCallback((key: string, value: string | null) => {
+    // Marka/model -> URL (SEO landing page /ursus/c-360)
     if (key === 'Pasuje do marki') {
       startTransition(() => {
         if (value) router.push(buildLandingUrl(toSlug(value), null));
@@ -137,6 +141,7 @@ export default function CategoryWorkspace({
       });
       return;
     }
+    // Pozostałe filtry -> stan (filtrowanie na miejscu)
     setActiveFilters(prev => {
       const next = { ...prev };
       if (value) next[key] = value;
@@ -162,6 +167,7 @@ export default function CategoryWorkspace({
   }, [router, buildLandingUrl, currentBrandSlug]);
 
   const toggleFilter = useCallback((key: string, value: string) => {
+    // Marka/model -> URL (SEO)
     if (key === 'Pasuje do marki') {
       const isActive = currentBrandSlug === toSlug(value);
       startTransition(() => router.push(isActive ? buildLandingUrl(null, null) : buildLandingUrl(toSlug(value), null)));
@@ -173,6 +179,7 @@ export default function CategoryWorkspace({
       startTransition(() => router.push(isActive ? buildLandingUrl(currentBrandSlug, null) : buildLandingUrl(currentBrandSlug, toSlug(value))));
       return;
     }
+    // Pozostałe filtry -> multi-select (OR), wartości jako string "A,B,C"
     setActiveFilters(prev => {
       const next = { ...prev };
       const current = next[key] ? next[key].split(',') : [];
@@ -187,9 +194,10 @@ export default function CategoryWorkspace({
 
   const isListView = activeFilters.view === 'list';
 
+  // Wstrzyknij aktualną markę/model do filtrów (żeby UI pokazywało zaznaczenie)
   const displayFilters = { ...activeFilters };
   if (currentBrandName) displayFilters['Pasuje do marki'] = currentBrandName;
-  if (currentModelName) displayFilters['Pasuje do modelu'] = currentModelName; 
+  if (currentModelName) displayFilters['Pasuje do modelu'] = currentModelName;
 
   const isReallyLoading = loading || isPendingRoute;
 
