@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import CategoryFilters from './CategoryFilters';
 import CategoryToolbar from './CategoryToolbar';
 import ProductGrid from './ProductGrid';
 
-// Slugify - identyczny jak w lib/brand-utils.ts (marka/model -> URL)
 function toSlug(s: string): string {
   return String(s)
     .toLowerCase()
@@ -23,13 +22,15 @@ export default function CategoryWorkspace({
   fullPath,
   currentHandle,
   allowedHandles,
-  // 🔥 NOWE propsy z page.tsx (z domyślnymi wartościami dla bezpieczeństwa):
-  categoryPath = '',      // ścieżka samej kategorii, np. "czesci-do-ciagnikow/silnik-i-osprzet"
-  currentBrandSlug = null, // slug aktualnej marki (jeśli na stronie marki)
-  currentBrandName = null, // nazwa aktualnej marki
-  currentModelSlug = null, // slug aktualnego modelu
+  categoryPath = '',      
+  currentBrandSlug = null, 
+  currentBrandName = null, 
+  currentModelSlug = null, 
+  currentModelName = null,
 }: any) {
   const router = useRouter();
+  
+  const [isPendingRoute, startTransition] = useTransition();
 
   const [data, setData] = useState(() => ({
     products: initialData?.products || [],
@@ -40,6 +41,16 @@ export default function CategoryWorkspace({
   }));
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setData({
+      products: initialData?.products || [],
+      filters: initialData?.filters || {},
+      narrowedFilters: initialData?.narrowedFilters || {},
+      disjunctiveFacets: initialData?.disjunctiveFacets || {},
+      totalCount: initialData?.totalCount || 0,
+    });
+  }, [initialData]);
 
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>(() => {
     if (typeof window !== 'undefined') {
@@ -56,8 +67,11 @@ export default function CategoryWorkspace({
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set('fullPath', fullPath);
+      params.set('categoryHandle', currentHandle || '');
+      if (currentBrandName) params.set('brandName', currentBrandName);
+      if (currentModelName) params.set('modelName', currentModelName);
       params.set('limit', '250');
+      
       Object.entries(filters).forEach(([key, val]) => {
         if (val) params.set(key, val);
       });
@@ -78,7 +92,7 @@ export default function CategoryWorkspace({
     } finally {
       setLoading(false);
     }
-  }, [fullPath]);
+  }, [currentHandle, currentBrandName, currentModelName]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -89,16 +103,14 @@ export default function CategoryWorkspace({
       return;
     }
     fetchProducts(activeFilters);
-  }, [activeFilters]);
+  }, [activeFilters, fetchProducts]);
 
-  // 🔥 Buduje URL landing page z zachowaniem pozostałych filtrów jako ?param
   const buildLandingUrl = useCallback((brandSlug: string | null, modelSlug: string | null) => {
     const segments = [categoryPath].filter(Boolean);
     if (brandSlug) segments.push(brandSlug);
     if (brandSlug && modelSlug) segments.push(modelSlug);
     let url = '/kategoria/' + segments.join('/');
 
-    // zachowaj pozostałe filtry techniczne (bez marki/modelu/limitu) jako query
     const qp = new URLSearchParams();
     Object.entries(activeFilters).forEach(([k, v]) => {
       if (!v) return;
@@ -111,27 +123,20 @@ export default function CategoryWorkspace({
   }, [categoryPath, activeFilters]);
 
   const updateFilter = useCallback((key: string, value: string | null) => {
-    // 🔥 MARKA -> przekierowanie na /kategoria/.../marka
     if (key === 'Pasuje do marki') {
-      if (value) {
-        router.push(buildLandingUrl(toSlug(value), null));
-      } else {
-        // odznaczenie marki -> wróć do samej kategorii
-        router.push(buildLandingUrl(null, null));
-      }
+      startTransition(() => {
+        if (value) router.push(buildLandingUrl(toSlug(value), null));
+        else router.push(buildLandingUrl(null, null));
+      });
       return;
     }
-    // 🔥 MODEL -> przekierowanie na /kategoria/.../marka/model
     if (key === 'Pasuje do modelu') {
-      if (value && currentBrandSlug) {
-        router.push(buildLandingUrl(currentBrandSlug, toSlug(value)));
-      } else if (currentBrandSlug) {
-        // odznaczenie modelu -> zostań na stronie marki
-        router.push(buildLandingUrl(currentBrandSlug, null));
-      }
+      startTransition(() => {
+        if (value && currentBrandSlug) router.push(buildLandingUrl(currentBrandSlug, toSlug(value)));
+        else if (currentBrandSlug) router.push(buildLandingUrl(currentBrandSlug, null));
+      });
       return;
     }
-    // pozostałe filtry -> stary mechanizm (stan + ?param)
     setActiveFilters(prev => {
       const next = { ...prev };
       if (value) next[key] = value;
@@ -141,13 +146,12 @@ export default function CategoryWorkspace({
   }, [router, buildLandingUrl, currentBrandSlug]);
 
   const clearFilter = useCallback((key: string) => {
-    // odznaczenie marki/modelu też przez URL
     if (key === 'Pasuje do marki') {
-      router.push(buildLandingUrl(null, null));
+      startTransition(() => router.push(buildLandingUrl(null, null)));
       return;
     }
     if (key === 'Pasuje do modelu') {
-      router.push(buildLandingUrl(currentBrandSlug, null));
+      startTransition(() => router.push(buildLandingUrl(currentBrandSlug, null)));
       return;
     }
     setActiveFilters(prev => {
@@ -158,19 +162,17 @@ export default function CategoryWorkspace({
   }, [router, buildLandingUrl, currentBrandSlug]);
 
   const toggleFilter = useCallback((key: string, value: string) => {
-    // marka/model -> przez URL (toggle = ustaw lub zdejmij)
     if (key === 'Pasuje do marki') {
       const isActive = currentBrandSlug === toSlug(value);
-      router.push(isActive ? buildLandingUrl(null, null) : buildLandingUrl(toSlug(value), null));
+      startTransition(() => router.push(isActive ? buildLandingUrl(null, null) : buildLandingUrl(toSlug(value), null)));
       return;
     }
     if (key === 'Pasuje do modelu') {
       if (!currentBrandSlug) return;
       const isActive = currentModelSlug === toSlug(value);
-      router.push(isActive ? buildLandingUrl(currentBrandSlug, null) : buildLandingUrl(currentBrandSlug, toSlug(value)));
+      startTransition(() => router.push(isActive ? buildLandingUrl(currentBrandSlug, null) : buildLandingUrl(currentBrandSlug, toSlug(value))));
       return;
     }
-    // pozostałe -> multi-select w stanie
     setActiveFilters(prev => {
       const next = { ...prev };
       const current = next[key] ? next[key].split(',') : [];
@@ -185,19 +187,21 @@ export default function CategoryWorkspace({
 
   const isListView = activeFilters.view === 'list';
 
-  // 🔥 Wstrzyknij aktualną markę/model do activeFilters (żeby filtry pokazywały zaznaczenie)
   const displayFilters = { ...activeFilters };
   if (currentBrandName) displayFilters['Pasuje do marki'] = currentBrandName;
+  if (currentModelName) displayFilters['Pasuje do modelu'] = currentModelName; 
+
+  const isReallyLoading = loading || isPendingRoute;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col lg:flex-row gap-8 w-full relative min-h-[600px]">
 
-        {loading && (
+        {isReallyLoading && (
           <div className="absolute inset-0 z-[100] flex items-start pt-32 justify-center bg-white/40 backdrop-blur-[1px] rounded-3xl pointer-events-none">
             <div className="flex flex-col items-center bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-100 border-t-red-600 mb-3"></div>
-              <span className="text-xs font-black uppercase tracking-widest text-slate-800 animate-pulse">Ładuję produkty...</span>
+              <span className="text-xs font-black uppercase tracking-widest text-slate-800 animate-pulse">Ładuję...</span>
             </div>
           </div>
         )}
@@ -208,7 +212,7 @@ export default function CategoryWorkspace({
             narrowedFilters={data.narrowedFilters}
             disjunctiveFacets={data.disjunctiveFacets}
             totalCount={data.totalCount}
-            isPending={loading}
+            isPending={isReallyLoading}
             activeFilters={displayFilters}
             updateFilter={updateFilter}
             toggleFilter={toggleFilter}
@@ -223,7 +227,7 @@ export default function CategoryWorkspace({
             updateFilter={updateFilter}
           />
 
-          <div className={`transition-opacity duration-150 ${loading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+          <div className={`transition-opacity duration-150 ${isReallyLoading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
             <ProductGrid
               initialProducts={data.products}
               totalCount={data.totalCount}
@@ -232,7 +236,6 @@ export default function CategoryWorkspace({
             />
           </div>
         </div>
-
       </div>
     </div>
   );

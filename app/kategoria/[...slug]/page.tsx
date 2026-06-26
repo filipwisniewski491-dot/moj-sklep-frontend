@@ -179,7 +179,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
     console.warn("Błąd SEO Medusy, używam fallbacku");
   }
 
-  // 🔥 DYNAMICZNY H1 i tekst SEO - bez dublowania "Części do"
   const baseName = (dbCategoryData.name || currentHandle.replace(/-/g, ' ')).trim();
   const baseStartsWithCzesci = /^części/i.test(baseName);
   const prefix = baseStartsWithCzesci ? '' : 'Części do ';
@@ -306,7 +305,6 @@ export default async function CategoryPage({ params, searchParams }: any) {
       />
 
       <CategoryWorkspace
-        key={fullPath}
         initialData={initialData}
         fullPath={fullPath}
         currentHandle={currentHandle}
@@ -315,6 +313,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
         currentBrandSlug={brandSlug}
         currentBrandName={brandName}
         currentModelSlug={modelSlug}
+        currentModelName={modelName}
       />
 
       {dbCategoryData.bottom_seo_text && <DynamicSeoSection text={dbCategoryData.bottom_seo_text} />}
