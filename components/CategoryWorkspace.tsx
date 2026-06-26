@@ -131,6 +131,16 @@ export default function CategoryWorkspace({
     return url;
   }, [categoryPath, activeFilters]);
 
+  // 🔥 MOBILE: odłożony wybór marki/modelu - zatwierdzany jednym przekierowaniem na "POKAŻ WYNIKÓW".
+  // brandValue/modelValue to NAZWY (np. "Ursus", "C-385") lub null. Jeśli undefined - użyj aktualnej.
+  const commitMobileSelection = useCallback((brandValue?: string | null, modelValue?: string | null) => {
+    const effectiveBrand = brandValue === undefined ? currentBrandName : brandValue;
+    const effectiveModel = modelValue === undefined ? currentModelName : modelValue;
+    const bSlug = effectiveBrand ? toSlug(effectiveBrand) : null;
+    const mSlug = (effectiveBrand && effectiveModel) ? toSlug(effectiveModel) : null;
+    startTransition(() => router.push(buildLandingUrl(bSlug, mSlug)));
+  }, [router, buildLandingUrl, currentBrandName, currentModelName]);
+
   const updateFilter = useCallback((key: string, value: string | null) => {
     // Marka/model -> URL (SEO landing page /ursus/c-360)
     if (key === 'Pasuje do marki') {
@@ -233,6 +243,9 @@ export default function CategoryWorkspace({
             updateFilter={updateFilter}
             toggleFilter={toggleFilter}
             clearFilter={clearFilter}
+            commitMobileSelection={commitMobileSelection}
+            currentBrandName={currentBrandName}
+            currentModelName={currentModelName}
           />
         </aside>
 

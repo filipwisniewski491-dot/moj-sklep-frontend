@@ -67,12 +67,24 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter }: any) {
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter, commitMobileSelection, currentBrandName = null, currentModelName = null }: any) {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // 🔥 MOBILE: odłożony wybór marki/modelu. null = "wyczyść", undefined = "bez zmian" (użyj aktualnej).
+  const [pendingBrand, setPendingBrand] = useState<string | null | undefined>(undefined);
+  const [pendingModel, setPendingModel] = useState<string | null | undefined>(undefined);
+
+  // Gdy otwieramy panel mobilny - zresetuj odłożony wybór do stanu aktualnego (bez zmian)
+  useEffect(() => {
+    if (isMobileFiltersOpen) {
+      setPendingBrand(undefined);
+      setPendingModel(undefined);
+    }
+  }, [isMobileFiltersOpen]);
 
   const [minPrice, setMinPrice] = useState(activeFilters.minPrice || '');
   const [maxPrice, setMaxPrice] = useState(activeFilters.maxPrice || '');
@@ -254,7 +266,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     );
   };
 
-  const filterContent = (
+  const renderFilterContent = (mobileCtx: boolean) => (
     <div className="space-y-6">
 
       <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
@@ -280,8 +292,34 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
       <div className="mb-6 pb-6 border-b border-slate-100">
         <h3 className="font-black uppercase text-[11px] tracking-widest text-slate-900 mb-3">Dobierz do maszyny</h3>
         <div className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-          <SearchableSelect label="Marka maszyny" placeholder={"Wybierz markę"} options={formatedGarageMake} value={activeFilters['Pasuje do marki'] || ''} onChange={(val: string) => updateFilter('Pasuje do marki', val)} />
-          <SearchableSelect label="Model maszyny" placeholder={"Wybierz model"} options={formatedGarageModel} value={activeFilters['Pasuje do modelu'] || ''} onChange={(val: string) => updateFilter('Pasuje do modelu', val)} />
+          <SearchableSelect
+            label="Marka maszyny"
+            placeholder={"Wybierz markę"}
+            options={formatedGarageMake}
+            value={mobileCtx ? (pendingBrand === undefined ? (currentBrandName || '') : (pendingBrand || '')) : (activeFilters['Pasuje do marki'] || '')}
+            onChange={(val: string) => {
+              if (mobileCtx) {
+                // odłożony wybór: zapisz markę, wyzeruj model (inna marka = inne modele)
+                setPendingBrand(val || null);
+                setPendingModel(null);
+              } else {
+                updateFilter('Pasuje do marki', val);
+              }
+            }}
+          />
+          <SearchableSelect
+            label="Model maszyny"
+            placeholder={"Wybierz model"}
+            options={formatedGarageModel}
+            value={mobileCtx ? (pendingModel === undefined ? (currentModelName || '') : (pendingModel || '')) : (activeFilters['Pasuje do modelu'] || '')}
+            onChange={(val: string) => {
+              if (mobileCtx) {
+                setPendingModel(val || null);
+              } else {
+                updateFilter('Pasuje do modelu', val);
+              }
+            }}
+          />
         </div>
       </div>
 
@@ -322,10 +360,20 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
               <button type="button" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[48px] min-h-[48px]">✕ Zamknij</button>
            </div>
            <div className="flex-1 overflow-y-auto p-5 pb-24 custom-scrollbar bg-white">
-              {filterContent}
+              {renderFilterContent(true)}
            </div>
            <div className="flex-none bg-white p-4 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.05)]" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-               <button type="button" disabled={isPending} onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[56px] disabled:opacity-50">
+               <button type="button" disabled={isPending} onClick={() => {
+                 // 🔥 Zatwierdź odłożony wybór marki/modelu (jeśli zmieniony), potem zamknij panel.
+                 const brandChanged = pendingBrand !== undefined;
+                 const modelChanged = pendingModel !== undefined;
+                 if ((brandChanged || modelChanged) && commitMobileSelection) {
+                   const finalBrand = brandChanged ? pendingBrand : undefined;
+                   const finalModel = modelChanged ? pendingModel : undefined;
+                   commitMobileSelection(finalBrand, finalModel);
+                 }
+                 setIsMobileFiltersOpen(false);
+               }} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform min-h-[56px] disabled:opacity-50">
                   {isPending ? 'ŁADOWANIE...' : `Pokaż ${totalCount} wyników ➔`}
                </button>
            </div>
@@ -335,7 +383,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
       {isDesktop && (
         <div className="hidden lg:block w-full bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 relative">
-          {filterContent}
+          {renderFilterContent(false)}
         </div>
       )}
     </>
