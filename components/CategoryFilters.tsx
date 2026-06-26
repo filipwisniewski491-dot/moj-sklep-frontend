@@ -167,11 +167,34 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return (
       <div key={filterKey} className={`space-y-3 transition-opacity duration-150 ${isPending ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         <div className="flex items-center justify-between">
-          <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
+          <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900 flex items-center gap-2">
+            {filterKey}
+            {hasActiveSelection && (
+              <span className="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{activeValuesArray.length}</span>
+            )}
+          </h4>
           {hasActiveSelection && (
             <button type="button" onClick={() => clearFilter(filterKey)} disabled={isPending} className="text-[9px] font-black uppercase text-red-600 hover:text-white tracking-wider bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm disabled:opacity-50">✕ Wyczyść</button>
           )}
         </div>
+
+        {/* 🔥 CHIPSY zaznaczonych wartości - widoczne, łatwe do usunięcia */}
+        {hasActiveSelection && (
+          <div className="flex flex-wrap gap-1.5 pb-1">
+            {activeValuesArray.map((selectedVal: string) => (
+              <button
+                key={selectedVal}
+                type="button"
+                onClick={() => { if (!isPending) toggleFilter(filterKey, selectedVal); }}
+                disabled={isPending}
+                className="inline-flex items-center gap-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-wider pl-2.5 pr-2 py-1.5 rounded-lg shadow-sm hover:bg-red-700 transition-colors disabled:opacity-50 group/chip"
+              >
+                <span>{cleanLabel(selectedVal)}</span>
+                <span className="bg-white/25 group-hover/chip:bg-white/40 rounded w-4 h-4 flex items-center justify-center text-[11px] leading-none transition-colors">✕</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {isLongList && (
           <div className="relative mb-3">
