@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 const cleanLabel = (label: string) => {
   if (!label) return '';
@@ -69,6 +70,9 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
 export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter }: any) {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const [minPrice, setMinPrice] = useState(activeFilters.minPrice || '');
   const [maxPrice, setMaxPrice] = useState(activeFilters.maxPrice || '');
@@ -304,8 +308,8 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
          </button>
       </div>
 
-      {isMobileFiltersOpen && (
-        <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden animate-in fade-in duration-200">
+      {isMobileFiltersOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
               <span className="font-black uppercase tracking-widest text-sm">Szukaj i Filtruj</span>
               <button type="button" onClick={() => setIsMobileFiltersOpen(false)} className="bg-slate-800 hover:bg-red-600 px-4 py-2.5 rounded-lg text-xs font-black uppercase transition-colors min-w-[48px] min-h-[48px]">✕ Zamknij</button>
@@ -318,7 +322,8 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
                   {isPending ? 'ŁADOWANIE...' : `Pokaż ${totalCount} wyników ➔`}
                </button>
            </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {isDesktop && (
