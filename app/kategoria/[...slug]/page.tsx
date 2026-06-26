@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import CategoryHeader from '@/components/CategoryHeader';
 import CategoryWorkspace from '@/components/CategoryWorkspace';
+import PopularBrands from '@/components/PopularBrands';
 
 const DynamicFooter = dynamic(() => import('@/components/Footer'));
 const DynamicFaqSection = dynamic(() => import('@/components/FaqSection'));
@@ -296,6 +297,16 @@ export default async function CategoryPage({ params, searchParams }: any) {
       />
       <Header />
       <CategoryHeader initialData={searchData} searchParams={resolvedSearchParams} fullPath={fullPath} topSeoText={dbCategoryData.top_seo_text} />
+
+      {/* Popularne marki - tylko na czystej kategorii (nie na stronie marki/modelu) */}
+      {!brandName && (
+        <div className="max-w-7xl mx-auto px-6 mt-6">
+          <PopularBrands
+            brands={initialData.filters?.['Pasuje do marki'] || {}}
+            categoryPath={categorySegments.join('/')}
+          />
+        </div>
+      )}
 
       <CategoryWorkspace
         key={fullPath}
