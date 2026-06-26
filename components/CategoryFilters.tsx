@@ -67,7 +67,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter }: any) {
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter }: any) {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -101,9 +101,12 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   };
 
   const isMarkaSelected = !!activeFilters['Pasuje do marki'];
-  const formatedGarageMake = baseFilters['Pasuje do marki'] || baseFilters['Marka'] || {};
+  // 🔥 PEŁNA lista marek (wszystkie w kategorii) - żeby user mógł zmienić markę.
+  // Fallback na baseFilters gdy allBrands puste (np. zwykła kategoria bez marki w URL).
+  const formatedGarageMake = (Object.keys(allBrands).length > 0 ? allBrands : (baseFilters['Pasuje do marki'] || baseFilters['Marka'] || {}));
+  // PEŁNA lista modeli dla wybranej marki - żeby user mógł zmienić model.
   const formatedGarageModel = isMarkaSelected
-    ? (narrowedFilters['Pasuje do modelu'] || narrowedFilters['Model'] || {})
+    ? (Object.keys(allModels).length > 0 ? allModels : (narrowedFilters['Pasuje do modelu'] || narrowedFilters['Model'] || {}))
     : (baseFilters['Pasuje do modelu'] || baseFilters['Model'] || {});
 
   let techFilters = JSON.parse(JSON.stringify(baseFilters));

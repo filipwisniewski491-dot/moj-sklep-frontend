@@ -276,7 +276,15 @@ export default async function CategoryPage({ params, searchParams }: any) {
       })
     );
 
-    const [baseFacetsResult, searchResult, ...disjunctiveResults] = await Promise.all([
+    // 🔥 PEŁNA lista marek: tylko kategoria (BEZ marki/modelu) - żeby user mógł zmienić markę
+    const categoryOnlyFilter = categoryFilterStr || undefined;
+    // 🔥 Modele dla wybranej marki: kategoria + marka (BEZ modelu) - żeby user mógł zmienić model
+    const brandOnlyParts: string[] = [];
+    if (categoryFilterStr) brandOnlyParts.push(categoryFilterStr);
+    if (brandName) brandOnlyParts.push(`"Pasuje do marki" = "${brandName.replace(/"/g, '\\"')}"`);
+    const brandOnlyFilter = brandOnlyParts.join(' AND ') || undefined;
+
+    const [baseFacetsResult, searchResult, allBrandsResult, allModelsResult, ...disjunctiveResults] = await Promise.all([
       index.search(resolvedSearchParams.q || "", { limit: 0, filter: baseFilter || undefined, facets: OPTIMIZED_FACETS }),
       index.search(resolvedSearchParams.q || "", {
         limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
@@ -284,6 +292,12 @@ export default async function CategoryPage({ params, searchParams }: any) {
         sort: meiliSort,
         facets: OPTIMIZED_FACETS
       }),
+      // wszystkie marki w kategorii (bez zawężenia marką/modelem)
+      index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryOnlyFilter, facets: ['Pasuje do marki'] }),
+      // wszystkie modele dla wybranej marki (bez zawężenia modelem)
+      brandName
+        ? index.search(resolvedSearchParams.q || "", { limit: 0, filter: brandOnlyFilter, facets: ['Pasuje do modelu'] })
+        : Promise.resolve({ facetDistribution: {} } as any),
       ...disjunctivePromises,
     ]);
 
@@ -300,6 +314,8 @@ export default async function CategoryPage({ params, searchParams }: any) {
       filters: baseFacetsResult.facetDistribution || {},
       narrowedFilters: searchResult.facetDistribution || {},
       disjunctiveFacets,
+      allBrands: allBrandsResult.facetDistribution?.['Pasuje do marki'] || {},
+      allModels: allModelsResult.facetDistribution?.['Pasuje do modelu'] || {},
       products: searchResult.hits.map((p: any) => ({
         id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
         category_text: p.Kategoria || p['Typ produktu'] || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []

@@ -37,6 +37,8 @@ export default function CategoryWorkspace({
     filters: initialData?.filters || {},
     narrowedFilters: initialData?.narrowedFilters || {},
     disjunctiveFacets: initialData?.disjunctiveFacets || {},
+    allBrands: initialData?.allBrands || {},
+    allModels: initialData?.allModels || {},
     totalCount: initialData?.totalCount || 0,
   }));
 
@@ -48,6 +50,8 @@ export default function CategoryWorkspace({
       filters: initialData?.filters || {},
       narrowedFilters: initialData?.narrowedFilters || {},
       disjunctiveFacets: initialData?.disjunctiveFacets || {},
+      allBrands: initialData?.allBrands || {},
+      allModels: initialData?.allModels || {},
       totalCount: initialData?.totalCount || 0,
     });
   }, [initialData]);
@@ -83,13 +87,15 @@ export default function CategoryWorkspace({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
 
-      setData({
+      setData(prev => ({
         products: json.products || [],
         filters: json.filters || {},
         narrowedFilters: json.narrowedFilters || {},
         disjunctiveFacets: json.disjunctiveFacets || {},
+        allBrands: prev.allBrands,  // zachowaj pełną listę marek (z SSR)
+        allModels: prev.allModels,  // zachowaj pełną listę modeli (z SSR)
         totalCount: json.totalCount || 0,
-      });
+      }));
     } catch (e) {
       console.error('Błąd pobierania produktów:', e);
     } finally {
@@ -219,6 +225,8 @@ export default function CategoryWorkspace({
             baseFilters={data.filters}
             narrowedFilters={data.narrowedFilters}
             disjunctiveFacets={data.disjunctiveFacets}
+            allBrands={data.allBrands}
+            allModels={data.allModels}
             totalCount={data.totalCount}
             isPending={isReallyLoading}
             activeFilters={displayFilters}
