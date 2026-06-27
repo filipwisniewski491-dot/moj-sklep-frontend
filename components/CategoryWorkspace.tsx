@@ -43,6 +43,8 @@ export default function CategoryWorkspace({
   }));
 
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(48);
 
   useEffect(() => {
     setData({
@@ -67,14 +69,13 @@ export default function CategoryWorkspace({
 
   const isFirstRender = useRef(true);
 
-  // 🔥 NAPRAWA: API oczekuje 'fullPath' (ścieżka z kategorią + marką + modelem), NIE 'categoryHandle'.
-  // Marka/model są częścią ścieżki URL (SEO), więc fullPath już je zawiera.
-  const fetchProducts = useCallback(async (filters: Record<string, string>) => {
-    setLoading(true);
+  // 🔥 SZYBKOŚĆ: start 48 produktów (nie 250). Doładowanie po 48 z serwera na żądanie.
+  const fetchProducts = useCallback(async (filters: Record<string, string>, limit = 48, isLoadMore = false) => {
+    if (isLoadMore) setLoadingMore(true); else setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set('fullPath', fullPath);
-      params.set('limit', '250');
+      params.set('limit', String(limit));
 
       // Filtry techniczne (NIE marka/model - te są w ścieżce fullPath)
       Object.entries(filters).forEach(([key, val]) => {
@@ -89,9 +90,10 @@ export default function CategoryWorkspace({
 
       setData(prev => ({
         products: json.products || [],
-        filters: json.filters || {},
-        narrowedFilters: json.narrowedFilters || {},
-        disjunctiveFacets: json.disjunctiveFacets || {},
+        // Przy doładowaniu zachowaj facety/listy (to samo zapytanie, brak migania filtrów)
+        filters: isLoadMore ? prev.filters : (json.filters || {}),
+        narrowedFilters: isLoadMore ? prev.narrowedFilters : (json.narrowedFilters || {}),
+        disjunctiveFacets: isLoadMore ? prev.disjunctiveFacets : (json.disjunctiveFacets || {}),
         allBrands: prev.allBrands,  // zachowaj pełną listę marek (z SSR)
         allModels: prev.allModels,  // zachowaj pełną listę modeli (z SSR)
         totalCount: json.totalCount || 0,
@@ -99,19 +101,28 @@ export default function CategoryWorkspace({
     } catch (e) {
       console.error('Błąd pobierania produktów:', e);
     } finally {
-      setLoading(false);
+      if (isLoadMore) setLoadingMore(false); else setLoading(false);
     }
   }, [fullPath]);
+
+  // Doładowanie kolejnej porcji (zwiększa limit i pobiera większy zestaw z serwera)
+  const loadMore = useCallback(() => {
+    const newLimit = displayLimit + 48;
+    setDisplayLimit(newLimit);
+    fetchProducts(activeFilters, newLimit, true);
+  }, [displayLimit, activeFilters, fetchProducts]);
 
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       if (!initialData?.products?.length) {
-        fetchProducts(activeFilters);
+        fetchProducts(activeFilters, 48);
       }
       return;
     }
-    fetchProducts(activeFilters);
+    // Zmiana filtrów = nowy wynik od początku (reset do 48)
+    setDisplayLimit(48);
+    fetchProducts(activeFilters, 48);
   }, [activeFilters, fetchProducts]);
 
   const buildLandingUrl = useCallback((brandSlug: string | null, modelSlug: string | null) => {
@@ -262,6 +273,9 @@ export default function CategoryWorkspace({
               totalCount={data.totalCount}
               fullPath={fullPath}
               isListView={isListView}
+              onLoadMore={loadMore}
+              hasMore={data.products.length < data.totalCount}
+              isLoadingMore={loadingMore}
             />
           </div>
         </div>

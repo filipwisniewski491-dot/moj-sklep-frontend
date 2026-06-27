@@ -311,7 +311,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     const [baseFacetsResult, searchResult, allBrandsResult, allModelsResult, ...disjunctiveResults] = await Promise.all([
       index.search(resolvedSearchParams.q || "", { limit: 0, filter: baseFilter || undefined, facets: OPTIMIZED_FACETS }),
       index.search(resolvedSearchParams.q || "", {
-        limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 250,
+        limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 48,
         filter: filterArray.join(' AND ') || undefined,
         sort: meiliSort,
         facets: OPTIMIZED_FACETS

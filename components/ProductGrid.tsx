@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import ProductCard from './ProductCard';
 import { trackViewItemList } from '@/lib/analytics';
 import { useGarage } from '@/store/useGarage'; 
@@ -10,7 +10,10 @@ interface ProductGridProps {
   totalCount?: number;
   fullPath?: any;
   loading?: boolean;
-  isListView?: boolean; 
+  isListView?: boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export default function ProductGrid({ 
@@ -18,12 +21,15 @@ export default function ProductGrid({
   totalCount = 0, 
   fullPath, 
   loading = false,
-  isListView = false 
+  isListView = false,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
 }: ProductGridProps) {
   
   const { isActive, brand, model, clearGarage } = useGarage();
-  const [visibleLimit, setVisibleLimit] = useState(24);
 
+  // Filtr garażu działa w pamięci na dostarczonym zbiorze. Reszta to doładowanie z serwera.
   const productsToDisplay = isActive && initialProducts
     ? initialProducts.filter((p: any) => {
         const name = p.name?.toLowerCase() || '';
@@ -35,12 +41,11 @@ export default function ProductGrid({
       })
     : (initialProducts || []);
 
-  const currentlyVisibleProducts = productsToDisplay.slice(0, visibleLimit);
   const actualTotalCount = isActive ? productsToDisplay.length : Math.max(totalCount, productsToDisplay.length);
 
   useEffect(() => {
-    if (currentlyVisibleProducts.length > 0 && !loading) {
-      const ga4Items = currentlyVisibleProducts.map((product: any, index: number) => ({
+    if (productsToDisplay.length > 0 && !loading) {
+      const ga4Items = productsToDisplay.map((product: any, index: number) => ({
         item_id: String(product.id || product.sku),
         item_name: product.name,
         price: typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0,
@@ -53,11 +58,7 @@ export default function ProductGrid({
       
       trackViewItemList(ga4Items, "category_list", listName);
     }
-  }, [currentlyVisibleProducts, loading, fullPath, isActive, brand, model]);
-
-  const handleShowMore = () => {
-    setVisibleLimit(prev => prev + 24);
-  };
+  }, [productsToDisplay, loading, fullPath, isActive, brand, model]);
 
   if (loading) {
     return (
@@ -118,7 +119,7 @@ export default function ProductGrid({
       ) : (
         <>
           <div className={`grid gap-3 sm:gap-6 ${isListView ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-3'}`}>
-            {currentlyVisibleProducts.map((product: any, idx: number) => (
+            {productsToDisplay.map((product: any, idx: number) => (
               <ProductCard 
                 key={`${product.id || product.sku}-${idx}`} 
                 product={product} 
@@ -129,24 +130,33 @@ export default function ProductGrid({
             ))}
           </div>
           
-          {visibleLimit < actualTotalCount && (
+          {/* Doładowanie z serwera - tylko gdy garaż nieaktywny i są kolejne produkty */}
+          {!isActive && hasMore && (
             <div className="mt-12 flex flex-col items-center w-full max-w-md mx-auto">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
-                Widoczne {currentlyVisibleProducts.length} z {actualTotalCount}
+                Widoczne {productsToDisplay.length} z {actualTotalCount}
               </p>
               
               <div className="w-full h-1 bg-slate-200 rounded-full mb-6 overflow-hidden">
                 <div 
                   className="h-full bg-red-600 transition-all duration-700 ease-out"
-                  style={{ width: `${(currentlyVisibleProducts.length / actualTotalCount) * 100}%` }}
+                  style={{ width: `${Math.min(100, (productsToDisplay.length / actualTotalCount) * 100)}%` }}
                 />
               </div>
 
               <button 
-                onClick={handleShowMore}
-                className="w-full sm:w-auto px-8 py-3.5 bg-white border-2 border-slate-900 text-slate-900 font-black uppercase text-xs tracking-widest hover:bg-slate-900 hover:text-white transition-colors rounded-xl shadow-sm"
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+                className="w-full sm:w-auto px-8 py-3.5 bg-white border-2 border-slate-900 text-slate-900 font-black uppercase text-xs tracking-widest hover:bg-slate-900 hover:text-white transition-colors rounded-xl shadow-sm disabled:opacity-60 flex items-center justify-center gap-2 min-h-[48px]"
               >
-                Pokaż więcej produktów
+                {isLoadingMore ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin"></span>
+                    Ładowanie...
+                  </>
+                ) : (
+                  'Pokaż więcej produktów'
+                )}
               </button>
             </div>
           )}
