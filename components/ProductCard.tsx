@@ -20,31 +20,18 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
 
   const sku = product.sku || product.id || "BRAK SKU";
 
-  // 🚀 ZMIANA: Haszowanie opinii (4-49 opinii) i wyliczanie, czy produkt jest Bestsellerem (15% szans)
-  const hash = sku.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) + index;
-  const reviewsCount = (hash % 45) + 4; 
-  const rating = (4.4 + (hash % 6) / 10).toFixed(1); 
-  const isBestseller = (hash % 100) < 18; // 18% produktów otrzyma złotą etykietę
-
-  // 🚀 POPRAWKA LOGIKI MARKETINGOWEJ (Złota proporcja UX)
+  // Realny motywator wysyłki (NIE losowy): przed 12:00 w dni robocze zdążymy wysłać dziś.
   useEffect(() => {
     const now = new Date();
-    const day = now.getDay(); 
+    const day = now.getDay();
     const hour = now.getHours();
-
-    // Po 12:00 lub w weekendy
-    if (day === 0 || day === 6 || (day === 5 && hour >= 12) || hour >= 12) {
-      if (isBestseller) {
-        // Tylko 15-18% kart dostaje etykietę! Reszta jest czysta.
-        setShippingTag({ text: "Hit Sprzedaży", style: "bg-gradient-to-r from-amber-100 to-amber-50 text-amber-800 border-amber-200 font-black shadow-[0_2px_10px_rgba(251,191,36,0.2)]", pulse: false });
-      } else {
-        setShippingTag(null);
-      }
-    } else {
-      // Przed 12:00 (każdy produkt ma motywator czasowy)
+    const isWorkdayBeforeNoon = day !== 0 && day !== 6 && hour < 12;
+    if (isWorkdayBeforeNoon) {
       setShippingTag({ text: "Wysyłka w 24h", style: "bg-emerald-50 text-emerald-700 border-emerald-100", pulse: true });
+    } else {
+      setShippingTag(null);
     }
-  }, [isBestseller]);
+  }, []);
 
   let parsedExternalImages: string[] = [];
   if (Array.isArray(product.external_images)) {
@@ -115,11 +102,7 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
       </div>
       
       <div className={`flex flex-col pt-1 w-full pointer-events-none ${isListView ? 'justify-center pr-3 lg:pr-4' : 'px-3 pb-4 lg:px-6 lg:pb-5 flex-1'}`}>
-        <div className="flex justify-between items-center mb-1.5">
-          <div className="flex items-center gap-1 text-[10px] lg:text-[11px] text-amber-400 font-black">★ {rating} <span className="text-slate-500 font-medium text-[9px] lg:text-[10px]">({reviewsCount} opinii)</span></div>
-        </div>
-
-        <h2 className="font-black text-slate-800 leading-snug mb-2 group-hover:text-red-600 transition-colors line-clamp-2 text-xs lg:text-sm tracking-normal">{product.name}</h2>
+        <h2 className="font-black text-slate-800 leading-snug mb-2 mt-1 group-hover:text-red-600 transition-colors line-clamp-2 text-xs lg:text-sm tracking-normal">{product.name}</h2>
         
         <div className={`flex ${isListView ? 'flex-row items-center justify-between gap-6' : 'flex-col gap-3'} pt-3 lg:pt-4 border-t border-slate-50 w-full pointer-events-auto z-10 ${isListView ? 'mt-0' : 'mt-auto'}`}>
           <div className="flex flex-col">
