@@ -94,22 +94,20 @@ export async function generateMetadata({ params }: any): Promise<Metadata> {
     productCount = (r as any).totalHits ?? r.estimatedTotalHits ?? 0;
   } catch {}
 
-  const baseStartsWithCzesci = /^części/i.test(categoryName);
-  const prefix = baseStartsWithCzesci ? '' : 'Części do ';
-
   let title: string;
   let description: string;
   let canonicalPath = '/kategoria/' + slugArray.join('/');
 
+  // Mianownik (nazwa kategorii z bazy) - zawsze poprawnie gramatycznie, bez odmiany.
   if (brandName && modelName) {
-    title = `${prefix}${categoryName} ${brandName} ${modelName} | CentrumRolnictwa.pl`;
-    description = `Części zamienne do ${categoryName.toLowerCase()} ${brandName} ${modelName}. Gwarancja dopasowania, szybka wysyłka.${productCount > 0 ? ` ${productCount} produktów.` : ''}`;
+    title = `${categoryName} ${brandName} ${modelName} | CentrumRolnictwa.pl`;
+    description = `${categoryName} ${brandName} ${modelName} – części zamienne zgodne z OEM. Gwarancja dopasowania, szybka wysyłka.${productCount > 0 ? ` ${productCount} produktów.` : ''}`;
   } else if (brandName) {
-    title = `${prefix}${categoryName} ${brandName} | CentrumRolnictwa.pl`;
-    description = `Części zamienne do ${categoryName.toLowerCase()} ${brandName}. Szeroki wybór, gwarancja dopasowania, szybka wysyłka.${productCount > 0 ? ` ${productCount} produktów w ofercie.` : ''}`;
+    title = `${categoryName} ${brandName} | CentrumRolnictwa.pl`;
+    description = `${categoryName} ${brandName} – części zamienne zgodne z OEM. Szeroki wybór, gwarancja dopasowania, szybka wysyłka.${productCount > 0 ? ` ${productCount} produktów w ofercie.` : ''}`;
   } else {
     title = `${categoryName} | CentrumRolnictwa.pl`;
-    description = `Części zamienne - ${categoryName.toLowerCase()}. Szeroki wybór komponentów zgodnych z OEM. Gwarancja dopasowania i niezawodności.`;
+    description = `${categoryName} – części zamienne zgodne z OEM. Szeroki wybór komponentów, gwarancja dopasowania i niezawodności.`;
   }
 
   const isBrandOrModelPage = !!brandName;
@@ -206,14 +204,14 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
   // 🔥 DYNAMICZNY H1 i tekst SEO - bez dublowania "Części do"
   const baseName = (dbCategoryData.name || currentHandle.replace(/-/g, ' ')).trim();
-  const baseStartsWithCzesci = /^części/i.test(baseName);
-  const prefix = baseStartsWithCzesci ? '' : 'Części do ';
 
+  // H1 w mianowniku (nazwa kategorii z bazy) - zawsze poprawnie gramatycznie, bez odmiany.
+  // np. "Termostaty Case", "Wentylatory Ursus C-385", "Części do ciągników Ursus"
   if (brandName && modelName) {
-    dbCategoryData.h1_dynamic = `${prefix}${baseName} ${brandName} ${modelName}`.trim();
+    dbCategoryData.h1_dynamic = `${baseName} ${brandName} ${modelName}`.trim();
     dbCategoryData.top_seo_text = `Szukasz części do maszyny ${brandName} ${modelName}? W kategorii ${baseName.toLowerCase()} mamy szeroki wybór komponentów dopasowanych do tego modelu, zgodnych z OEM. Gwarancja dopasowania i szybka wysyłka.`;
   } else if (brandName) {
-    dbCategoryData.h1_dynamic = `${prefix}${baseName} ${brandName}`.trim();
+    dbCategoryData.h1_dynamic = `${baseName} ${brandName}`.trim();
     dbCategoryData.top_seo_text = `Części zamienne do maszyn ${brandName} w kategorii ${baseName.toLowerCase()}. Szeroki wybór komponentów zgodnych z OEM, gwarancja dopasowania i niezawodności. Szybka wysyłka i wsparcie techniczne.`;
   }
 
