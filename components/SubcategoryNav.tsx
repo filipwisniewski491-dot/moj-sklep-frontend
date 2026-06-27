@@ -59,7 +59,7 @@ export default function SubcategoryNav({
                 aria-label={`Przejdź do podkategorii ${subName}`}
                 key={`${subSlug}-${idx}`}
                 href={`/kategoria/${targetPath}`}
-                prefetch={false}
+                prefetch={true}
                 className="px-5 py-3.5 bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm min-h-[48px] flex items-center justify-center"
               >
                 {subName}

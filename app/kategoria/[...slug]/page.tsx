@@ -143,60 +143,61 @@ export default async function CategoryPage({ params, searchParams }: any) {
   let allowedHandles: string[] = currentHandle ? [currentHandle] : [];
   let currentCategory: any = null;
 
-  try {
+  // 🔥 SZYBKOŚĆ: oba zapytania do Medusy startują RÓWNOLEGLE (są niezależne).
+  //  - catRes: dane bieżącej kategorii (H1, SEO, drzewo podkategorii)
+  //  - namesRes: nazwy wszystkich kategorii ścieżki (polskie znaki w breadcrumbach)
+  const categoryNames: Record<string, string> = {};
+  {
     const headers: any = { "Content-Type": "application/json" };
     if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
+    const handleQuery = categorySegments.map((h) => `handle[]=${encodeURIComponent(h)}`).join('&');
 
-    const res = await fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, {
-      headers,
-      next: { revalidate: 3600 }
-    });
+    const [catRes, namesRes] = await Promise.all([
+      currentHandle
+        ? fetch(`${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`, { headers, next: { revalidate: 3600 } }).catch(() => null)
+        : Promise.resolve(null),
+      categorySegments.length > 0
+        ? fetch(`${MEDUSA_URL}/store/product-categories?${handleQuery}&limit=100&fields=name,handle`, { headers, next: { revalidate: 3600 } }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
 
-    if (res.ok) {
-      const json = await res.json();
-      currentCategory = json.product_categories?.[0];
-      if (currentCategory) {
-        const meta = currentCategory.metadata || {};
-        dbCategoryData.name = currentCategory.name;
-        dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
-        dbCategoryData.top_seo_text = meta.top_seo_text || currentCategory.description || "";
-        dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
-        dbCategoryData.faqs = meta.faqs || meta.faq || [];
+    // Przetwórz dane bieżącej kategorii
+    if (catRes && catRes.ok) {
+      try {
+        const json = await catRes.json();
+        currentCategory = json.product_categories?.[0];
+        if (currentCategory) {
+          const meta = currentCategory.metadata || {};
+          dbCategoryData.name = currentCategory.name;
+          dbCategoryData.h1_dynamic = meta.h1_dynamic || currentCategory.name.toUpperCase();
+          dbCategoryData.top_seo_text = meta.top_seo_text || currentCategory.description || "";
+          dbCategoryData.bottom_seo_text = meta.bottom_seo_text || null;
+          dbCategoryData.faqs = meta.faqs || meta.faq || [];
 
-        const collectHandles = (cat: any) => {
-          if (!cat) return;
-          if (allowedHandles.length < 100) {
-            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-            if (cat.category_children) cat.category_children.forEach(collectHandles);
-          }
-        };
-        collectHandles(currentCategory);
+          const collectHandles = (cat: any) => {
+            if (!cat) return;
+            if (allowedHandles.length < 100) {
+              if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
+              if (cat.category_children) cat.category_children.forEach(collectHandles);
+            }
+          };
+          collectHandles(currentCategory);
+        }
+      } catch (e) {
+        console.warn("Błąd parsowania kategorii Medusy");
       }
     }
-  } catch (error) {
-    console.warn("Błąd SEO Medusy, używam fallbacku");
-  }
 
-  // 🔥 POLSKIE ZNAKI W BREADCRUMBACH: pobierz prawdziwe nazwy WSZYSTKICH kategorii
-  // ze ścieżki (z Medusy mają polskie znaki). Jedno zapytanie z filtrem handle[].
-  const categoryNames: Record<string, string> = {};
-  if (categorySegments.length > 0) {
-    try {
-      const headers: any = { "Content-Type": "application/json" };
-      if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-      const handleQuery = categorySegments.map((h) => `handle[]=${encodeURIComponent(h)}`).join('&');
-      const namesRes = await fetch(`${MEDUSA_URL}/store/product-categories?${handleQuery}&limit=100&fields=name,handle`, {
-        headers,
-        next: { revalidate: 3600 }
-      });
-      if (namesRes.ok) {
+    // Przetwórz nazwy kategorii ścieżki (breadcrumby z polskimi znakami)
+    if (namesRes && namesRes.ok) {
+      try {
         const namesJson = await namesRes.json();
         (namesJson.product_categories || []).forEach((c: any) => {
           if (c.handle && c.name) categoryNames[c.handle] = c.name;
         });
+      } catch (e) {
+        console.warn("Błąd parsowania nazw kategorii - fallback do slug");
       }
-    } catch (e) {
-      console.warn("Nie udało się pobrać nazw kategorii ścieżki - fallback do slug");
     }
   }
   // Bieżąca kategoria - nazwę już mamy z głównego zapytania (pewniejsze)
