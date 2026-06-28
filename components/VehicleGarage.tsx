@@ -1,7 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useGarage } from '@/store/useGarage';
+
+// Slug marki/modelu - identyczny jak brandToSlug w lib/brand-utils.ts (spójność URL).
+// Lokalna kopia, żeby NIE importować brand-utils (ono ciągnie klienta Meili).
+const toSlug = (text: string) => {
+  if (!text) return '';
+  return text.toLowerCase().trim()
+    .replace(/[ąàáâ]/g, 'a').replace(/[ćč]/g, 'c').replace(/[ęèé]/g, 'e')
+    .replace(/[łl]/g, 'l').replace(/[ńñ]/g, 'n').replace(/[óòôö]/g, 'o')
+    .replace(/[śš]/g, 's').replace(/[źżž]/g, 'z').replace(/[üû]/g, 'u')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
 
 // Tymczasowa baza (docelowo zaciągniesz to z API Medusy)
 const brands = ['Zetor', 'Ursus', 'John Deere', 'Massey Ferguson', 'Case IH', 'New Holland'];
@@ -12,6 +26,7 @@ const modelsData: Record<string, string[]> = {
 };
 
 export default function VehicleGarage() {
+  const router = useRouter();
   // 1. ZACIĄGAMY GLOBALNY STAN
   const { brand: activeBrand, model: activeModel, isActive, setVehicle, clearGarage } = useGarage();
   
@@ -29,8 +44,9 @@ export default function VehicleGarage() {
     if (tempBrand && tempModel) {
       // Zapisujemy do globalnego stanu (Zustand sam zaktualizuje localStorage)
       setVehicle(tempBrand, tempModel);
-      // Przekierowanie
-      window.location.href = `/kategoria/wszystkie?marka=${tempBrand}&model=${tempModel}`;
+      // Przekierowanie ścieżką (marka/model w URL - tak czyta je page.tsx).
+      // router.push = płynna nawigacja SPA, bez pełnego przeładowania strony.
+      router.push(`/kategoria/${toSlug(tempBrand)}/${toSlug(tempModel)}`);
     }
   };
 
@@ -65,7 +81,7 @@ export default function VehicleGarage() {
 
         <div className="mt-8 flex gap-2 relative z-10">
           <button 
-            onClick={() => window.location.href = `/kategoria/wszystkie?marka=${activeBrand}&model=${activeModel}`}
+            onClick={() => router.push(`/kategoria/${toSlug(activeBrand)}/${toSlug(activeModel)}`)}
             className="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg"
           >
             Pokaż części
