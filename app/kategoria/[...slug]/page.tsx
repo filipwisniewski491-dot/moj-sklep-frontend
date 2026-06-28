@@ -17,6 +17,48 @@ const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "https://panel.
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 const SITE_URL = "https://centrumrolnictwa.com";
 
+// 🚀 PRE-RENDER najważniejszych kategorii już przy budowaniu (deploy).
+// Dzięki temu są w cache OD STARTU - serwer odpowiada błyskawicznie nawet dla
+// pierwszego użytkownika i dla PageSpeed (rozwiązuje problem wysokiego TTFB na
+// głównych, najcięższych kategoriach). Pozostałe kategorie generują się na żądanie
+// (dynamicParams = true) i trafiają do cache po pierwszym wejściu.
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  const mainCategories = [
+    'czesci-do-ciagnikow',
+    'czesci-do-maszyn',
+    'hydraulika-silowa',
+    'warsztat-i-uniwersalne',
+    'hodowla-i-zootechnika',
+  ];
+
+  const params: { slug: string[] }[] = mainCategories.map((c) => ({ slug: [c] }));
+
+  // Dorzuć bezpośrednie podkategorie każdej głównej kategorii - one też będą szybkie.
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (PUBLISHABLE_KEY) headers['x-publishable-api-key'] = PUBLISHABLE_KEY;
+
+    for (const cat of mainCategories) {
+      const res = await fetch(
+        `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(cat)}&include_descendants_tree=true`,
+        { headers }
+      );
+      if (!res.ok) continue;
+      const json = await res.json();
+      const children = json.product_categories?.[0]?.category_children || [];
+      for (const child of children) {
+        if (child?.handle) params.push({ slug: [cat, child.handle] });
+      }
+    }
+  } catch (e) {
+    console.warn('generateStaticParams: pominięto podkategorie —', e);
+  }
+
+  return params;
+}
+
 const OPTIMIZED_FACETS = [
   'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu',
   'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy',
