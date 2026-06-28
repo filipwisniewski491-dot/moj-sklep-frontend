@@ -46,7 +46,7 @@ export default function ConsentBanner() {
 
   return (
     <div className="fixed bottom-0 left-0 w-full z-[999999] p-4 md:p-6 pointer-events-none font-sans">
-      <div className="max-w-5xl mx-auto bg-slate-900 text-slate-300 border border-slate-700 p-6 md:p-8 rounded-[32px] shadow-2xl pointer-events-auto relative overflow-hidden flex flex-col md:flex-row items-center gap-6 lg:gap-10">
+      <div className="max-w-3xl mx-auto bg-slate-900 text-slate-300 border border-slate-700 p-5 md:p-6 rounded-[28px] shadow-2xl pointer-events-auto relative overflow-hidden flex flex-col md:flex-row items-center gap-5 lg:gap-8">
         
         <div className="absolute -left-20 -top-20 w-64 h-64 bg-red-600 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
 
@@ -56,7 +56,7 @@ export default function ConsentBanner() {
             <h3 className="text-white font-black uppercase tracking-widest text-lg">Twoja prywatność</h3>
           </div>
           <p className="text-sm font-medium leading-relaxed mb-3">
-            Używamy ciasteczek i podobnych technologii, aby sklep działał błyskawicznie, a nasze rekomendacje maszyn były idealnie dopasowane do Twojego gospodarstwa. Zgadzasz się na ich użycie?
+            Używamy plików cookie, aby sklep działał sprawnie i dopasować ofertę do Ciebie.
           </p>
           
           {showDetails && (
