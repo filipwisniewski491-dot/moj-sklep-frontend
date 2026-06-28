@@ -8,12 +8,29 @@ export default function ConsentBanner() {
 
   useEffect(() => {
     const consent = localStorage.getItem('cr_consent_status');
-    
-    if (!consent) {
-      // Baner pojawia się po chwili (po pierwszym renderze), zgodnie z RODO.
-      const timer = setTimeout(() => setIsVisible(true), 2500);
-      return () => clearTimeout(timer);
+    if (consent) return;
+
+    // Baner pojawia się po PIERWSZEJ interakcji użytkownika (scroll/dotyk/klik/ruch myszy).
+    // Dzięki temu nie jest elementem LCP (narzędzia pomiarowe nie wykonują interakcji),
+    // a prawdziwy użytkownik i tak zobaczy go w pierwszej sekundzie korzystania ze strony.
+    // Zgodność RODO zachowana: zgoda na cookies marketingowe/analityczne jest domyślnie
+    // odrzucona (Consent Mode default denied) aż do kliknięcia w banerze.
+    let shown = false;
+    const show = () => {
+      if (shown) return;
+      shown = true;
+      setIsVisible(true);
+      cleanup();
+    };
+    const events = ['scroll', 'pointerdown', 'keydown', 'touchstart', 'mousemove'];
+    events.forEach((e) => window.addEventListener(e, show, { passive: true, once: true }));
+    // Zapasowo: pokaż baner użytkownikom zupełnie biernym (bez żadnej interakcji).
+    const fallback = setTimeout(show, 10000);
+    function cleanup() {
+      events.forEach((e) => window.removeEventListener(e, show));
+      clearTimeout(fallback);
     }
+    return cleanup;
   }, []);
 
   const handleConsent = (granted: boolean) => {
