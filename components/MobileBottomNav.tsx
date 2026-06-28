@@ -24,12 +24,12 @@ export default function MobileBottomNav() {
         <span className="text-[9px] font-black uppercase tracking-widest">Kontakt</span>
       </a>
 
-      <Link href="/kategorie" prefetch={false} aria-label="Działy" className="flex flex-col items-center justify-center flex-1 min-h-[64px] text-slate-600 hover:text-red-600 transition-colors">
+      <Link href="/kategorie" prefetch={true} aria-label="Działy" className="flex flex-col items-center justify-center flex-1 min-h-[64px] text-slate-600 hover:text-red-600 transition-colors">
         <span className="text-xl mb-0.5">☰</span>
         <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
       </Link>
       
-      <Link href="/" prefetch={false} aria-label="Strona Główna" className="flex flex-col items-center justify-center flex-1 relative -top-4 z-50">
+      <Link href="/" prefetch={true} aria-label="Strona Główna" className="flex flex-col items-center justify-center flex-1 relative -top-4 z-50">
         <div className="bg-white p-1 rounded-full shadow-lg border border-slate-100 flex items-center justify-center transition-transform hover:scale-105">
            <div className="bg-white w-12 h-12 rounded-full overflow-hidden flex items-center justify-center border border-slate-200 relative">
              <Image 

@@ -146,7 +146,6 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                 const fallbackImages = (product.images || []).map((img: any) => img?.url_standard || img?.url || img?.src).filter(Boolean);
                 const displayImages = cdnImages.length > 0 ? cdnImages : fallbackImages;
                 const imageUrl = displayImages.length > 0 ? displayImages[0] : null;
-                const buyCount = Math.floor(Math.random() * 20) + 5; 
 
                 return (
                   <article key={product.id} className="group flex flex-col bg-white border border-slate-100 rounded-[24px] md:rounded-[32px] p-3 md:p-5 hover:shadow-xl hover:border-red-200 transition-all duration-300 relative h-full">
@@ -165,13 +164,8 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1 mb-1.5 md:mb-2">
-                      <div className="flex text-amber-400 text-[9px] md:text-xs">★★★★★</div>
-                      <span className="text-[7px] md:text-[9px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline-block">({buyCount} kupiło)</span>
-                    </div>
-
                     <div className="flex-1 flex flex-col">
-                      <h3 className="font-bold text-xs md:text-sm text-slate-800 leading-snug group-hover:text-red-600 transition-colors line-clamp-2 tracking-tight relative z-20">
+                      <h3 className="font-bold text-xs md:text-sm text-slate-800 leading-snug group-hover:text-red-600 transition-colors line-clamp-2 tracking-tight relative z-20 mt-1">
                         {product.name}
                       </h3>
                       <p className="text-[8px] md:text-[9px] text-slate-400 mt-1 md:mt-2 font-black uppercase tracking-widest bg-slate-50 w-fit px-1.5 md:px-2 py-0.5 rounded-md border border-slate-100">SKU: {product.sku || 'Brak'}</p>

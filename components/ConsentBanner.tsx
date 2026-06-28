@@ -10,8 +10,8 @@ export default function ConsentBanner() {
     const consent = localStorage.getItem('cr_consent_status');
     
     if (!consent) {
-      // 🚀 ZMIANA: Wydłużono twardo do 15000ms. 4.5 sekundy to stanowczo za wcześnie dla testu Lighthouse!
-      const timer = setTimeout(() => setIsVisible(true), 15000);
+      // Baner pojawia się po chwili (po pierwszym renderze), zgodnie z RODO.
+      const timer = setTimeout(() => setIsVisible(true), 2500);
       return () => clearTimeout(timer);
     }
   }, []);

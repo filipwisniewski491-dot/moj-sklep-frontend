@@ -80,7 +80,7 @@ export default function CategoryHeader({ initialData, searchParams, topSeoText, 
             {breadcrumbs.map((crumb: any, idx: number) => (
               <React.Fragment key={idx}>
                 <span className="text-slate-500">/</span>
-                <Link href={`/kategoria/${crumb.path}`} prefetch={false} className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">{crumb.name}</Link>
+                <Link href={`/kategoria/${crumb.path}`} prefetch={true} className="hover:text-red-600 transition-colors p-2 min-h-[32px] flex items-center">{crumb.name}</Link>
               </React.Fragment>
             ))}
           </nav>

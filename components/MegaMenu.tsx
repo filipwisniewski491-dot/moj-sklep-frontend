@@ -186,8 +186,8 @@ export default function MegaMenu() {
         <ul className="flex flex-1 items-center justify-between px-4 divide-x divide-slate-100">
           {MEGA_MENU_DATA.map((cat) => (
             <li key={cat.slug} className="group text-center py-5 flex-1 static">
-              {/* Główny link kategorii (L1) */}
-              <Link href={`/kategoria/${cat.slug}`} prefetch={false} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap">
+              {/* Główny link kategorii (L1) - prefetch, bo zawsze widoczny w pasku */}
+              <Link href={`/kategoria/${cat.slug}`} prefetch={true} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap">
                 <span className="mr-1.5 text-base align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
               </Link>
 
