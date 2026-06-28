@@ -66,10 +66,10 @@ export default function PopularBrands({
             key={brand.slug}
             href={`/kategoria/${categoryPath}/${brand.slug}`}
             prefetch={false}
-            className="px-5 py-3.5 bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm min-h-[48px] flex items-center justify-center gap-2"
+            className="group px-5 py-3.5 bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm min-h-[48px] flex items-center justify-center gap-2"
           >
             {brand.name}
-            <span className="text-slate-400 font-bold normal-case">{brand.count}</span>
+            <span className="text-slate-500 group-hover:text-slate-300 font-bold normal-case">{brand.count}</span>
           </Link>
         ))}
         {sorted.length > initialCount && (
