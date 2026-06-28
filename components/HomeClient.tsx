@@ -73,7 +73,7 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-0">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">{/* pb na pasek nav jest już w Footer (pb-32) - bez podwójnego paddingu */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <div className={`fixed bottom-24 md:bottom-8 left-4 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-[100] border-l-4 border-red-600 transition-all duration-500 ease-out transform ${liveSale ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
@@ -98,8 +98,8 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
             <p className="text-slate-400 mb-10 max-w-lg relative z-10 text-sm md:text-base font-medium leading-relaxed">
               Zapewnij ciągłość pracy swojemu gospodarstwu. Zamów oryginalne części i sprawdzone zamienniki OEM z najszybszą dostawą kurierską.
             </p>
-            {/* 🚀 ZMIANA: Zablokowano pobieranie w tle strony wszystkich kategorii */}
-            <Link href="/kategorie" prefetch={false} className="bg-red-600 text-white px-8 py-5 rounded-2xl font-black uppercase text-[11px] lg:text-xs tracking-widest hover:bg-red-700 transition-all relative z-10 shadow-lg shadow-red-600/30 flex items-center gap-3 w-full sm:w-auto justify-center">
+            {/* Prefetch: katalog kategorii ładuje się w tle - natychmiastowe przejście */}
+            <Link href="/kategorie" prefetch={true} className="bg-red-600 text-white px-8 py-5 rounded-2xl font-black uppercase text-[11px] lg:text-xs tracking-widest hover:bg-red-700 transition-all relative z-10 shadow-lg shadow-red-600/30 flex items-center gap-3 w-full sm:w-auto justify-center">
               Przeglądaj Katalog Części <span className="text-lg">➔</span>
             </Link>
           </article>
@@ -114,8 +114,8 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
            <h2 className="sr-only">Kategorie Główne Sklepu Rolniczego</h2>
            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 lg:gap-8">
              {QUICK_SILOS.map((silo, index) => (
-                // 🚀 ZMIANA: Zablokowano pobieranie w tle linków z kafelków 
-                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} prefetch={false} className={`bg-white border border-slate-100 p-8 lg:p-10 rounded-[40px] flex flex-col items-center justify-center text-center gap-5 hover:border-red-600 hover:shadow-2xl hover:shadow-red-600/10 transition-all duration-300 group`}>
+                // Prefetch: kategoria ładuje się w tle gdy kafelek widoczny - klik = natychmiast
+                <Link key={silo.slug} href={`/kategoria/${silo.slug}`} prefetch={true} className={`bg-white border border-slate-100 p-8 lg:p-10 rounded-[40px] flex flex-col items-center justify-center text-center gap-5 hover:border-red-600 hover:shadow-2xl hover:shadow-red-600/10 transition-all duration-300 group`}>
                   <span className="text-5xl lg:text-6xl group-hover:scale-110 transition-transform">{silo.img}</span>
                   <span className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] group-hover:text-red-600 leading-tight max-w-[120px]">{silo.name}</span>
                 </Link>
