@@ -159,7 +159,9 @@ export async function generateMetadata({ params }: any): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: canonicalPath },
-    robots: shouldIndex ? { index: true, follow: true } : { index: false, follow: true },
+    // ⛔ BLOKADA GOOGLE - sklep w budowie (ceny 0,00). Gdy gotowy, PRZYWRÓĆ linię poniżej:
+    // robots: shouldIndex ? { index: true, follow: true } : { index: false, follow: true },
+    robots: { index: false, follow: false },
     openGraph: { title, description, url: SITE_URL + canonicalPath, type: 'website' },
   };
 }

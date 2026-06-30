@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   title: "CentrumRolnictwa.pl - Części i akcesoria do maszyn rolniczych",
   description: "Największy internetowy katalog części zamiennych. Szybka wysyłka, gwarancja dopasowania i wsparcie ekspertów.",
   metadataBase: new URL('https://centrumrolnictwa.pl'),
+  // ⛔ BLOKADA GOOGLE - sklep w budowie (ceny 0,00). USUŃ TE 2 LINIE gdy sklep gotowy do indeksowania:
+  robots: { index: false, follow: false },
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'CentrumRolnictwa' },
   formatDetection: { telephone: false },
 };

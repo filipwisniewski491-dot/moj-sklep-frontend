@@ -17,7 +17,7 @@ export default function StickyCartBar() {
     <button
       onClick={() => setIsOpen(true)}
       aria-label="Przejdź do koszyka"
-      className="fixed left-0 right-0 bottom-[72px] md:bottom-0 z-[80] bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-colors"
+      className="hidden md:block fixed left-0 right-0 bottom-0 z-[80] bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] transition-colors"
     >
       <div className="max-w-7xl mx-auto px-4 h-12 flex items-center justify-between">
         <span className="flex items-center gap-2 font-black text-[11px] sm:text-xs uppercase tracking-widest">

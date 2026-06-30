@@ -243,7 +243,7 @@ export default function CategoryWorkspace({
           </div>
         )}
 
-        <aside className="w-full lg:w-80 flex-shrink-0">
+        <aside className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto custom-scrollbar">
           <CategoryFilters
             baseFilters={data.filters}
             narrowedFilters={data.narrowedFilters}
