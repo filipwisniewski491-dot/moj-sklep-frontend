@@ -67,7 +67,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter, commitMobileSelection, currentBrandName = null, currentModelName = null, isMobileFiltersOpen = false, setIsMobileFiltersOpen = () => {} }: any) {
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, facetOrder = [], totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter, commitMobileSelection, currentBrandName = null, currentModelName = null, isMobileFiltersOpen = false, setIsMobileFiltersOpen = () => {} }: any) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -122,21 +122,27 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   let techFilters = JSON.parse(JSON.stringify(baseFilters));
 
-  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle', 'category_handles', 'model', 'typ', 'zastosowanie', 'wymiary'];
+  // Marka/model/kategoria mają własne UI ("Dobierz do maszyny") - nie pokazuj ich jako checkboxy.
+  const HIDE_IN_TECH = new Set(['Pasuje do marki', 'Pasuje do modelu', 'Marka', 'category_handles']);
 
-  Object.keys(techFilters).forEach(key => {
-    const lowerKey = key.toLowerCase();
-    if (excludeKeys.includes(lowerKey) || lowerKey.includes('waga') || Object.keys(techFilters[key] || {}).length < 2) {
-       delete techFilters[key];
-    }
-  });
+  // 🔁 Kolejność filtrów przychodzi z backendu (facetOrder): już posortowana wg pokrycia
+  // w TEJ kategorii, z marką/modelem/typem przypiętym i pominięciem pól o zbyt wielu wartościach.
+  // Fallback: gdy facetOrder nie dotarł, policz pokrycie lokalnie (jak dawniej).
+  const orderedKeys: string[] = (Array.isArray(facetOrder) && facetOrder.length > 0)
+    ? facetOrder.slice()
+    : Object.keys(techFilters).sort((a, b) => {
+        const ca = Object.values(techFilters[a] || {} as any).reduce((s: number, c: any) => s + c, 0);
+        const cb = Object.values(techFilters[b] || {} as any).reduce((s: number, c: any) => s + c, 0);
+        return cb - ca;
+      });
 
-  const filterCoverage = Object.keys(techFilters).map(key => {
-    const count = Object.values(techFilters[key] as Record<string, number>).reduce((sum, c) => sum + c, 0);
-    return { key, count };
-  }).sort((a, b) => b.count - a.count);
-
-  const techFilterKeys = filterCoverage.slice(0, 5).map(f => f.key);
+  // Pokaż WSZYSTKIE filtry, które backend wybrał dla tej kategorii (bez sztywnego limitu 5).
+  // Backend już ograniczył listę do ~14 najlepszych, więc tu tylko odsiewamy puste/jednowartościowe.
+  const techFilterKeys = orderedKeys.filter((key) => {
+    if (HIDE_IN_TECH.has(key)) return false;
+    const vals = techFilters[key];
+    return vals && Object.keys(vals).length >= 2;
+  }).slice(0, 20); // miękki bezpiecznik, gdyby kiedyś przyszło więcej
 
   let activeFiltersCount = 0;
   Object.keys(activeFilters).forEach(key => {

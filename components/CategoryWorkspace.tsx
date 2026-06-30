@@ -40,6 +40,7 @@ export default function CategoryWorkspace({
     disjunctiveFacets: initialData?.disjunctiveFacets || {},
     allBrands: initialData?.allBrands || {},
     allModels: initialData?.allModels || {},
+    facetOrder: initialData?.facetOrder || [],
     totalCount: initialData?.totalCount || 0,
   }));
 
@@ -56,6 +57,7 @@ export default function CategoryWorkspace({
       disjunctiveFacets: initialData?.disjunctiveFacets || {},
       allBrands: initialData?.allBrands || {},
       allModels: initialData?.allModels || {},
+      facetOrder: initialData?.facetOrder || [],
       totalCount: initialData?.totalCount || 0,
     });
   }, [initialData]);
@@ -98,6 +100,8 @@ export default function CategoryWorkspace({
         disjunctiveFacets: isLoadMore ? prev.disjunctiveFacets : (json.disjunctiveFacets || {}),
         allBrands: prev.allBrands,  // zachowaj pełną listę marek (z SSR)
         allModels: prev.allModels,  // zachowaj pełną listę modeli (z SSR)
+        // Zestaw filtrów zależy od kategorii, nie od wybranych wartości - zachowaj z SSR.
+        facetOrder: (json.facetOrder && json.facetOrder.length) ? json.facetOrder : prev.facetOrder,
         totalCount: json.totalCount || 0,
       }));
     } catch (e) {
@@ -269,6 +273,7 @@ export default function CategoryWorkspace({
             disjunctiveFacets={data.disjunctiveFacets}
             allBrands={data.allBrands}
             allModels={data.allModels}
+            facetOrder={data.facetOrder}
             totalCount={data.totalCount}
             isPending={isReallyLoading}
             activeFilters={displayFilters}

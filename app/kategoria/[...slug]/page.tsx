@@ -59,13 +59,64 @@ export async function generateStaticParams() {
   return params;
 }
 
-const OPTIMIZED_FACETS = [
-  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu',
-  'Rodzaj', 'Waga [kg]', 'Napięcie [V]', 'Strona zabudowy',
-  'Ilość zębów', 'Wymiary', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Zastosowanie'
+// 🔁 DYNAMICZNE FILTRY
+// Lista pól filtrowalnych jest pobierana z Meili (settings/filterable-attributes),
+// więc cokolwiek dodasz/usuniesz w Meili, pojawi się TU automatycznie — bez ruszania kodu.
+// Dla każdej kategorii liczymy pokrycie i pokazujemy tylko najlepsze filtry, które
+// faktycznie mają wartości W TEJ kategorii.
+
+// Pola zawsze przypięte na górze (jeśli mają wartości w kategorii).
+const PINNED_FACETS = ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu'];
+// Pola, których nie pokazujemy jako filtr (ścieżka kategorii, nie parametr produktu).
+const FACET_EXCLUDE = new Set(['category_handles']);
+// Ile filtrów pokazać max w jednej kategorii.
+const MAX_FACETS_PER_CATEGORY = 14;
+// Filtr-lista checkboxów ma sens tylko gdy wartości nie jest absurdalnie dużo.
+// Pole z większą liczbą różnych wartości w tej kategorii pomijamy (to nie checkbox).
+const MAX_FACET_VALUES = 40;
+// Awaryjna lista, gdyby pobranie ustawień z Meili się nie powiodło.
+const FACET_FALLBACK = [
+  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Rodzaj', 'Materiał',
+  'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Napięcie [V]', 'Waga [kg]', 'Zastosowanie'
 ];
 
 const MIN_PRODUCTS_FOR_INDEX = 3;
+
+// Cache listy filtrowalnych (na instancję serwera, odświeżane co godzinę).
+let _filterableCache: { at: number; list: string[] } | null = null;
+async function getFilterableAttributes(): Promise<string[]> {
+  if (_filterableCache && Date.now() - _filterableCache.at < 3600_000) return _filterableCache.list;
+  try {
+    const idx = meiliClient.index('products');
+    let list: any = await (idx as any).getFilterableAttributes();
+    if (!Array.isArray(list)) {
+      const settings: any = await (idx as any).getSettings();
+      list = settings?.filterableAttributes || [];
+    }
+    const clean = (Array.isArray(list) ? list : []).filter((k: string) => !FACET_EXCLUDE.has(k));
+    if (clean.length > 0) _filterableCache = { at: Date.now(), list: clean };
+    return clean.length > 0 ? clean : FACET_FALLBACK;
+  } catch (e) {
+    console.warn('getFilterableAttributes: fallback —', e);
+    return FACET_FALLBACK;
+  }
+}
+
+// Z rozkładu facetów dla kategorii wybiera najlepsze filtry:
+// przypięte na górze, reszta wg pokrycia, z pominięciem pól o zbyt wielu wartościach.
+function rankCategoryFacets(
+  dist: Record<string, Record<string, number>>,
+  max = MAX_FACETS_PER_CATEGORY
+): string[] {
+  const pinned = PINNED_FACETS.filter(k => dist[k] && Object.keys(dist[k]).length > 0);
+  const scored = Object.entries(dist)
+    .filter(([k, vals]) => !FACET_EXCLUDE.has(k) && !pinned.includes(k) && vals && Object.keys(vals).length > 0)
+    .filter(([, vals]) => Object.keys(vals).length <= MAX_FACET_VALUES) // za dużo wartości = nie checkbox
+    .map(([k, vals]) => [k, Object.values(vals).reduce((a, b) => a + b, 0)] as [string, number])
+    .sort((a, b) => b[1] - a[1])
+    .map(([k]) => k);
+  return [...pinned, ...scored].slice(0, max);
+}
 
 function buildFilterValue(key: string, val: string): string {
   const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
@@ -344,6 +395,19 @@ export default async function CategoryPage({ params, searchParams }: any) {
       })
     );
 
+    // 🔁 KROK 1 — sonda: policz pokrycie WSZYSTKICH pól filtrowalnych w tej kategorii.
+    // limit:0 => tania (bez produktów), liczy tylko rozkład facetów.
+    const filterableAll = await getFilterableAttributes();
+    const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+      limit: 0,
+      filter: baseFilter || undefined,
+      facets: filterableAll,
+    });
+
+    // 🔁 KROK 2 — z pokrycia wybierz najlepsze filtry dla TEJ kategorii.
+    let categoryFacets = rankCategoryFacets(baseFacetsResult.facetDistribution || {});
+    if (categoryFacets.length === 0) categoryFacets = PINNED_FACETS;
+
     // 🔥 PEŁNA lista marek: tylko kategoria (BEZ marki/modelu) - żeby user mógł zmienić markę
     const categoryOnlyFilter = categoryFilterStr || undefined;
     // 🔥 Modele dla wybranej marki: kategoria + marka (BEZ modelu) - żeby user mógł zmienić model
@@ -352,13 +416,13 @@ export default async function CategoryPage({ params, searchParams }: any) {
     if (brandName) brandOnlyParts.push(`"Pasuje do marki" = "${brandName.replace(/"/g, '\\"')}"`);
     const brandOnlyFilter = brandOnlyParts.join(' AND ') || undefined;
 
-    const [baseFacetsResult, searchResult, allBrandsResult, allModelsResult, ...disjunctiveResults] = await Promise.all([
-      index.search(resolvedSearchParams.q || "", { limit: 0, filter: baseFilter || undefined, facets: OPTIMIZED_FACETS }),
+    // 🔁 KROK 3 — ciężki search na produkty dostaje JUŻ TYLKO wybrane facety (tanio).
+    const [searchResult, allBrandsResult, allModelsResult, ...disjunctiveResults] = await Promise.all([
       index.search(resolvedSearchParams.q || "", {
         limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 48,
         filter: filterArray.join(' AND ') || undefined,
         sort: meiliSort,
-        facets: OPTIMIZED_FACETS
+        facets: categoryFacets
       }),
       // wszystkie marki w kategorii (bez zawężenia marką/modelem)
       index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryOnlyFilter, facets: ['Pasuje do marki'] }),
@@ -378,9 +442,20 @@ export default async function CategoryPage({ params, searchParams }: any) {
       }
     });
 
+    // Przytnij rozkład bazowy do wybranych facetów, zachowując kolejność rankingu.
+    const baseDist = baseFacetsResult.facetDistribution || {};
+    const narrowDist = searchResult.facetDistribution || {};
+    const trimmedFilters: Record<string, any> = {};
+    const trimmedNarrowed: Record<string, any> = {};
+    categoryFacets.forEach((k) => {
+      if (baseDist[k]) trimmedFilters[k] = baseDist[k];
+      if (narrowDist[k]) trimmedNarrowed[k] = narrowDist[k];
+    });
+
     initialData = {
-      filters: baseFacetsResult.facetDistribution || {},
-      narrowedFilters: searchResult.facetDistribution || {},
+      filters: trimmedFilters,
+      narrowedFilters: trimmedNarrowed,
+      facetOrder: categoryFacets,
       disjunctiveFacets,
       allBrands: allBrandsResult.facetDistribution?.['Pasuje do marki'] || {},
       allModels: allModelsResult.facetDistribution?.['Pasuje do modelu'] || {},
