@@ -78,9 +78,39 @@ const MAX_FACETS_PER_CATEGORY = 5;
 // Odrzucamy tylko pola z EKSTREMALNĄ liczbą wartości (sklejone stringi/wolny tekst).
 // Próg wysoki, bo długie listy mają wyszukiwarkę i "pokaż więcej" — są używalne.
 const MAX_FACET_VALUES = 200;
-// Awaryjne filtry techniczne, gdy sonda padnie (wszystkie filtrowalne).
+// Awaryjne filtry techniczne, gdy sonda padnie — same MAŁE, bezpieczne pola (nigdy nie panikują).
 const FACET_FALLBACK = [
-  'Typ produktu', 'Gwint', 'Materiał', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]'
+  'Materiał', 'Napięcie [V]', 'Kolor', 'Seria (L-Lekka / S-Ciężka)', 'Pojemność [l]'
+];
+
+// 🛡️ BEZPIECZNA lista pól, o które wolno pytać w sondzie facetów.
+// NIE zawiera pól-potworów (Typ produktu/Waga/Pasuje do modelu mają tysiące wartości
+// i wywalają Meili przy facets:["*"]), ani pola panikującego "Grubość drutu [mm]",
+// ani marki/modelu (osobne UI). To są realni kandydaci na filtry techniczne.
+const CANDIDATE_FACETS = [
+  // wymiary / liczby (w wąskich kategoriach mają mało wartości; w szerokich i tak odpadną przez limit)
+  'Średnica wewnętrzna (DN) [mm]', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Średnica [mm]',
+  'Średnica sworznia [mm]', 'Średnica sworznia zaczepu [mm]', 'Średnica przyłącza [mm]', 'Średnica tłoczyska [mm]',
+  'Średnica tłoka [mm]', 'Średnica cylindra wewn. [mm]', 'Średnica otworu [mm]', 'Średnica koła pasowego [mm]',
+  'Średnica talerza [mm]', 'Średnica węża zewnętrzna [mm]', 'Ø wew. (mm)',
+  'Szerokość/Grubość [mm]', 'Szerokość [mm]', 'Szerokość robocza [mm]', 'Szerokość paska [mm]',
+  'Szerokość siedzenia [mm]', 'Szerokość szyny (mm)', 'Szerokość prowadnicy (mm)',
+  'Wysokość [mm]', 'Grubość [mm]', 'Grubość elementu [mm]', 'Grubość lemiesza/dłuta [mm]',
+  'Długość [mm]', 'Długość robocza [mm]', 'Długość paska [mm]', 'Długość śruby/elementu [mm]', 'Długość [cm]',
+  'Skok siłownika [mm]', 'Rozstaw otworów kołnierza [mm]', 'Rozstaw otworów montażowych [mm]',
+  'Napięcie [V]', 'Natężenie [A]', 'Moc [kW]', 'Moc [W]', 'Pojemność [l]', 'Pojemność [Ah]',
+  'Max. ciśnienie [bar]', 'Max. ciśnienie robocze [bar]', 'Ciśnienie robocze [bar]', 'Przepływ max [l/min]',
+  'Siła wyrzutu [N]', 'Siła nacisku/uciągu [t]', 'Wartość D [kN]', 'Nacisk pionowy [kg]', 'Obciążenie (kg)',
+  'Udźwig [kg]', 'Twardość Shore', 'Ilość zębów', 'Ilość sekcji', 'Ilość ogniw/żeber', 'Ilość pierścieni',
+  'Ilość oplotów stalowych (SN)', 'Wydajność geometryczna [cm3/obr]', 'Wymiar gwintu', 'Rozmiar klucza/końcówki [mm]',
+  // kategoryczne (czyste enumy)
+  'Materiał', 'Materiał (Żeliwo/Tworzywo)', 'Materiał obicia', 'Gwint', 'Kategoria zaczepu (Kat.)',
+  'Seria (L-Lekka / S-Ciężka)', 'Typ uszczelnienia (np. 2RS, Simmering)', 'Typ uszczelnienia',
+  'Kolor', 'Kolor szyby', 'Typ złącza (Męski/Żeński)', 'Typ złącza (Miękkie/Twarde)', 'Wersja', 'Rozmiar',
+  'Rozmiar gwintów przyłączeniowych', 'Kierunek obrotów (L/P)', 'Strona', 'Strona montażu (L/P)',
+  'Profil paska/łańcucha', 'Blokada', 'Funkcje światła', 'Typ sterowania (Ręczne/Elektryczne)',
+  'Standard (EURO/PUSH-PULL)', 'Klasa twardości (np. 8.8, 10.9)', 'Typ wałka (Stożek/Frez)', 'Typ łba',
+  'Rodzaj amortyzacji', 'Norma', 'Kategoria', 'Przeznaczenie', 'Model silnika',
 ];
 
 const MIN_PRODUCTS_FOR_INDEX = 3;
@@ -399,25 +429,15 @@ export default async function CategoryPage({ params, searchParams }: any) {
 
     // 🔁 Wybór filtrów dla kategorii — BEST EFFORT.
     // CAŁA ta sekcja jest opakowana tak, by jej awaria NIGDY nie wywaliła listingu produktów.
-    // W najgorszym razie pokażemy filtry przypięte (marka/model/typ) — produkty załadują się zawsze.
     let categoryFacets: string[] = FACET_FALLBACK;
     let baseDist: Record<string, any> = {};
     try {
-      // Najpierw wildcard "*": Meili zwraca rozkład WSZYSTKICH pól filtrowalnych w tej
-      // kategorii i NIE wymaga klucza admina (działa z kluczem wyszukiwania).
-      let baseFacetsResult: any;
-      try {
-        baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
-          limit: 0, filter: baseFilter || undefined, facets: ["*"],
-        });
-      } catch {
-        // Starsza wersja Meili bez "*": użyj jawnej listy (z ustawień lub awaryjnej).
-        const filterableAll = await getFilterableAttributes();
-        const facetProbe = (filterableAll && filterableAll.length) ? filterableAll : FACET_FALLBACK;
-        baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
-          limit: 0, filter: baseFilter || undefined, facets: facetProbe,
-        });
-      }
+      // NIE używamy facets:["*"] — wildcard wywala Meili (panic) na dużych kategoriach,
+      // bo liczy rozkład pól-potworów (Typ produktu/Waga/model mają tysiące wartości).
+      // Pytamy o STAŁĄ, bezpieczną listę kandydatów (CANDIDATE_FACETS) — bez potworów i bez pola panikującego.
+      const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+        limit: 0, filter: baseFilter || undefined, facets: CANDIDATE_FACETS,
+      });
       baseDist = baseFacetsResult.facetDistribution || {};
       const ranked = rankCategoryFacets(baseDist);
       if (ranked.length) categoryFacets = ranked;
