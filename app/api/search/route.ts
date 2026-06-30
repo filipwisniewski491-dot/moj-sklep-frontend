@@ -18,19 +18,31 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-const OPTIMIZED_FACETS = [
-  'Pasuje do marki',
-  'Pasuje do modelu',
-  'Typ produktu',
-  'Rodzaj',
-  'Waga [kg]',
-  'Napięcie [V]',
-  'Strona zabudowy',
-  'Ilość zębów',
-  'Wymiary',
-  'Średnica wewnętrzna [mm]',
-  'Średnica zewnętrzna [mm]',
-  'Zastosowanie'
+// 🛡️ Bezpieczna lista pól (kopia z page.tsx) - bez pól-potworow i bez niefiltrowalnych.
+const CANDIDATE_FACETS = [
+  // wymiary / liczby (w wąskich kategoriach mają mało wartości; w szerokich i tak odpadną przez limit)
+  'Średnica wewnętrzna (DN) [mm]', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Średnica [mm]',
+  'Średnica sworznia [mm]', 'Średnica sworznia zaczepu [mm]', 'Średnica przyłącza [mm]', 'Średnica tłoczyska [mm]',
+  'Średnica tłoka [mm]', 'Średnica cylindra wewn. [mm]', 'Średnica otworu [mm]', 'Średnica koła pasowego [mm]',
+  'Średnica talerza [mm]', 'Średnica węża zewnętrzna [mm]', 'Ø wew. (mm)',
+  'Szerokość/Grubość [mm]', 'Szerokość [mm]', 'Szerokość robocza [mm]', 'Szerokość paska [mm]',
+  'Szerokość siedzenia [mm]', 'Szerokość szyny (mm)', 'Szerokość prowadnicy (mm)',
+  'Wysokość [mm]', 'Grubość [mm]', 'Grubość elementu [mm]', 'Grubość lemiesza/dłuta [mm]',
+  'Długość [mm]', 'Długość robocza [mm]', 'Długość paska [mm]', 'Długość śruby/elementu [mm]', 'Długość [cm]',
+  'Skok siłownika [mm]', 'Rozstaw otworów kołnierza [mm]', 'Rozstaw otworów montażowych [mm]',
+  'Napięcie [V]', 'Natężenie [A]', 'Moc [kW]', 'Moc [W]', 'Pojemność [l]', 'Pojemność [Ah]',
+  'Max. ciśnienie [bar]', 'Max. ciśnienie robocze [bar]', 'Ciśnienie robocze [bar]', 'Przepływ max [l/min]',
+  'Siła wyrzutu [N]', 'Siła nacisku/uciągu [t]', 'Wartość D [kN]', 'Nacisk pionowy [kg]', 'Obciążenie (kg)',
+  'Udźwig [kg]', 'Twardość Shore', 'Ilość zębów', 'Ilość sekcji', 'Ilość ogniw/żeber', 'Ilość pierścieni',
+  'Ilość oplotów stalowych (SN)', 'Wydajność geometryczna [cm3/obr]', 'Wymiar gwintu', 'Rozmiar klucza/końcówki [mm]',
+  // kategoryczne (czyste enumy)
+  'Materiał', 'Materiał (Żeliwo/Tworzywo)', 'Materiał obicia', 'Gwint', 'Kategoria zaczepu (Kat.)',
+  'Seria (L-Lekka / S-Ciężka)', 'Typ uszczelnienia (np. 2RS, Simmering)', 'Typ uszczelnienia',
+  'Kolor', 'Kolor szyby', 'Typ złącza (Męski/Żeński)', 'Typ złącza (Miękkie/Twarde)', 'Wersja', 'Rozmiar',
+  'Rozmiar gwintów przyłączeniowych', 'Kierunek obrotów (L/P)', 'Strona', 'Strona montażu (L/P)',
+  'Profil paska/łańcucha', 'Blokada', 'Funkcje światła', 'Typ sterowania (Ręczne/Elektryczne)',
+  'Standard (EURO/PUSH-PULL)', 'Klasa twardości (np. 8.8, 10.9)', 'Typ wałka (Stożek/Frez)', 'Typ łba',
+  'Rodzaj amortyzacji', 'Norma', 'Kategoria', 'Przeznaczenie', 'Model silnika',
 ];
 
 function buildFilterValue(key: string, val: string): string {
@@ -135,11 +147,24 @@ export async function GET(request: Request) {
   if (brandName) baseFilterParts.push(`"Pasuje do marki" = "${brandName.replace(/"/g, '\\"')}"`);
   if (modelName) baseFilterParts.push(`"Pasuje do modelu" = "${modelName.replace(/"/g, '\\"')}"`);
 
-  // Aktywne filtry użytkownika (techniczne, bez systemowych)
+  // Aktywne filtry użytkownika (techniczne, bez systemowych ani zakresów)
   const SYSTEM_KEYS = new Set(['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view']);
   const activeFilters: Record<string, string> = {};
+  // Filtry zakresowe (suwaki): rmin_<pole> / rmax_<pole> -> liczbowe pole n_<pole>
+  const rangeFilters: string[] = [];
   searchParams.forEach((val, key) => {
-    if (!SYSTEM_KEYS.has(key) && val) activeFilters[key] = val;
+    if (!val) return;
+    if (key.startsWith('rmin_')) {
+      const f = key.slice(5); const n = Number(val);
+      if (Number.isFinite(n)) rangeFilters.push(`"n_${f.replace(/"/g, '\\"')}" >= ${n}`);
+      return;
+    }
+    if (key.startsWith('rmax_')) {
+      const f = key.slice(5); const n = Number(val);
+      if (Number.isFinite(n)) rangeFilters.push(`"n_${f.replace(/"/g, '\\"')}" <= ${n}`);
+      return;
+    }
+    if (!SYSTEM_KEYS.has(key)) activeFilters[key] = val;
   });
 
   const minPrice = searchParams.get('minPrice');
@@ -153,6 +178,7 @@ export async function GET(request: Request) {
       const f = buildFilterValue(key, val);
       if (f) arr.push(f);
     });
+    arr.push(...rangeFilters);   // zakresy suwaków zawsze obowiązują
     if (minPrice) arr.push(`price >= ${minPrice}`);
     if (maxPrice) arr.push(`price <= ${maxPrice}`);
     return arr;
@@ -171,34 +197,43 @@ export async function GET(request: Request) {
   try {
     const index = meiliClient.index('products');
 
-    const mainSearches: Promise<any>[] = [
-      index.search(searchQ, {
-        limit: currentLimit,
-        filter: finalFilter || undefined,
-        sort: meiliSort,
-        facets: OPTIMIZED_FACETS,
-      }),
-      index.search(searchQ, {
-        limit: 0,
-        filter: baseFilter || undefined,
-        facets: OPTIMIZED_FACETS,
-      }),
-    ];
+    // 🛡️ Bezpieczna sonda facetów (jak page.tsx): "*" dla małych kategorii, CANDIDATE dla dużych,
+    // a gdyby i to padło - bez facetów. Dzięki temu niefiltrowalne/potworne pola NIE wywalą trasy.
+    let baseDist: Record<string, any> = {};
+    let safeFacets: string[] = [];
+    try {
+      const probe = await index.search(searchQ, { limit: 0, filter: baseFilter || undefined, facets: ['*'] });
+      baseDist = probe.facetDistribution || {}; safeFacets = ['*'];
+    } catch {
+      try {
+        const probe = await index.search(searchQ, { limit: 0, filter: baseFilter || undefined, facets: CANDIDATE_FACETS });
+        baseDist = probe.facetDistribution || {}; safeFacets = CANDIDATE_FACETS;
+      } catch { baseDist = {}; safeFacets = []; }
+    }
 
-    // Disjunctive: osobne facety per aktywny filtr (z pominięciem siebie)
+    // Produkty + zawężone facety. Gdyby facety zawiodły na zawężonym filtrze - pobierz SAME produkty
+    // (lista produktów reaguje na filtry ZAWSZE, niezależnie od facetów).
+    let searchResult: any;
+    try {
+      searchResult = await index.search(searchQ, {
+        limit: currentLimit, filter: finalFilter || undefined, sort: meiliSort,
+        facets: safeFacets.length ? safeFacets : undefined,
+      });
+    } catch {
+      searchResult = await index.search(searchQ, {
+        limit: currentLimit, filter: finalFilter || undefined, sort: meiliSort,
+      });
+    }
+
+    // Disjunctive: osobne facety per aktywny filtr (opakowane - błąd jednego nie psuje całości)
     const activeKeys = Object.keys(activeFilters);
-    const disjunctivePromises = activeKeys.map(key =>
-      index.search(searchQ, {
-        limit: 0,
-        filter: buildFilters(key).join(' AND ') || undefined,
-        facets: [key],
-      })
-    );
-
-    const [searchResult, baseFacetsResult, ...disjunctiveResults] = await Promise.all([
-      ...mainSearches,
-      ...disjunctivePromises,
-    ]);
+    const disjunctiveResults = await Promise.all(activeKeys.map(async (key) => {
+      try {
+        return await index.search(searchQ, {
+          limit: 0, filter: buildFilters(key).join(' AND ') || undefined, facets: [key],
+        });
+      } catch { return { facetDistribution: {} } as any; }
+    }));
 
     const disjunctiveFacets: Record<string, any> = {};
     activeKeys.forEach((key, i) => {
@@ -223,7 +258,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       products: mappedProducts,
       totalCount: searchResult.estimatedTotalHits || mappedProducts.length,
-      filters: baseFacetsResult.facetDistribution || {},
+      filters: baseDist || {},
       narrowedFilters: searchResult.facetDistribution || {},
       disjunctiveFacets,
     }, { headers: corsHeaders });
