@@ -117,17 +117,20 @@ const MIN_PRODUCTS_FOR_INDEX = 3;
 
 // Prefiks pól liczbowych utworzonych przez numapply.
 const NUM_TWIN = 'n_';
-// Pola, które mają liczbowego bliźniaka n_ (po numapply) → renderujemy jako SUWAK, nie checkboxy.
-// MUSI pokrywać się z CURATED_NUM w normalize_meili.py (inaczej front poprosi o nieistniejący n_).
-const SLIDER_FIELDS = new Set<string>([
-  'Średnica wewnętrzna (DN) [mm]', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Średnica [mm]',
-  'Średnica sworznia [mm]', 'Średnica tłoczyska [mm]', 'Średnica cylindra wewn. [mm]',
-  'Długość [mm]', 'Długość całkowita [mm]', 'Długość śruby/elementu [mm]',
-  'Szerokość [mm]', 'Szerokość robocza [mm]', 'Szerokość/Grubość [mm]', 'Wysokość [mm]', 'Grubość [mm]',
-  'Napięcie [V]', 'Pojemność [l]', 'Moc [kW]',
-  'Max. ciśnienie [bar]', 'Max. ciśnienie robocze [bar]', 'Ciśnienie robocze [bar]', 'Przepływ max [l/min]',
-  'Skok siłownika [mm]', 'Wartość D [kN]', 'Siła wyrzutu [N]',
-]);
+// Heurystyka liczbowości — IDENTYCZNA jak is_numeric_field w normalize_meili.py.
+// Dzięki temu front sam wykrywa pola liczbowe (z jednostką w [..]) bez ręcznej listy.
+const NUM_UNIT_RE = /\[(mm|cm|m|bar|mpa|psi|v|a|ah|mah|kg|g|w|kw|n|t|nm|kn|l|ml|°c|c|lm|j|cm3\/obr|l\/min|l\/h|mikrony|µm|rpm)\]/i;
+const NUM_EXCLUDE_WORDS = ['wymiar', 'gwint', 'profil', 'klasa', 'rozmiar', 'typ', 'seria', 'numer', 'kod', 'rodzaj',
+  'strona', 'kierunek', 'norma', 'standard', 'kategoria', 'wersja', 'kolor', 'materia', 'zastosowanie', 'marka',
+  'model', 'pasuje', 'grupa', 'forma', 'funkcj', 'blokada', 'jednostk'];
+// Pola liczbowe, których NIE robimy suwakami (zgodne ze SLIDER_EXCLUDE w skrypcie).
+const SLIDER_EXCLUDE = new Set<string>(['Waga [kg]', 'Rozstaw otworów kołnierza [mm]', 'Rozstaw otworów montażowych [mm]']);
+function looksNumeric(field: string): boolean {
+  if (field.startsWith(NUM_TWIN) || SLIDER_EXCLUDE.has(field)) return false;
+  const low = field.toLowerCase();
+  if (NUM_EXCLUDE_WORDS.some(w => low.includes(w))) return false;
+  return NUM_UNIT_RE.test(field) || low.includes('twardość shore');
+}
 
 // Cache listy filtrowalnych (na instancję serwera, odświeżane co godzinę).
 let _filterableCache: { at: number; list: string[] } | null = null;
@@ -468,7 +471,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     }
 
     // Pola liczbowe wśród wybranych → zapytamy o ich zakresy (min/max) dla suwaków.
-    const numericTwins = categoryFacets.filter(f => SLIDER_FIELDS.has(f)).map(f => NUM_TWIN + f);
+    const numericTwins = categoryFacets.filter(looksNumeric).map(f => NUM_TWIN + f);
 
     // 🔥 PEŁNA lista marek: tylko kategoria (BEZ marki/modelu) - żeby user mógł zmienić markę
     const categoryOnlyFilter = categoryFilterStr || undefined;
@@ -493,10 +496,18 @@ export default async function CategoryPage({ params, searchParams }: any) {
         ? index.search(resolvedSearchParams.q || "", { limit: 0, filter: brandOnlyFilter, facets: ['Pasuje do modelu'] })
         : Promise.resolve({ facetDistribution: {} } as any),
       // zakresy (min/max) pól liczbowych w kategorii — pod suwaki (facetStats).
-      // .catch: gdyby n_ nie były jeszcze filtrowalne (reindex po numapply), strona i tak działa (bez suwaków).
+      // PARTIAMI po 8: jeśli któreś pole n_ nie jest filtrowalne, pada tylko jego partia, reszta suwaków działa.
       numericTwins.length
-        ? index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryOnlyFilter, facets: numericTwins })
-            .catch(() => ({ facetStats: {} } as any))
+        ? (async () => {
+            const chunks: string[][] = [];
+            for (let i = 0; i < numericTwins.length; i += 8) chunks.push(numericTwins.slice(i, i + 8));
+            const parts = await Promise.all(chunks.map(c =>
+              index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryOnlyFilter, facets: c })
+                .then((r: any) => r.facetStats || {})
+                .catch(() => ({}))
+            ));
+            return { facetStats: Object.assign({}, ...parts) } as any;
+          })()
         : Promise.resolve({ facetStats: {} } as any),
       ...disjunctivePromises,
     ]);
