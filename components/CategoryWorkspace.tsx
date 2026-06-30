@@ -46,6 +46,7 @@ export default function CategoryWorkspace({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [displayLimit, setDisplayLimit] = useState(48);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     setData({
@@ -229,9 +230,27 @@ export default function CategoryWorkspace({
 
   const isReallyLoading = loading || isPendingRoute;
 
+  // Liczba aktywnych filtrów technicznych (do plakietki na przycisku) - bez marki/modelu/ceny/sortu
+  const skipKeys = ['limit', 'sort', 'view', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'];
+  let mobileActiveCount = 0;
+  Object.keys(activeFilters).forEach((key) => {
+    if (!skipKeys.includes(key)) {
+      const v = activeFilters[key];
+      mobileActiveCount += (v ? String(v).split(',').filter(Boolean).length : 0);
+    }
+  });
+
   return (
     <>
     <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* MOBILE: sticky przycisk filtrów - w kontenerze całej strony, więc przykleja się do góry przy scrollu produktów */}
+      <div className="lg:hidden sticky top-2 z-[55] mb-4">
+        <button type="button" onClick={() => setMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
+          <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
+          {mobileActiveCount > 0 && <span className="bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] ml-1 shadow-inner">{mobileActiveCount}</span>}
+        </button>
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-8 w-full relative min-h-[600px]">
 
         {isReallyLoading && (
@@ -243,7 +262,7 @@ export default function CategoryWorkspace({
           </div>
         )}
 
-        <aside className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto custom-scrollbar">
+        <aside className="w-full lg:w-80 flex-shrink-0">
           <CategoryFilters
             baseFilters={data.filters}
             narrowedFilters={data.narrowedFilters}
@@ -259,6 +278,8 @@ export default function CategoryWorkspace({
             commitMobileSelection={commitMobileSelection}
             currentBrandName={currentBrandName}
             currentModelName={currentModelName}
+            isMobileFiltersOpen={mobileFiltersOpen}
+            setIsMobileFiltersOpen={setMobileFiltersOpen}
           />
         </aside>
 

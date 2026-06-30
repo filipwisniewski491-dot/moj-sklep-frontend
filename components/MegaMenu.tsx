@@ -180,7 +180,7 @@ export default function MegaMenu() {
     <div className="hidden lg:block bg-white border-b border-slate-200 shadow-sm relative z-40">
       <div className="max-w-7xl mx-auto px-4 flex items-center relative"> 
         <Link href="/kategorie" prefetch={false} className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-20">
-          <span>☰</span> Pełny Katalog 2026
+          <span>☰</span> Pełny Katalog
         </Link>
         
         <ul className="flex flex-1 items-center justify-between px-4 divide-x divide-slate-100">

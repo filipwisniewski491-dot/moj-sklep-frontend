@@ -67,8 +67,7 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter, commitMobileSelection, currentBrandName = null, currentModelName = null }: any) {
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter, commitMobileSelection, currentBrandName = null, currentModelName = null, isMobileFiltersOpen = false, setIsMobileFiltersOpen = () => {} }: any) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -346,13 +345,6 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   return (
     <>
-      <div className="lg:hidden sticky top-0 z-[55] bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-200 shadow-sm mb-4">
-         <button type="button" onClick={() => setIsMobileFiltersOpen(true)} className="bg-slate-900 text-white w-full py-4 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-md flex items-center justify-center gap-3 active:scale-95 transition-transform min-h-[56px]">
-           <span className="text-base leading-none">🎛️</span> FILTRUJ I ZNAJDŹ
-           {activeFiltersCount > 0 && <span className="bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px] ml-1 shadow-inner">{activeFiltersCount}</span>}
-         </button>
-      </div>
-
       {isMobileFiltersOpen && mounted && createPortal(
         <div className="fixed inset-0 z-[99999] w-full h-[100dvh] bg-white flex flex-col m-0 p-0 overflow-hidden">
            <div className="flex-none bg-slate-900 text-white p-4 flex justify-between items-center shadow-md" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
