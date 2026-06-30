@@ -74,9 +74,9 @@ const MAX_FACETS_PER_CATEGORY = 14;
 // Filtr-lista checkboxów ma sens tylko gdy wartości nie jest absurdalnie dużo.
 // Pole z większą liczbą różnych wartości w tej kategorii pomijamy (to nie checkbox).
 const MAX_FACET_VALUES = 40;
-// Awaryjna lista, gdyby pobranie ustawień z Meili się nie powiodło.
+// Awaryjna lista (wszystkie te pola SĄ filtrowalne po naszej konfiguracji).
 const FACET_FALLBACK = [
-  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Rodzaj', 'Materiał',
+  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Materiał',
   'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Napięcie [V]', 'Waga [kg]', 'Zastosowanie'
 ];
 
@@ -395,18 +395,27 @@ export default async function CategoryPage({ params, searchParams }: any) {
       })
     );
 
-    // 🔁 KROK 1 — sonda: policz pokrycie WSZYSTKICH pól filtrowalnych w tej kategorii.
-    // limit:0 => tania (bez produktów), liczy tylko rozkład facetów.
-    const filterableAll = await getFilterableAttributes();
-    const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
-      limit: 0,
-      filter: baseFilter || undefined,
-      facets: filterableAll,
-    });
-
-    // 🔁 KROK 2 — z pokrycia wybierz najlepsze filtry dla TEJ kategorii.
-    let categoryFacets = rankCategoryFacets(baseFacetsResult.facetDistribution || {});
-    if (categoryFacets.length === 0) categoryFacets = PINNED_FACETS;
+    // 🔁 Wybór filtrów dla kategorii — BEST EFFORT.
+    // CAŁA ta sekcja jest opakowana tak, by jej awaria NIGDY nie wywaliła listingu produktów.
+    // W najgorszym razie pokażemy filtry przypięte (marka/model/typ) — produkty załadują się zawsze.
+    let categoryFacets: string[] = PINNED_FACETS;
+    let baseDist: Record<string, any> = {};
+    try {
+      const filterableAll = await getFilterableAttributes();
+      const facetProbe = (filterableAll && filterableAll.length) ? filterableAll : PINNED_FACETS;
+      // sonda limit:0 — liczy pokrycie pól w tej kategorii (tania, bez produktów)
+      const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+        limit: 0,
+        filter: baseFilter || undefined,
+        facets: facetProbe,
+      });
+      baseDist = baseFacetsResult.facetDistribution || {};
+      const ranked = rankCategoryFacets(baseDist);
+      if (ranked.length) categoryFacets = ranked;
+    } catch (e) {
+      console.warn("Sonda filtrów nie powiodła się — pokażę filtry podstawowe:", e);
+      // categoryFacets zostaje = PINNED_FACETS; produkty i tak się załadują niżej
+    }
 
     // 🔥 PEŁNA lista marek: tylko kategoria (BEZ marki/modelu) - żeby user mógł zmienić markę
     const categoryOnlyFilter = categoryFilterStr || undefined;
@@ -416,7 +425,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     if (brandName) brandOnlyParts.push(`"Pasuje do marki" = "${brandName.replace(/"/g, '\\"')}"`);
     const brandOnlyFilter = brandOnlyParts.join(' AND ') || undefined;
 
-    // 🔁 KROK 3 — ciężki search na produkty dostaje JUŻ TYLKO wybrane facety (tanio).
+    // 🔁 KROK GŁÓWNY — produkty. Facety to mała, bezpieczna lista (≤14; w najgorszym razie marka/model/typ).
     const [searchResult, allBrandsResult, allModelsResult, ...disjunctiveResults] = await Promise.all([
       index.search(resolvedSearchParams.q || "", {
         limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 48,
@@ -442,9 +451,9 @@ export default async function CategoryPage({ params, searchParams }: any) {
       }
     });
 
-    // Przytnij rozkład bazowy do wybranych facetów, zachowując kolejność rankingu.
-    const baseDist = baseFacetsResult.facetDistribution || {};
+    // Rozkład bazowy do filtrów; gdy sonda padła, użyj rozkładu z głównego searcha (i tak są tam facety).
     const narrowDist = searchResult.facetDistribution || {};
+    if (Object.keys(baseDist).length === 0) baseDist = narrowDist;
     const trimmedFilters: Record<string, any> = {};
     const trimmedNarrowed: Record<string, any> = {};
     categoryFacets.forEach((k) => {
