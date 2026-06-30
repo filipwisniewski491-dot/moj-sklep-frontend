@@ -69,7 +69,7 @@ export async function generateStaticParams() {
 const PINNED_FACETS = ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu'];
 // Pola, których nie pokazujemy jako filtr (ścieżka kategorii, odrzucone przez właściciela, sklejone wymiary).
 const FACET_EXCLUDE = new Set([
-  'category_handles', 'Waga [kg]', 'Zastosowanie',
+  'category_handles', 'Waga [kg]', 'Zastosowanie', 'Grupa produktowa',
   'Wymiary', 'Wymiary [mm]', 'Wymiary (mm)', 'Wymiary (Dł. x Szer. x Wys.) [mm]',
 ]);
 // Ile filtrów pokazać max w jednej kategorii.
