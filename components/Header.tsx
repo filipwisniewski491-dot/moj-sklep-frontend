@@ -91,9 +91,9 @@ export default function Header() {
                 alt="" 
                 width="140"
                 height="113"
-                className="w-24 sm:w-28 md:w-36 h-auto aspect-[140/113] object-contain mb-0.5" 
+                className="w-16 sm:w-20 md:w-24 h-auto aspect-[140/113] object-contain mb-0.5" 
               />
-              <span className="font-black text-[11px] sm:text-xs md:text-sm tracking-tighter text-slate-900 leading-none uppercase mt-1">
+              <span className="font-black text-[9px] sm:text-[10px] md:text-xs tracking-tighter text-slate-900 leading-none uppercase mt-1">
                 CentrumRolnictwa<span className="text-red-600">.pl</span>
               </span>
             </Link>
