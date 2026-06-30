@@ -66,9 +66,6 @@ export default function Header() {
             <a href="tel:+48257888900" className="flex items-center gap-2 hover:text-red-600 transition-colors group text-slate-800">
               <span className="text-red-600 text-sm group-hover:animate-bounce">📞</span> <span className="tabular-nums tracking-wider">25 788 89 00</span>
             </a>
-            <span className="hidden md:flex items-center gap-2 text-slate-600">
-              <span className="text-emerald-500 font-black">✓</span> Ekspercki Dobór Części
-            </span>
           </div>
           <div className="flex items-center gap-2 bg-red-50 px-4 py-1 rounded-full border border-red-100 text-red-800">
             <span className="text-[10px] uppercase tracking-widest hidden md:inline font-black">
@@ -87,7 +84,7 @@ export default function Header() {
           <div className="flex-shrink-0 flex items-center min-h-[48px]">
             <Link href="/" prefetch={false} aria-label="CentrumRolnictwa.pl - Strona Główna" className="flex flex-col items-center justify-center group transition-transform hover:scale-105 duration-300 min-h-[48px] min-w-[48px] p-1">
               <img 
-                src="https://centrumrolnictwa-cdn.b-cdn.net/logo.png?width=140&format=webp&quality=50" 
+                src="https://centrumrolnictwa-cdn.b-cdn.net/logo/logo-centrumrolnictwapl-2-1.jpeg?width=140&format=webp&quality=50" 
                 alt="" 
                 width="140"
                 height="113"

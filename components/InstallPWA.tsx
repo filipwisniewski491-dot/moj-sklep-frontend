@@ -42,13 +42,11 @@ export default function InstallPWA() {
 
   return (
     <>
-      {/* DESKTOP: pasek zaufania - zawsze widoczny na górze */}
-      <div className="hidden md:flex bg-slate-900 text-white text-[11px] font-bold tracking-wide justify-center items-center gap-5 lg:gap-7 px-4 py-2">
+      {/* DESKTOP: pasek zaufania - zawsze widoczny na górze (BEZ telefonu - jest w pasku Header niżej) */}
+      <div className="hidden md:flex bg-slate-900 text-white text-[11px] font-bold tracking-wide justify-center items-center gap-5 lg:gap-8 px-4 py-2">
         <span className="flex items-center gap-1.5"><span className="text-emerald-400">🚚</span> Darmowa dostawa od 500 zł</span>
         <span className="text-slate-600">•</span>
         <span className="flex items-center gap-1.5"><span className="text-amber-400">⏱</span> Wysyłka w 24h</span>
-        <span className="text-slate-600">•</span>
-        <a href="tel:+48257888900" className="flex items-center gap-1.5 hover:text-red-400 transition-colors"><span className="text-red-400">📞</span> Doradztwo: 25 788 89 00</a>
         <span className="text-slate-600">•</span>
         <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> Gwarancja dopasowania</span>
       </div>
