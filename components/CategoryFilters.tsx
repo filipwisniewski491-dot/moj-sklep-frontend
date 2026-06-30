@@ -219,9 +219,10 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
         return cb - ca;
       });
 
-  // Pokaż dokładnie do 5 filtrów (backend już wybrał top-5 wg pokrycia; tu tylko odsiew pustych).
+  // Pokaż dokładnie do 5 filtrów (backend już wybrał top-5 wg pokrycia; tu tylko odsiew pustych i bliźniaków n_).
   const techFilterKeys = orderedKeys.filter((key) => {
     if (HIDE_IN_TECH.has(key)) return false;
+    if (key.startsWith(NUM_TWIN)) return false; // bliźniaki n_ są tylko pod suwaki, nie pokazujemy ich jako checkboxy
     const vals = techFilters[key];
     return vals && Object.keys(vals).length >= 2;
   }).slice(0, 5);

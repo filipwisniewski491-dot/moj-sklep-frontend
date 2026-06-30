@@ -156,7 +156,7 @@ function rankCategoryFacets(
   max = MAX_FACETS_PER_CATEGORY
 ): string[] {
   const scored = Object.entries(dist)
-    .filter(([k, vals]) => !RANK_HIDE.has(k) && vals && Object.keys(vals).length >= 2) // ≥2 wartości = sensowny filtr
+    .filter(([k, vals]) => !RANK_HIDE.has(k) && !k.startsWith(NUM_TWIN) && vals && Object.keys(vals).length >= 2) // ≥2 wartości; bez bliźniaków n_ (są tylko pod suwaki)
     .filter(([, vals]) => Object.keys(vals).length <= MAX_FACET_VALUES) // odsiej sklejony tekst
     .map(([k, vals]) => [k, Object.values(vals).reduce((a, b) => a + b, 0)] as [string, number])
     .sort((a, b) => b[1] - a[1])
