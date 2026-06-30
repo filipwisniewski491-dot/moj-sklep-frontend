@@ -432,12 +432,19 @@ export default async function CategoryPage({ params, searchParams }: any) {
     let categoryFacets: string[] = FACET_FALLBACK;
     let baseDist: Record<string, any> = {};
     try {
-      // NIE używamy facets:["*"] — wildcard wywala Meili (panic) na dużych kategoriach,
-      // bo liczy rozkład pól-potworów (Typ produktu/Waga/model mają tysiące wartości).
-      // Pytamy o STAŁĄ, bezpieczną listę kandydatów (CANDIDATE_FACETS) — bez potworów i bez pola panikującego.
-      const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
-        limit: 0, filter: baseFilter || undefined, facets: CANDIDATE_FACETS,
-      });
+      let baseFacetsResult: any;
+      try {
+        // Małe/średnie kategorie: pełny wachlarz pól ("*") — daje NAJLEPSZE filtry z realnych danych
+        // (każda kategoria dostaje swoje pola, nie tylko z naszej puli). Meili to wytrzymuje.
+        baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+          limit: 0, filter: baseFilter || undefined, facets: ["*"],
+        });
+      } catch {
+        // DUŻE kategorie: "*" wywala Meili (panic na polach-potworach) → bezpieczna lista kandydatów.
+        baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+          limit: 0, filter: baseFilter || undefined, facets: CANDIDATE_FACETS,
+        });
+      }
       baseDist = baseFacetsResult.facetDistribution || {};
       const ranked = rankCategoryFacets(baseDist);
       if (ranked.length) categoryFacets = ranked;
@@ -533,7 +540,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
         searchParams={resolvedSearchParams}
         fullPath={fullPath}
         topSeoText={dbCategoryData.top_seo_text}
-        brands={initialData.filters?.['Pasuje do marki'] || {}}
+        brands={initialData.allBrands || initialData.filters?.['Pasuje do marki'] || {}}
         categoryPath={categorySegments.join('/')}
         showBrands={!brandName}
         brandSlug={brandSlug}
