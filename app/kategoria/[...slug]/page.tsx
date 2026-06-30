@@ -115,6 +115,26 @@ const CANDIDATE_FACETS = [
 
 const MIN_PRODUCTS_FOR_INDEX = 3;
 
+// Prefiks pól liczbowych utworzonych przez numapply.
+const NUM_TWIN = 'n_';
+// Pola, które mają liczbowego bliźniaka n_ (po numapply) → renderujemy jako SUWAK, nie checkboxy.
+// (lista = pola liczbowe z numdryrun, bez pominiętego składanego "Rozstaw otworów kołnierza [mm]")
+const SLIDER_FIELDS = new Set<string>([
+  'Waga [kg]', 'Pojemność [l]', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Długość całkowita [mm]',
+  'Szerokość/Grubość [mm]', 'Napięcie [V]', 'Średnica wewnętrzna (DN) [mm]', 'Długość [mm]', 'Max. ciśnienie [bar]',
+  'Długość śruby/elementu [mm]', 'Max. ciśnienie robocze [bar]', 'Średnica [mm]', 'Średnica sworznia [mm]',
+  'Grubość lemiesza/dłuta [mm]', 'Średnica tłoczyska [mm]', 'Twardość Shore', 'Średnica cylindra wewn. [mm]',
+  'Ciśnienie robocze [bar]', 'Szerokość robocza [mm]', 'Wysokość [mm]', 'Wydajność geometryczna [cm3/obr]',
+  'Szerokość [mm]', 'Długość robocza [mm]', 'Średnica węża zewnętrzna [mm]', 'Wartość D [kN]', 'Skok siłownika [mm]',
+  'Siła wyrzutu [N]', 'Przepływ max [l/min]', 'Grubość [mm]', 'Długość paska [mm]', 'Siła nacisku/uciągu [t]',
+  'Długość złożonego siłownika [mm]', 'Średnica sworznia zaczepu [mm]', 'Średnica przyłącza [mm]', 'Nacisk pionowy [kg]',
+  'Długość palca/sprężyny [mm]', 'Udźwig [kg]', 'Długość [cm]', 'Rozstaw otworów montażowych [mm]', 'Średnica talerza [mm]',
+  'Długość zęba kłutego [mm]', 'Szerokość siedzenia [mm]', 'Moc [W]', 'Pojemność [Ah]', 'Szerokość paska [mm]',
+  'Moc [kW]', 'Prąd rozruchowy EN [A]', 'Długość kosy/paska [mm]', 'Średnica tłoka [mm]', 'Natężenie [A]',
+  'Grubość noża [mm]', 'Długość linki/taśmy [m]', 'Średnica otworu [mm]', 'Grubość elementu [mm]',
+  'Dokładność filtracji [mikrony]', 'Grubość drutu [mm]', 'Średnica koła pasowego [mm]',
+]);
+
 // Cache listy filtrowalnych (na instancję serwera, odświeżane co godzinę).
 let _filterableCache: { at: number; list: string[] } | null = null;
 async function getFilterableAttributes(): Promise<string[]> {
@@ -453,6 +473,9 @@ export default async function CategoryPage({ params, searchParams }: any) {
       // categoryFacets zostaje = FACET_FALLBACK; produkty i tak się załadują niżej
     }
 
+    // Pola liczbowe wśród wybranych → zapytamy o ich zakresy (min/max) dla suwaków.
+    const numericTwins = categoryFacets.filter(f => SLIDER_FIELDS.has(f)).map(f => NUM_TWIN + f);
+
     // 🔥 PEŁNA lista marek: tylko kategoria (BEZ marki/modelu) - żeby user mógł zmienić markę
     const categoryOnlyFilter = categoryFilterStr || undefined;
     // 🔥 Modele dla wybranej marki: kategoria + marka (BEZ modelu) - żeby user mógł zmienić model
@@ -462,7 +485,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     const brandOnlyFilter = brandOnlyParts.join(' AND ') || undefined;
 
     // 🔁 KROK GŁÓWNY — produkty. Facety to mała, bezpieczna lista (≤14; w najgorszym razie marka/model/typ).
-    const [searchResult, allBrandsResult, allModelsResult, ...disjunctiveResults] = await Promise.all([
+    const [searchResult, allBrandsResult, allModelsResult, rangeStatsResult, ...disjunctiveResults] = await Promise.all([
       index.search(resolvedSearchParams.q || "", {
         limit: resolvedSearchParams.limit ? parseInt(resolvedSearchParams.limit) : 48,
         filter: filterArray.join(' AND ') || undefined,
@@ -475,6 +498,12 @@ export default async function CategoryPage({ params, searchParams }: any) {
       brandName
         ? index.search(resolvedSearchParams.q || "", { limit: 0, filter: brandOnlyFilter, facets: ['Pasuje do modelu'] })
         : Promise.resolve({ facetDistribution: {} } as any),
+      // zakresy (min/max) pól liczbowych w kategorii — pod suwaki (facetStats).
+      // .catch: gdyby n_ nie były jeszcze filtrowalne (reindex po numapply), strona i tak działa (bez suwaków).
+      numericTwins.length
+        ? index.search(resolvedSearchParams.q || "", { limit: 0, filter: categoryOnlyFilter, facets: numericTwins })
+            .catch(() => ({ facetStats: {} } as any))
+        : Promise.resolve({ facetStats: {} } as any),
       ...disjunctivePromises,
     ]);
 
@@ -504,6 +533,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
       disjunctiveFacets,
       allBrands: allBrandsResult.facetDistribution?.['Pasuje do marki'] || {},
       allModels: allModelsResult.facetDistribution?.['Pasuje do modelu'] || {},
+      facetStats: rangeStatsResult.facetStats || {},
       products: searchResult.hits.map((p: any) => ({
         id: p.id, sku: p.id, name: p.title, price: p.price || 0, slug: p.handle,
         category_text: p.Kategoria || p['Typ produktu'] || '', images: p.thumbnail ? [{ url: p.thumbnail }] : []

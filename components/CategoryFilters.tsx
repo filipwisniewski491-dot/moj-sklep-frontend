@@ -67,7 +67,90 @@ const SearchableSelect = ({ label, options = {}, value, onChange, placeholder }:
   );
 };
 
-export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, facetOrder = [], totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter, commitMobileSelection, currentBrandName = null, currentModelName = null, isMobileFiltersOpen = false, setIsMobileFiltersOpen = () => {} }: any) {
+const NUM_TWIN = 'n_';
+
+// Jednostka z nazwy pola: "Średnica wewnętrzna [mm]" -> "mm"
+const unitOf = (field: string): string => {
+  const m = field.match(/\[([^\]]+)\]|\(([^)]+)\)/);
+  return m ? (m[1] || m[2] || '') : '';
+};
+const fmtNum = (n: number): string => {
+  if (!isFinite(n)) return '';
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+};
+
+// SUWAK ZAKRESU (dwa uchwyty) + pola liczbowe jako pewny fallback. Commit na puszczeniu uchwytu / Enter / blur.
+function RangeSlider({ filterKey, bounds, valueMin, valueMax, onCommit, disabled }: any) {
+  const min: number = bounds.min;
+  const max: number = bounds.max;
+  const unit = unitOf(filterKey);
+  const span = (max - min) || 1;
+  const step = span >= 500 ? 1 : span >= 50 ? 0.5 : span >= 5 ? 0.1 : 0.01;
+
+  const [lo, setLo] = useState<number>(valueMin != null ? valueMin : min);
+  const [hi, setHi] = useState<number>(valueMax != null ? valueMax : max);
+
+  useEffect(() => {
+    setLo(valueMin != null ? valueMin : min);
+    setHi(valueMax != null ? valueMax : max);
+  }, [valueMin, valueMax, min, max]);
+
+  const isActive = (valueMin != null && valueMin > min) || (valueMax != null && valueMax < max);
+  const clampLo = (v: number) => (isNaN(v) ? min : Math.min(Math.max(v, min), hi));
+  const clampHi = (v: number) => (isNaN(v) ? max : Math.max(Math.min(v, max), lo));
+  const commit = (l: number, h: number) => onCommit(l <= min ? null : l, h >= max ? null : h);
+
+  const pctLo = ((lo - min) / span) * 100;
+  const pctHi = ((hi - min) / span) * 100;
+
+  return (
+    <div className={`space-y-3 transition-opacity duration-150 ${disabled ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+      <div className="flex items-center justify-between">
+        <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-900">{filterKey}</h4>
+        {isActive && (
+          <button type="button" disabled={disabled} onClick={() => { setLo(min); setHi(max); onCommit(null, null); }} className="text-[9px] font-black uppercase text-red-600 hover:text-white tracking-wider bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors shadow-sm disabled:opacity-50">✕ Wyczyść</button>
+        )}
+      </div>
+
+      <div className="cr-wrap relative h-6 mt-1">
+        <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-slate-200 rounded-full"></div>
+        <div className="absolute top-1/2 -translate-y-1/2 h-1.5 bg-red-600 rounded-full" style={{ left: pctLo + '%', width: Math.max(0, pctHi - pctLo) + '%' }}></div>
+        <input type="range" min={min} max={max} step={step} value={lo} disabled={disabled}
+          onChange={(e) => setLo(clampLo(parseFloat(e.target.value)))}
+          onMouseUp={() => commit(lo, hi)} onTouchEnd={() => commit(lo, hi)} onKeyUp={() => commit(lo, hi)}
+          className="cr-range absolute w-full top-0" aria-label={`Minimum ${filterKey}`} />
+        <input type="range" min={min} max={max} step={step} value={hi} disabled={disabled}
+          onChange={(e) => setHi(clampHi(parseFloat(e.target.value)))}
+          onMouseUp={() => commit(lo, hi)} onTouchEnd={() => commit(lo, hi)} onKeyUp={() => commit(lo, hi)}
+          className="cr-range absolute w-full top-0" aria-label={`Maksimum ${filterKey}`} />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input type="number" inputMode="decimal" value={fmtNum(lo)} min={min} max={max} step={step} disabled={disabled}
+          onChange={(e) => setLo(clampLo(parseFloat(e.target.value)))} onBlur={() => commit(lo, hi)}
+          onKeyDown={(e) => { if (e.key === 'Enter') commit(lo, hi); }}
+          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[44px]" aria-label={`Od ${filterKey}`} />
+        <span className="text-slate-400 font-black">–</span>
+        <input type="number" inputMode="decimal" value={fmtNum(hi)} min={min} max={max} step={step} disabled={disabled}
+          onChange={(e) => setHi(clampHi(parseFloat(e.target.value)))} onBlur={() => commit(lo, hi)}
+          onKeyDown={(e) => { if (e.key === 'Enter') commit(lo, hi); }}
+          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-red-600 min-h-[44px]" aria-label={`Do ${filterKey}`} />
+        {unit && <span className="text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">{unit}</span>}
+      </div>
+
+      <style>{`
+        .cr-range{-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;height:24px;margin:0;}
+        .cr-range:focus{outline:none;}
+        .cr-range::-webkit-slider-runnable-track{background:transparent;height:24px;}
+        .cr-range::-moz-range-track{background:transparent;height:24px;}
+        .cr-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;width:20px;height:20px;border-radius:9999px;background:#fff;border:3px solid #dc2626;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer;}
+        .cr-range::-moz-range-thumb{pointer-events:auto;width:20px;height:20px;border-radius:9999px;background:#fff;border:3px solid #dc2626;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer;}
+      `}</style>
+    </div>
+  );
+}
+
+export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}, disjunctiveFacets = {}, allBrands = {}, allModels = {}, facetStats = {}, facetOrder = [], totalCount = 0, isPending, activeFilters = {}, toggleFilter, clearFilter, updateFilter, commitMobileSelection, currentBrandName = null, currentModelName = null, isMobileFiltersOpen = false, setIsMobileFiltersOpen = () => {} }: any) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -145,6 +228,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   let activeFiltersCount = 0;
   Object.keys(activeFilters).forEach(key => {
+    if (key.startsWith('rmax_')) return; // suwak liczymy raz (po stronie rmin_)
     if (!['limit', 'sort', 'view', 'Pasuje do marki', 'Pasuje do modelu', 'q', 'minPrice', 'maxPrice'].includes(key)) {
        activeFiltersCount += (Array.isArray(activeFilters[key]) ? activeFilters[key].length : 1);
     }
@@ -162,6 +246,24 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
   };
 
   const renderFilterBlock = (filterKey: string) => {
+    // 🎚️ SUWAK: pole ma liczbowego bliźniaka n_ z zakresem (facetStats) -> suwak zamiast checkboxów.
+    const stats = facetStats?.[NUM_TWIN + filterKey];
+    if (stats && typeof stats.min === 'number' && typeof stats.max === 'number' && stats.max > stats.min) {
+      return (
+        <RangeSlider
+          key={filterKey}
+          filterKey={filterKey}
+          bounds={stats}
+          valueMin={activeFilters['rmin_' + filterKey] != null ? Number(activeFilters['rmin_' + filterKey]) : null}
+          valueMax={activeFilters['rmax_' + filterKey] != null ? Number(activeFilters['rmax_' + filterKey]) : null}
+          disabled={isPending}
+          onCommit={(lo: number | null, hi: number | null) => {
+            updateFilter('rmin_' + filterKey, lo == null ? null : String(lo));
+            updateFilter('rmax_' + filterKey, hi == null ? null : String(hi));
+          }}
+        />
+      );
+    }
     const filterValues = techFilters[filterKey] as Record<string, number>;
     if (!filterValues) return null;
     const searchQuery = filterSearchQuery[filterKey]?.toLowerCase() || '';
