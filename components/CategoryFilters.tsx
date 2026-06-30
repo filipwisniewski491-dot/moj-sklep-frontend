@@ -123,7 +123,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   let techFilters = JSON.parse(JSON.stringify(baseFilters));
 
-  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle', 'category_handles', 'model', 'typ'];
+  const excludeKeys = ['kategoria', 'category', 'id', 'sku', 'title', 'slug', 'image', 'oem', 'numer katalogowy / oem', 'grupa produktowa', 'marka maszyny', 'marka', 'pasuje do marki', 'pasuje do modelu', 'category_handle', 'category_handles', 'model', 'typ', 'zastosowanie', 'wymiary'];
 
   Object.keys(techFilters).forEach(key => {
     const lowerKey = key.toLowerCase();
@@ -137,7 +137,7 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
     return { key, count };
   }).sort((a, b) => b.count - a.count);
 
-  const techFilterKeys = filterCoverage.slice(0, 4).map(f => f.key);
+  const techFilterKeys = filterCoverage.slice(0, 5).map(f => f.key);
 
   let activeFiltersCount = 0;
   Object.keys(activeFilters).forEach(key => {
