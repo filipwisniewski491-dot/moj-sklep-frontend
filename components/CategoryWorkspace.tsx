@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import CategoryFilters from './CategoryFilters';
 import CategoryToolbar from './CategoryToolbar';
 import ProductGrid from './ProductGrid';
+import StickyCartBar from './StickyCartBar';
 
 function toSlug(s: string): string {
   return String(s)
@@ -229,6 +230,7 @@ export default function CategoryWorkspace({
   const isReallyLoading = loading || isPendingRoute;
 
   return (
+    <>
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col lg:flex-row gap-8 w-full relative min-h-[600px]">
 
@@ -281,5 +283,7 @@ export default function CategoryWorkspace({
         </div>
       </div>
     </div>
+    <StickyCartBar />
+    </>
   );
 }
