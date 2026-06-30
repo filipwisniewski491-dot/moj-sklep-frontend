@@ -407,7 +407,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-36 md:pb-0">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">{/* pb na pasek nav jest już w Footer (pb-32) - bez podwójnego paddingu */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}

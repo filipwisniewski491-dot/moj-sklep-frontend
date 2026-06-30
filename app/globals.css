@@ -72,7 +72,6 @@ h2, h3 {
    ============================================================== */
 header.bg-white {
   min-height: 72px;
-  contain: layout style;
 }
 
 @media (min-width: 768px) {
@@ -82,5 +81,6 @@ header.bg-white {
 }
 
 main {
-  contain: layout;
+  /* UWAGA: NIE używać 'contain: layout' tutaj - łamie position:fixed
+     dla dolnego menu, banera PWA i koszyka (są wewnątrz <main> przez children). */
 }

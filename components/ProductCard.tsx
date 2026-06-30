@@ -110,15 +110,15 @@ const ProductCard = React.memo(({ product, isListView, index, priority = false }
             <span className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight whitespace-nowrap">{new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)} <span className="text-[9px] lg:text-xs font-bold text-slate-500">zł</span></span>
           </div>
           
-          <div className={`flex items-center gap-1.5 ${isListView ? 'w-[200px]' : 'w-full'}`}>
-            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-1 flex-1 h-[44px]">
-              <button aria-label="Zmniejsz" onClick={(e) => { e.preventDefault(); setQty(Math.max(1, qty - 1)); }} className="w-8 h-full flex-shrink-0 font-black text-slate-500 hover:text-red-600 flex items-center justify-center cursor-pointer">-</button>
-              <input aria-label="Ilość" type="number" value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-full min-w-0 text-center bg-transparent text-[11px] lg:text-xs font-black text-slate-900 outline-none appearance-none p-0 m-0 h-full" />
-              <button aria-label="Zwiększ" onClick={(e) => { e.preventDefault(); setQty(qty + 1); }} className="w-8 h-full flex-shrink-0 font-black text-slate-500 hover:text-emerald-600 flex items-center justify-center cursor-pointer">+</button>
+          <div className={`flex items-center gap-2 ${isListView ? 'w-[220px]' : 'w-full'}`}>
+            <div className="flex items-center bg-white border-2 border-slate-200 rounded-xl h-[44px] shrink-0">
+              <button aria-label="Zmniejsz ilość" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQty(Math.max(1, qty - 1)); }} className="w-8 h-full flex-shrink-0 font-black text-lg text-slate-600 hover:text-red-600 active:bg-slate-100 flex items-center justify-center cursor-pointer rounded-l-lg">−</button>
+              <input aria-label="Ilość" type="number" min="1" value={qty} onClick={(e) => e.stopPropagation()} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-10 text-center bg-transparent text-sm font-black text-slate-900 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+              <button aria-label="Zwiększ ilość" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQty(qty + 1); }} className="w-8 h-full flex-shrink-0 font-black text-lg text-slate-600 hover:text-emerald-600 active:bg-slate-100 flex items-center justify-center cursor-pointer rounded-r-lg">+</button>
             </div>
-            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="flex-1 max-w-[50%] bg-slate-900 text-white px-2 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-widest hover:bg-red-600 active:scale-95 transition-all shadow-md cursor-pointer relative z-50 h-[44px] truncate">
-              <span className="text-sm shrink-0">🛒</span>
-              <span className="ml-1.5 hidden 2xl:inline truncate">Dodaj</span>
+            <button aria-label="Dodaj do koszyka" onClick={handleAddToCart} className="flex-1 min-w-0 bg-red-600 text-white px-2 rounded-xl flex items-center justify-center gap-1.5 font-black text-[10px] lg:text-[11px] uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-md shadow-red-600/20 cursor-pointer relative z-20 h-[44px]">
+              <span className="text-base shrink-0">🛒</span>
+              <span className="hidden sm:inline truncate">Do koszyka</span>
             </button>
           </div>
         </div>
