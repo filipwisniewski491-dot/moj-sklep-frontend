@@ -118,21 +118,15 @@ const MIN_PRODUCTS_FOR_INDEX = 3;
 // Prefiks pól liczbowych utworzonych przez numapply.
 const NUM_TWIN = 'n_';
 // Pola, które mają liczbowego bliźniaka n_ (po numapply) → renderujemy jako SUWAK, nie checkboxy.
-// (lista = pola liczbowe z numdryrun, bez pominiętego składanego "Rozstaw otworów kołnierza [mm]")
+// MUSI pokrywać się z CURATED_NUM w normalize_meili.py (inaczej front poprosi o nieistniejący n_).
 const SLIDER_FIELDS = new Set<string>([
-  'Waga [kg]', 'Pojemność [l]', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Długość całkowita [mm]',
-  'Szerokość/Grubość [mm]', 'Napięcie [V]', 'Średnica wewnętrzna (DN) [mm]', 'Długość [mm]', 'Max. ciśnienie [bar]',
-  'Długość śruby/elementu [mm]', 'Max. ciśnienie robocze [bar]', 'Średnica [mm]', 'Średnica sworznia [mm]',
-  'Grubość lemiesza/dłuta [mm]', 'Średnica tłoczyska [mm]', 'Twardość Shore', 'Średnica cylindra wewn. [mm]',
-  'Ciśnienie robocze [bar]', 'Szerokość robocza [mm]', 'Wysokość [mm]', 'Wydajność geometryczna [cm3/obr]',
-  'Szerokość [mm]', 'Długość robocza [mm]', 'Średnica węża zewnętrzna [mm]', 'Wartość D [kN]', 'Skok siłownika [mm]',
-  'Siła wyrzutu [N]', 'Przepływ max [l/min]', 'Grubość [mm]', 'Długość paska [mm]', 'Siła nacisku/uciągu [t]',
-  'Długość złożonego siłownika [mm]', 'Średnica sworznia zaczepu [mm]', 'Średnica przyłącza [mm]', 'Nacisk pionowy [kg]',
-  'Długość palca/sprężyny [mm]', 'Udźwig [kg]', 'Długość [cm]', 'Rozstaw otworów montażowych [mm]', 'Średnica talerza [mm]',
-  'Długość zęba kłutego [mm]', 'Szerokość siedzenia [mm]', 'Moc [W]', 'Pojemność [Ah]', 'Szerokość paska [mm]',
-  'Moc [kW]', 'Prąd rozruchowy EN [A]', 'Długość kosy/paska [mm]', 'Średnica tłoka [mm]', 'Natężenie [A]',
-  'Grubość noża [mm]', 'Długość linki/taśmy [m]', 'Średnica otworu [mm]', 'Grubość elementu [mm]',
-  'Dokładność filtracji [mikrony]', 'Grubość drutu [mm]', 'Średnica koła pasowego [mm]',
+  'Średnica wewnętrzna (DN) [mm]', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Średnica [mm]',
+  'Średnica sworznia [mm]', 'Średnica tłoczyska [mm]', 'Średnica cylindra wewn. [mm]',
+  'Długość [mm]', 'Długość całkowita [mm]', 'Długość śruby/elementu [mm]',
+  'Szerokość [mm]', 'Szerokość robocza [mm]', 'Szerokość/Grubość [mm]', 'Wysokość [mm]', 'Grubość [mm]',
+  'Napięcie [V]', 'Pojemność [l]', 'Moc [kW]',
+  'Max. ciśnienie [bar]', 'Max. ciśnienie robocze [bar]', 'Ciśnienie robocze [bar]', 'Przepływ max [l/min]',
+  'Skok siłownika [mm]', 'Wartość D [kN]', 'Siła wyrzutu [N]',
 ]);
 
 // Cache listy filtrowalnych (na instancję serwera, odświeżane co godzinę).
