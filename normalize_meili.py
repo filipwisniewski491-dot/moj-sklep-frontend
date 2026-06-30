@@ -16,7 +16,7 @@ Tryby:
 Kolejność użycia: backup  ->  dryrun (przejrzyj raport)  ->  apply  ->  (potem) setfilters
 """
 
-import sys, json, time, urllib.request, urllib.error
+import sys, json, time, re, urllib.request, urllib.error
 
 # ----------------------------------------------------------------------------
 HOST = "http://178.104.130.90:7700"
@@ -354,6 +354,127 @@ def cmd_setfilters():
     print("Ustawiono %d pol filtrowalnych. Meili przeindeksuje w tle." % len(filterable))
 
 
+# ============================================================================
+#  UJEDNOLICANIE WARTOŚCI (warstwa 2): liczby -> jedna postać; tekst -> trim/case
+# ============================================================================
+
+# Pole liczbowe rozpoznajemy po jednostce w nazwie; wykluczamy pola kategoryczne/sklejone.
+NUM_NAME_RE = re.compile(r'\[(mm|cm|m|bar|mpa|psi|v|a|ah|mah|kg|g|w|kw|n|t|nm|kn|l|ml|°c|c|lm|j|cm3/obr|l/min|l/h|mikrony|µm|rpm)\]', re.I)
+NUM_EXCLUDE = ('wymiar', 'gwint', 'profil', 'klasa', 'rozmiar', 'typ', 'seria', 'numer',
+               'kod', 'rodzaj', 'strona', 'kierunek', 'norma', 'standard', 'kategoria',
+               'wersja', 'kolor', 'materia', 'zastosowanie', 'marka', 'model', 'pasuje',
+               'grupa', 'forma', 'funkcj', 'blokada', 'jednostk', 'profil')
+
+def is_numeric_field(name):
+    n = name.lower()
+    if any(w in n for w in NUM_EXCLUDE):
+        return False
+    return bool(NUM_NAME_RE.search(name)) or 'twardość shore' in n
+
+_WS = re.compile(r'\s+')
+_NUMTOK = re.compile(r'-?\d+(?:[.,]\d+)?')
+_RESIDUE = re.compile(r'[\s.,;:()\[\]/×x°²³"\'\-]+')
+_UNITS = ['mm', 'cm', 'bar', 'mpa', 'psi', 'mah', 'ah', 'kw', 'kg', 'nm', 'kn', 'ml',
+          'rpm', 'µm', 'obr', 'min', '°c', 'mikrony', 'v', 'a', 'g', 'w', 'n', 't', 'l', 'c', 'j', 'm']
+
+def _collapse(s):
+    return _WS.sub(' ', str(s).strip())
+
+def parse_number(v):
+    """'15,9'/'15.90'/'8 mm' -> float; 'M16x1.5'/'10-20'/'120x80x40' -> None."""
+    if isinstance(v, list):
+        if len(v) != 1:
+            return None
+        v = v[0]
+    if v is None:
+        return None
+    s = _collapse(v).lower()
+    if not s:
+        return None
+    nums = _NUMTOK.findall(s)
+    if len(nums) != 1:
+        return None
+    residue = s.replace(nums[0], ' ', 1)
+    for u in sorted(_UNITS, key=len, reverse=True):
+        residue = residue.replace(u, ' ')
+    if _RESIDUE.sub('', residue):   # zostały litery = to nie czysta liczba
+        return None
+    try:
+        return float(nums[0].replace(',', '.'))
+    except ValueError:
+        return None
+
+def _fmt_num(n):
+    return str(int(n)) if n == int(n) else ('%g' % n)
+
+def _normkey(is_num, raw):
+    s = _collapse(raw)
+    if is_num:
+        n = parse_number(s)
+        if n is not None:
+            return ('n', n)          # 15.9 == 15,9 == 15.90
+    return ('t', s.casefold())       # "Case " == "case" == "Case"
+
+
+def cmd_valdryrun(backup=None, top=45):
+    """Pokazuje, ile wartości w każdym filtrze da się scalić (offline, nic nie zmienia)."""
+    bf = _find_backup(backup)
+    print("Czytam backup: %s" % bf)
+    with open(bf, encoding="utf-8") as f:
+        docs = json.load(f)
+    try:
+        with open("proposed_filters.json", encoding="utf-8") as f:
+            fields = [k for k in json.load(f) if k != "category_handles"]
+    except FileNotFoundError:
+        fields = None  # brak listy -> analizuj wszystkie pola
+
+    groups = {}  # pole -> {normkey: set(surowych wartości)}
+    for doc in docs:
+        keys = fields if fields is not None else list(doc.keys())
+        for k in keys:
+            if k not in doc:
+                continue
+            isnum = is_numeric_field(k)
+            vals = doc[k] if isinstance(doc[k], list) else [doc[k]]
+            g = groups.setdefault(k, {})
+            for x in vals:
+                if x is None or x == "":
+                    continue
+                g.setdefault(_normkey(isnum, x), set()).add(str(x))
+
+    rows = []
+    for k, g in groups.items():
+        before = sum(len(s) for s in g.values())
+        after = len(g)
+        if before == 0:
+            continue
+        rows.append((k, before, after, before - after, is_numeric_field(k)))
+    rows.sort(key=lambda r: -r[3])
+
+    print("\n=== WARTOŚCI DO UJEDNOLICENIA (dry-run, NIC nie zmienia) ===")
+    print("%-40s %7s %7s %7s  %s" % ("Pole", "unik.", "po", "scali", "typ"))
+    print("-" * 80)
+    for k, before, after, saved, isnum in rows[:top]:
+        if saved <= 0:
+            continue
+        print("%-40s %7d %7d %7d  %s" % (k[:40], before, after, saved, "liczba" if isnum else "tekst"))
+    print("-" * 80)
+
+    print("\nPrzykłady scaleń (warianty -> jedna wartość):")
+    shown = 0
+    for k, *_rest in rows:
+        for nk, raws in sorted(groups[k].items(), key=lambda kv: -len(kv[1])):
+            if len(raws) > 1 and shown < 18:
+                canon = _fmt_num(nk[1]) if nk[0] == "n" else sorted(raws, key=len)[0]
+                sample = sorted(raws)[:6]
+                print("  [%s] %s  ->  %s" % (k, sample, canon))
+                shown += 1
+        if shown >= 18:
+            break
+    print("\nTyp 'liczba' = kandydat na SUWAK (po zamianie na liczbę).")
+    print("Typ 'tekst'  = czyszczenie zapisu (spacje/wielkość liter).")
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     try:
@@ -363,6 +484,7 @@ if __name__ == "__main__":
         elif cmd == "proposefilters":
             cmd_proposefilters(int(sys.argv[2]) if len(sys.argv) > 2 else 200)
         elif cmd == "setfilters":cmd_setfilters()
+        elif cmd == "valdryrun": cmd_valdryrun()
         elif cmd == "restore" and len(sys.argv) > 2: cmd_restore(sys.argv[2])
         else:
             print(__doc__)

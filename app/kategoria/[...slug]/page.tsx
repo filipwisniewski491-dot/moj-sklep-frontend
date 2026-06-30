@@ -67,13 +67,17 @@ export async function generateStaticParams() {
 
 // Pola zawsze przypięte na górze (jeśli mają wartości w kategorii).
 const PINNED_FACETS = ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu'];
-// Pola, których nie pokazujemy jako filtr (ścieżka kategorii + jawnie odrzucone przez właściciela).
-const FACET_EXCLUDE = new Set(['category_handles', 'Waga [kg]', 'Zastosowanie']);
+// Pola, których nie pokazujemy jako filtr (ścieżka kategorii, odrzucone przez właściciela, sklejone wymiary).
+const FACET_EXCLUDE = new Set([
+  'category_handles', 'Waga [kg]', 'Zastosowanie',
+  'Wymiary', 'Wymiary [mm]', 'Wymiary (mm)', 'Wymiary (Dł. x Szer. x Wys.) [mm]',
+]);
 // Ile filtrów pokazać max w jednej kategorii.
 const MAX_FACETS_PER_CATEGORY = 14;
-// Filtr-lista checkboxów ma sens tylko gdy wartości nie jest absurdalnie dużo.
-// Pole z większą liczbą różnych wartości w tej kategorii pomijamy (to nie checkbox).
-const MAX_FACET_VALUES = 40;
+// Odrzucamy tylko pola z EKSTREMALNĄ liczbą wartości (sklejone stringi/wolny tekst).
+// Próg wysoki, bo długie listy mają wyszukiwarkę i "pokaż więcej" — są używalne.
+// Niski próg (40) wycinał realne filtry w szerokich kategoriach (rodzic wyglądał pusto).
+const MAX_FACET_VALUES = 200;
 // Awaryjna lista (wszystkie te pola SĄ filtrowalne po naszej konfiguracji).
 const FACET_FALLBACK = [
   'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Materiał',
