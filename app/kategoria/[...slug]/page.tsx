@@ -65,23 +65,22 @@ export async function generateStaticParams() {
 // Dla każdej kategorii liczymy pokrycie i pokazujemy tylko najlepsze filtry, które
 // faktycznie mają wartości W TEJ kategorii.
 
-// Pola zawsze przypięte na górze (jeśli mają wartości w kategorii).
-const PINNED_FACETS = ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu'];
+// Marka i model mają WŁASNE UI ("Dobierz do maszyny"), więc NIE liczą się do 5 filtrów technicznych.
 // Pola, których nie pokazujemy jako filtr (ścieżka kategorii, odrzucone przez właściciela, sklejone wymiary).
 const FACET_EXCLUDE = new Set([
   'category_handles', 'Waga [kg]', 'Zastosowanie', 'Grupa produktowa',
   'Wymiary', 'Wymiary [mm]', 'Wymiary (mm)', 'Wymiary (Dł. x Szer. x Wys.) [mm]',
 ]);
-// Ile filtrów pokazać max w jednej kategorii.
-const MAX_FACETS_PER_CATEGORY = 14;
+// Do RANKINGU filtrów technicznych pomijamy też markę/model/własną markę (mają osobne UI).
+const RANK_HIDE = new Set([...FACET_EXCLUDE, 'Pasuje do marki', 'Pasuje do modelu', 'Marka']);
+// DOKŁADNIE tyle filtrów technicznych pokazujemy w każdej kategorii (te z najwyższym pokryciem).
+const MAX_FACETS_PER_CATEGORY = 5;
 // Odrzucamy tylko pola z EKSTREMALNĄ liczbą wartości (sklejone stringi/wolny tekst).
 // Próg wysoki, bo długie listy mają wyszukiwarkę i "pokaż więcej" — są używalne.
-// Niski próg (40) wycinał realne filtry w szerokich kategoriach (rodzic wyglądał pusto).
 const MAX_FACET_VALUES = 200;
-// Awaryjna lista (wszystkie te pola SĄ filtrowalne po naszej konfiguracji).
+// Awaryjne filtry techniczne, gdy sonda padnie (wszystkie filtrowalne).
 const FACET_FALLBACK = [
-  'Pasuje do marki', 'Pasuje do modelu', 'Typ produktu', 'Materiał',
-  'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Napięcie [V]', 'Waga [kg]', 'Zastosowanie'
+  'Typ produktu', 'Gwint', 'Materiał', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]'
 ];
 
 const MIN_PRODUCTS_FOR_INDEX = 3;
@@ -106,20 +105,19 @@ async function getFilterableAttributes(): Promise<string[]> {
   }
 }
 
-// Z rozkładu facetów dla kategorii wybiera najlepsze filtry:
-// przypięte na górze, reszta wg pokrycia, z pominięciem pól o zbyt wielu wartościach.
+// Wybiera DOKŁADNIE top-N filtrów technicznych wg pokrycia w danej kategorii.
+// Bez marki/modelu (osobne UI) i bez pól wykluczonych; pomija pola jednowartościowe i ekstremalnie liczne.
 function rankCategoryFacets(
   dist: Record<string, Record<string, number>>,
   max = MAX_FACETS_PER_CATEGORY
 ): string[] {
-  const pinned = PINNED_FACETS.filter(k => dist[k] && Object.keys(dist[k]).length > 0);
   const scored = Object.entries(dist)
-    .filter(([k, vals]) => !FACET_EXCLUDE.has(k) && !pinned.includes(k) && vals && Object.keys(vals).length > 0)
-    .filter(([, vals]) => Object.keys(vals).length <= MAX_FACET_VALUES) // za dużo wartości = nie checkbox
+    .filter(([k, vals]) => !RANK_HIDE.has(k) && vals && Object.keys(vals).length >= 2) // ≥2 wartości = sensowny filtr
+    .filter(([, vals]) => Object.keys(vals).length <= MAX_FACET_VALUES) // odsiej sklejony tekst
     .map(([k, vals]) => [k, Object.values(vals).reduce((a, b) => a + b, 0)] as [string, number])
     .sort((a, b) => b[1] - a[1])
     .map(([k]) => k);
-  return [...pinned, ...scored].slice(0, max);
+  return scored.slice(0, max);
 }
 
 function buildFilterValue(key: string, val: string): string {
@@ -402,7 +400,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
     // 🔁 Wybór filtrów dla kategorii — BEST EFFORT.
     // CAŁA ta sekcja jest opakowana tak, by jej awaria NIGDY nie wywaliła listingu produktów.
     // W najgorszym razie pokażemy filtry przypięte (marka/model/typ) — produkty załadują się zawsze.
-    let categoryFacets: string[] = PINNED_FACETS;
+    let categoryFacets: string[] = FACET_FALLBACK;
     let baseDist: Record<string, any> = {};
     try {
       // Najpierw wildcard "*": Meili zwraca rozkład WSZYSTKICH pól filtrowalnych w tej
@@ -425,7 +423,7 @@ export default async function CategoryPage({ params, searchParams }: any) {
       if (ranked.length) categoryFacets = ranked;
     } catch (e) {
       console.warn("Sonda filtrów nie powiodła się — pokażę filtry podstawowe:", e);
-      // categoryFacets zostaje = PINNED_FACETS; produkty i tak się załadują niżej
+      // categoryFacets zostaje = FACET_FALLBACK; produkty i tak się załadują niżej
     }
 
     // 🔥 PEŁNA lista marek: tylko kategoria (BEZ marki/modelu) - żeby user mógł zmienić markę

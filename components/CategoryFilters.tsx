@@ -136,13 +136,12 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
         return cb - ca;
       });
 
-  // Pokaż WSZYSTKIE filtry, które backend wybrał dla tej kategorii (bez sztywnego limitu 5).
-  // Backend już ograniczył listę do ~14 najlepszych, więc tu tylko odsiewamy puste/jednowartościowe.
+  // Pokaż dokładnie do 5 filtrów (backend już wybrał top-5 wg pokrycia; tu tylko odsiew pustych).
   const techFilterKeys = orderedKeys.filter((key) => {
     if (HIDE_IN_TECH.has(key)) return false;
     const vals = techFilters[key];
     return vals && Object.keys(vals).length >= 2;
-  }).slice(0, 20); // miękki bezpiecznik, gdyby kiedyś przyszło więcej
+  }).slice(0, 5);
 
   let activeFiltersCount = 0;
   Object.keys(activeFilters).forEach(key => {
