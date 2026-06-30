@@ -67,8 +67,8 @@ export async function generateStaticParams() {
 
 // Pola zawsze przypięte na górze (jeśli mają wartości w kategorii).
 const PINNED_FACETS = ['Pasuje do marki', 'Pasuje do modelu', 'Typ produktu'];
-// Pola, których nie pokazujemy jako filtr (ścieżka kategorii, nie parametr produktu).
-const FACET_EXCLUDE = new Set(['category_handles']);
+// Pola, których nie pokazujemy jako filtr (ścieżka kategorii + jawnie odrzucone przez właściciela).
+const FACET_EXCLUDE = new Set(['category_handles', 'Waga [kg]', 'Zastosowanie']);
 // Ile filtrów pokazać max w jednej kategorii.
 const MAX_FACETS_PER_CATEGORY = 14;
 // Filtr-lista checkboxów ma sens tylko gdy wartości nie jest absurdalnie dużo.
@@ -401,14 +401,21 @@ export default async function CategoryPage({ params, searchParams }: any) {
     let categoryFacets: string[] = PINNED_FACETS;
     let baseDist: Record<string, any> = {};
     try {
-      const filterableAll = await getFilterableAttributes();
-      const facetProbe = (filterableAll && filterableAll.length) ? filterableAll : PINNED_FACETS;
-      // sonda limit:0 — liczy pokrycie pól w tej kategorii (tania, bez produktów)
-      const baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
-        limit: 0,
-        filter: baseFilter || undefined,
-        facets: facetProbe,
-      });
+      // Najpierw wildcard "*": Meili zwraca rozkład WSZYSTKICH pól filtrowalnych w tej
+      // kategorii i NIE wymaga klucza admina (działa z kluczem wyszukiwania).
+      let baseFacetsResult: any;
+      try {
+        baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+          limit: 0, filter: baseFilter || undefined, facets: ["*"],
+        });
+      } catch {
+        // Starsza wersja Meili bez "*": użyj jawnej listy (z ustawień lub awaryjnej).
+        const filterableAll = await getFilterableAttributes();
+        const facetProbe = (filterableAll && filterableAll.length) ? filterableAll : FACET_FALLBACK;
+        baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+          limit: 0, filter: baseFilter || undefined, facets: facetProbe,
+        });
+      }
       baseDist = baseFacetsResult.facetDistribution || {};
       const ranked = rankCategoryFacets(baseDist);
       if (ranked.length) categoryFacets = ranked;

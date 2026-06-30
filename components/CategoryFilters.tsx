@@ -122,8 +122,8 @@ export default function CategoryFilters({ baseFilters = {}, narrowedFilters = {}
 
   let techFilters = JSON.parse(JSON.stringify(baseFilters));
 
-  // Marka/model/kategoria mają własne UI ("Dobierz do maszyny") - nie pokazuj ich jako checkboxy.
-  const HIDE_IN_TECH = new Set(['Pasuje do marki', 'Pasuje do modelu', 'Marka', 'category_handles']);
+  // Marka/model/kategoria mają własne UI, a Waga/Zastosowanie właściciel wyłączył - nie pokazuj ich jako checkboxy.
+  const HIDE_IN_TECH = new Set(['Pasuje do marki', 'Pasuje do modelu', 'Marka', 'category_handles', 'Waga [kg]', 'Zastosowanie']);
 
   // 🔁 Kolejność filtrów przychodzi z backendu (facetOrder): już posortowana wg pokrycia
   // w TEJ kategorii, z marką/modelem/typem przypiętym i pominięciem pól o zbyt wielu wartościach.
