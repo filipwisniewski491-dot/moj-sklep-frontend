@@ -28,7 +28,9 @@ export async function getProductData(identifier: string) {
     if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
-    const queryFields = "fields=*variants,*categories,+metadata,+images";
+    
+    // Zaktualizowane pola zapytania o relację cen wariantów
+    const queryFields = "fields=*variants,*variants.prices,*categories,+metadata,+images";
 
     let res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}`, options);
     let json = await res.json();
@@ -61,7 +63,12 @@ export async function getProductData(identifier: string) {
       sku: mainVariant?.sku || meta.sku || null,
       slug: product.handle,
       name: product.title || 'Produkt',
-      price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0, 
+      
+      // Zaktualizowana logika wyciągania ceny
+      price: mainVariant?.calculated_price?.calculated_amount 
+        ? (mainVariant.calculated_price.calculated_amount / 100) 
+        : (mainVariant?.prices?.[0]?.amount ? (mainVariant.prices[0].amount / 100) : 0), 
+        
       description: product.description || '',
       category_text: product.categories?.[0]?.name || meta.category || '',
       category_path: product.categories?.[0]?.metadata?.category_path || meta.category_path || null,
@@ -120,7 +127,8 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     const allCategoryIds = extractCategoryIds(category);
     const safeCategoryIds = allCategoryIds.slice(0, 60);
 
-    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*images,+metadata&`;
+    // Zaktualizowane pola zapytania o relację cen w filtrach kategorii
+    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*variants.prices,*images,+metadata&`;
     safeCategoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
@@ -175,7 +183,12 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         id: p.id,
         sku: mainVariant?.sku || meta.sku || null,
         name: p.title,
-        price: mainVariant?.calculated_price?.calculated_amount ? (mainVariant.calculated_price.calculated_amount / 100) : 0,
+        
+        // Zaktualizowana logika wyciągania ceny dla kart kategorii
+        price: mainVariant?.calculated_price?.calculated_amount 
+          ? (mainVariant.calculated_price.calculated_amount / 100) 
+          : (mainVariant?.prices?.[0]?.amount ? (mainVariant.prices[0].amount / 100) : 0),
+          
         slug: p.handle,
         external_images: meta.external_images || [],
         images: p.images || []
