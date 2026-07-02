@@ -1,273 +1,273 @@
-import { NextResponse } from 'next/server';
-import { Meilisearch } from 'meilisearch';
-import { getBrandsSet, getModelsForBrand } from '@/lib/brand-utils';
+// lib/api.ts
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
-const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "https://panel.centrumrolnictwa.com";
+const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
-const meiliClient = new Meilisearch({
-  host: process.env.NEXT_PUBLIC_MEILISEARCH_HOST || '',
-  apiKey: process.env.NEXT_PUBLIC_MEILISEARCH_API_KEY || '',
-});
+// ⚙️ Region Polska (PLN + VAT 23%). Bez region_id Medusa NIE policzy VAT
+// i calculated_price będzie null. To jest klucz do poprawnych cen.
+const REGION_ID = process.env.NEXT_PUBLIC_MEDUSA_REGION_ID || "reg_01KT16M40467MTKK4ANCA96R25";
+// Kraj jest wymagany, by Medusa naliczyła VAT (stawka jest przypięta do kraju).
+const COUNTRY_CODE = process.env.NEXT_PUBLIC_MEDUSA_COUNTRY_CODE || "pl";
 
-const corsHeaders = {
-  'Cache-Control': 'no-store, max-age=0',
-  'Content-Type': 'application/json'
-};
+/**
+ * Jedno źródło prawdy o cenie.
+ * Medusa (dzięki region_id + country_code) zwraca w calculated_price:
+ *   - calculated_amount_with_tax     -> BRUTTO (z VAT 23%)
+ *   - calculated_amount_without_tax  -> NETTO
+ * Front NICZEGO nie mnoży ani nie dzieli — tylko czyta gotowe wartości.
+ */
+function extractPrice(variant: any): { brutto: number; netto: number } {
+  const cp = variant?.calculated_price;
+  if (!cp) return { brutto: 0, netto: 0 };
 
-// 🛡️ Bezpieczna lista pól (kopia z page.tsx) - bez pól-potworow i bez niefiltrowalnych.
-const CANDIDATE_FACETS = [
-  // wymiary / liczby (w wąskich kategoriach mają mało wartości; w szerokich i tak odpadną przez limit)
-  'Średnica wewnętrzna (DN) [mm]', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Średnica [mm]',
-  'Średnica sworznia [mm]', 'Średnica sworznia zaczepu [mm]', 'Średnica przyłącza [mm]', 'Średnica tłoczyska [mm]',
-  'Średnica tłoka [mm]', 'Średnica cylindra wewn. [mm]', 'Średnica otworu [mm]', 'Średnica koła pasowego [mm]',
-  'Średnica talerza [mm]', 'Średnica węża zewnętrzna [mm]', 'Ø wew. (mm)',
-  'Szerokość/Grubość [mm]', 'Szerokość [mm]', 'Szerokość robocza [mm]', 'Szerokość paska [mm]',
-  'Szerokość siedzenia [mm]', 'Szerokość szyny (mm)', 'Szerokość prowadnicy (mm)',
-  'Wysokość [mm]', 'Grubość [mm]', 'Grubość elementu [mm]', 'Grubość lemiesza/dłuta [mm]',
-  'Długość [mm]', 'Długość robocza [mm]', 'Długość paska [mm]', 'Długość śruby/elementu [mm]', 'Długość [cm]',
-  'Skok siłownika [mm]', 'Rozstaw otworów kołnierza [mm]', 'Rozstaw otworów montażowych [mm]',
-  'Napięcie [V]', 'Natężenie [A]', 'Moc [kW]', 'Moc [W]', 'Pojemność [l]', 'Pojemność [Ah]',
-  'Max. ciśnienie [bar]', 'Max. ciśnienie robocze [bar]', 'Ciśnienie robocze [bar]', 'Przepływ max [l/min]',
-  'Siła wyrzutu [N]', 'Siła nacisku/uciągu [t]', 'Wartość D [kN]', 'Nacisk pionowy [kg]', 'Obciążenie (kg)',
-  'Udźwig [kg]', 'Twardość Shore', 'Ilość zębów', 'Ilość sekcji', 'Ilość ogniw/żeber', 'Ilość pierścieni',
-  'Ilość oplotów stalowych (SN)', 'Wydajność geometryczna [cm3/obr]', 'Wymiar gwintu', 'Rozmiar klucza/końcówki [mm]',
-  // kategoryczne (czyste enumy)
-  'Materiał', 'Materiał (Żeliwo/Tworzywo)', 'Materiał obicia', 'Gwint', 'Kategoria zaczepu (Kat.)',
-  'Seria (L-Lekka / S-Ciężka)', 'Typ uszczelnienia (np. 2RS, Simmering)', 'Typ uszczelnienia',
-  'Kolor', 'Kolor szyby', 'Typ złącza (Męski/Żeński)', 'Typ złącza (Miękkie/Twarde)', 'Wersja', 'Rozmiar',
-  'Rozmiar gwintów przyłączeniowych', 'Kierunek obrotów (L/P)', 'Strona', 'Strona montażu (L/P)',
-  'Profil paska/łańcucha', 'Blokada', 'Funkcje światła', 'Typ sterowania (Ręczne/Elektryczne)',
-  'Standard (EURO/PUSH-PULL)', 'Klasa twardości (np. 8.8, 10.9)', 'Typ wałka (Stożek/Frez)', 'Typ łba',
-  'Rodzaj amortyzacji', 'Norma', 'Kategoria', 'Przeznaczenie', 'Model silnika',
-];
+  // Preferujemy jawne pola z podatkiem. Fallback na calculated_amount, gdyby
+  // podatek nie był naliczony (wtedy amount = netto).
+  const netto =
+    typeof cp.calculated_amount_without_tax === "number"
+      ? cp.calculated_amount_without_tax
+      : (typeof cp.calculated_amount === "number" ? cp.calculated_amount : 0);
 
-function buildFilterValue(key: string, val: string): string {
-  const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
-  if (values.length === 0) return '';
-  const orConditions = values.map(v => `"${key}" = "${v.replace(/"/g, '\\"')}"`);
-  return orConditions.length === 1 ? orConditions[0] : `(${orConditions.join(' OR ')})`;
+  const brutto =
+    typeof cp.calculated_amount_with_tax === "number"
+      ? cp.calculated_amount_with_tax
+      : netto; // gdy brak VAT — brutto = netto
+
+  return {
+    brutto: Number(brutto.toFixed(2)),
+    netto: Number(netto.toFixed(2)),
+  };
 }
 
-// 🔥 Rozpoznaje markę/model w ścieżce (identycznie jak page.tsx resolvePath)
-async function resolvePath(slugArray: string[]) {
-  const brandsMap = await getBrandsSet();
-  let categorySegments: string[] = [];
-  let brandName: string | null = null;
-  let modelSlug: string | null = null;
-  let modelName: string | null = null;
-  let brandSlug: string | null = null;
+function extractCategoryIds(category: any): string[] {
+  let leaves: string[] = [];
+  let branches: string[] = [];
 
-  for (let i = 0; i < slugArray.length; i++) {
-    const seg = slugArray[i];
-    if (!brandSlug && brandsMap[seg]) {
-      brandSlug = seg;
-      brandName = brandsMap[seg];
-    } else if (brandSlug && !modelSlug) {
-      modelSlug = seg;
-    } else if (!brandSlug) {
-      categorySegments.push(seg);
+  function traverse(cat: any) {
+    if (cat.category_children && cat.category_children.length > 0) {
+      branches.push(cat.id);
+      cat.category_children.forEach((child: any) => traverse(child));
+    } else {
+      leaves.push(cat.id);
     }
   }
 
-  if (brandName && modelSlug) {
-    const modelsMap = await getModelsForBrand(brandName);
-    modelName = modelsMap[modelSlug] || null;
-  }
-
-  return { categorySegments, brandName, modelName };
+  traverse(category);
+  return [...leaves, ...branches];
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const searchQ = searchParams.get('q') || "";
-  const fullPath = searchParams.get('fullPath');
+export async function getProductData(identifier: string) {
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
-  // Tryb wyszukiwarki globalnej
-  if (searchQ && !fullPath) {
-    try {
-      const index = meiliClient.index('products');
-      const searchResult = await index.search(searchQ, { limit: 6 });
-      return NextResponse.json({ hits: searchResult.hits }, { headers: corsHeaders });
-    } catch (error) {
-      console.error('Błąd wyszukiwarki:', error);
-      return NextResponse.json({ hits: [] }, { status: 500, headers: corsHeaders });
+    const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
+
+    // ⚙️ Prosimy o calculated_price (wymaga region_id w URL).
+    const queryFields =
+      "fields=*variants,*variants.calculated_price,*categories,+metadata,+images";
+    const regionParam = `region_id=${REGION_ID}&country_code=${COUNTRY_CODE}`;
+
+    let res = await fetch(
+      `${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}&${regionParam}`,
+      options
+    );
+    let json = await res.json();
+
+    if (!json.products || json.products.length === 0) {
+      const slugParts = identifier.split('-');
+      if (slugParts.length > 1) {
+        slugParts.pop();
+        const shortHandle = slugParts.join('-');
+        res = await fetch(
+          `${MEDUSA_URL}/store/products?handle=${encodeURIComponent(shortHandle)}&${queryFields}&${regionParam}`,
+          options
+        );
+        json = await res.json();
+      }
     }
-  }
 
-  if (!fullPath) {
-    return NextResponse.json({ error: "Brak ścieżki" }, { status: 400, headers: corsHeaders });
-  }
-
-  // 🔥 Rozpoznaj markę/model w ścieżce, oddziel od kategorii
-  const slugArray = fullPath.split('/').filter(Boolean);
-  const { categorySegments, brandName, modelName } = await resolvePath(slugArray);
-
-  // Kategoria = ostatni segment kategorii (BEZ marki/modelu)
-  const currentHandle = categorySegments.length > 0 ? categorySegments[categorySegments.length - 1] : '';
-
-  // Zbieramy handle kategorii + dzieci z Medusy
-  let allowedHandles: string[] = currentHandle ? [currentHandle] : [];
-
-  if (currentHandle) {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-
-      const catRes = await fetch(
-        `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`,
-        { headers, next: { revalidate: 3600 } }
+    if (!json.products || json.products.length === 0) {
+      res = await fetch(
+        `${MEDUSA_URL}/store/products?q=${encodeURIComponent(identifier)}&${queryFields}&${regionParam}`,
+        options
       );
+      json = await res.json();
+    }
 
-      if (catRes.ok) {
-        const catJson = await catRes.json();
-        const currentCategory = catJson.product_categories?.[0];
-        if (currentCategory) {
-          const collectHandles = (cat: any) => {
-            if (!cat) return;
-            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-            if (cat.category_children?.length) cat.category_children.forEach(collectHandles);
-          };
-          collectHandles(currentCategory);
+    if (!json.products || json.products.length === 0) {
+       return null;
+    }
+
+    const product = json.products[0];
+    const meta = product.metadata || {};
+    const mainVariant = product.variants?.[0] || null;
+
+    // ✅ Cena wyłącznie z Medusy: brutto (z VAT) + netto obok siebie.
+    const { brutto, netto } = extractPrice(mainVariant);
+
+    return {
+      id: product.id,
+      sku: mainVariant?.sku || meta.sku || null,
+      slug: product.handle,
+      name: product.title || 'Produkt',
+
+      // price = brutto (to, co klient płaci). netto obok, do wyświetlenia „netto".
+      price: brutto,
+      priceNetto: netto,
+
+      description: product.description || '',
+      category_text: product.categories?.[0]?.name || meta.category || '',
+      category_path: product.categories?.[0]?.metadata?.category_path || meta.category_path || null,
+      attributes: meta.technical_specs || meta.attributes || {},
+      images: product.images?.map((img: any) => ({ url: img.url })) || [],
+      external_images: meta.external_images || [],
+      expert_advice: meta.expert_advice || null,
+      symptoms: meta.symptoms || null,
+      faq: meta.faq || null,
+      crossSell: meta.cross_sell_skus || meta.cross_sell || []
+    };
+  } catch (error) {
+    console.error("[API LIB] Krytyczny błąd pobierania produktu z Medusy:", error);
+    return null;
+  }
+}
+
+export async function getCategoryData(fullPath: string, searchParams: any) {
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
+
+    const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
+
+    // 1. Pobieramy obecną kategorię z drzewem
+    const categoryRes = await fetch(
+      `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`,
+      options
+    );
+    const categoryJson = await categoryRes.json();
+    const category = categoryJson.product_categories?.[0];
+
+    if (!category) {
+        return null;
+    }
+
+    // 🚀 NAPRAWA OKRUSZKÓW: Pobieramy pełną ścieżkę z API, by mieć polskie znaki!
+    const slugArray = fullPath.split('/');
+    const handlesQuery = slugArray.map(slug => `handle[]=${slug}`).join('&');
+    const breadcrumbsRes = await fetch(`${MEDUSA_URL}/store/product-categories?${handlesQuery}`, options);
+    const breadcrumbsJson = await breadcrumbsRes.json();
+    const fetchedCategories = breadcrumbsJson.product_categories || [];
+
+    const dynamicBreadcrumbs = slugArray.map((slugPart, index) => {
+      const cumulativePath = slugArray.slice(0, index + 1).join('/');
+      const foundCat = fetchedCategories.find((c: any) => c.handle === slugPart);
+      return {
+        name: foundCat?.name || slugPart.replace(/-/g, ' '),
+        path: cumulativePath
+      };
+    });
+
+    // 2. Wyciągamy podkategorie i limitujemy ID, żeby nie przeciążyć serwera
+    const allCategoryIds = extractCategoryIds(category);
+    const safeCategoryIds = allCategoryIds.slice(0, 60);
+
+    // ⚙️ calculated_price + region_id także dla list kategorii.
+    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*variants.calculated_price,*images,+metadata&region_id=${REGION_ID}&country_code=${COUNTRY_CODE}&`;
+    safeCategoryIds.forEach(id => {
+      productsQueryUrl += `category_id[]=${id}&`;
+    });
+    productsQueryUrl += `limit=100`; // Ładujemy do 100 sztuk dla filtrów
+
+    const productsRes = await fetch(productsQueryUrl, options);
+    const productsJson = await productsRes.json();
+
+    // 🚀 NAPRAWA FILTRÓW: Dynamiczne wyciąganie danych z JSON (technical_specs) z Medusy
+    const extractedFilters: Record<string, Record<string, number>> = {};
+
+    const mappedProducts = productsJson.products?.map((p: any) => {
+      const meta = p.metadata || {};
+      const mainVariant = p.variants?.[0] || null;
+
+      // Zbieramy atrybuty techniczne
+      let techSpecs: Record<string, any> = {};
+
+      if (meta.technical_specs) {
+        if (typeof meta.technical_specs === 'string') {
+          try { techSpecs = JSON.parse(meta.technical_specs); } catch(e) {}
+        } else if (typeof meta.technical_specs === 'object') {
+          techSpecs = meta.technical_specs;
         }
       }
-    } catch (error) {
-      console.warn("Nie udało się pobrać kategorii z Medusy:", error);
-    }
-  }
 
-  // Filtr bazowy: kategoria + marka + model (marka/model z URL, NIE category_handle)
-  const baseFilterParts: string[] = [];
-  if (allowedHandles.length > 0) {
-    baseFilterParts.push(`category_handles IN [${allowedHandles.map(h => `"${h}"`).join(', ')}]`);
-  }
-  if (brandName) baseFilterParts.push(`"Pasuje do marki" = "${brandName.replace(/"/g, '\\"')}"`);
-  if (modelName) baseFilterParts.push(`"Pasuje do modelu" = "${modelName.replace(/"/g, '\\"')}"`);
+      // Dodajemy też markę i model, żeby działały jako filtry w panelu
+      if (meta['Pasuje do marki']) techSpecs['Pasuje do marki'] = meta['Pasuje do marki'];
+      if (meta['Pasuje do modelu']) techSpecs['Pasuje do modelu'] = meta['Pasuje do modelu'];
+      if (meta.producent || meta.Producent) techSpecs['Producent'] = meta.producent || meta.Producent;
 
-  // Aktywne filtry użytkownika (techniczne, bez systemowych ani zakresów)
-  const SYSTEM_KEYS = new Set(['fullPath', 'limit', 'sort', 'minPrice', 'maxPrice', 'q', 'page', 'view']);
-  const activeFilters: Record<string, string> = {};
-  // Filtry zakresowe (suwaki): rmin_<pole> / rmax_<pole> -> liczbowe pole n_<pole>
-  const rangeFilters: string[] = [];
-  searchParams.forEach((val, key) => {
-    if (!val) return;
-    if (key.startsWith('rmin_')) {
-      const f = key.slice(5); const n = Number(val);
-      if (Number.isFinite(n)) rangeFilters.push(`"n_${f.replace(/"/g, '\\"')}" >= ${n}`);
-      return;
-    }
-    if (key.startsWith('rmax_')) {
-      const f = key.slice(5); const n = Number(val);
-      if (Number.isFinite(n)) rangeFilters.push(`"n_${f.replace(/"/g, '\\"')}" <= ${n}`);
-      return;
-    }
-    if (!SYSTEM_KEYS.has(key)) activeFilters[key] = val;
-  });
+      // Agregujemy (zliczamy) cechy do filtrów bocznych
+      Object.entries(techSpecs).forEach(([key, value]) => {
+        if (!value) return;
 
-  const minPrice = searchParams.get('minPrice');
-  const maxPrice = searchParams.get('maxPrice');
+        // Zabezpieczenie dla wartości tablicowych (np. ["Ursus", "Zetor"])
+        const values = Array.isArray(value) ? value : [value];
+        const formattedKey = key.charAt(0).toUpperCase() + key.slice(1); // Zawsze z dużej litery
 
-  // Buduje filtry z OPCJONALNYM pominięciem jednego klucza (disjunctive)
-  const buildFilters = (skipKey?: string): string[] => {
-    const arr: string[] = baseFilterParts.slice();
-    Object.entries(activeFilters).forEach(([key, val]) => {
-      if (skipKey && key === skipKey) return;
-      const f = buildFilterValue(key, val);
-      if (f) arr.push(f);
-    });
-    arr.push(...rangeFilters);   // zakresy suwaków zawsze obowiązują
-    if (minPrice) arr.push(`price >= ${minPrice}`);
-    if (maxPrice) arr.push(`price <= ${maxPrice}`);
-    return arr;
-  };
+        values.forEach(val => {
+          const stringVal = String(val).trim();
+          if (!stringVal) return;
 
-  const baseFilter = baseFilterParts.join(' AND ');
-  const finalFilter = buildFilters().join(' AND ');
-
-  const sortParam = searchParams.get('sort');
-  let meiliSort: string[] | undefined;
-  if (sortParam === 'price_asc') meiliSort = ['price:asc'];
-  if (sortParam === 'price_desc') meiliSort = ['price:desc'];
-
-  const currentLimit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 250;
-
-  try {
-    const index = meiliClient.index('products');
-
-    // 🛡️ Bezpieczna sonda facetów (jak page.tsx): "*" dla małych kategorii, CANDIDATE dla dużych,
-    // a gdyby i to padło - bez facetów. Dzięki temu niefiltrowalne/potworne pola NIE wywalą trasy.
-    let baseDist: Record<string, any> = {};
-    let safeFacets: string[] = [];
-    try {
-      const probe = await index.search(searchQ, { limit: 0, filter: baseFilter || undefined, facets: ['*'] });
-      baseDist = probe.facetDistribution || {}; safeFacets = ['*'];
-    } catch {
-      try {
-        const probe = await index.search(searchQ, { limit: 0, filter: baseFilter || undefined, facets: CANDIDATE_FACETS });
-        baseDist = probe.facetDistribution || {}; safeFacets = CANDIDATE_FACETS;
-      } catch { baseDist = {}; safeFacets = []; }
-    }
-
-    // Produkty + zawężone facety. Gdyby facety zawiodły na zawężonym filtrze - pobierz SAME produkty
-    // (lista produktów reaguje na filtry ZAWSZE, niezależnie od facetów).
-    let searchResult: any;
-    try {
-      searchResult = await index.search(searchQ, {
-        limit: currentLimit, filter: finalFilter || undefined, sort: meiliSort,
-        facets: safeFacets.length ? safeFacets : undefined,
-      });
-    } catch {
-      searchResult = await index.search(searchQ, {
-        limit: currentLimit, filter: finalFilter || undefined, sort: meiliSort,
-      });
-    }
-
-    // Disjunctive: osobne facety per aktywny filtr (opakowane - błąd jednego nie psuje całości)
-    const activeKeys = Object.keys(activeFilters);
-    const disjunctiveResults = await Promise.all(activeKeys.map(async (key) => {
-      try {
-        return await index.search(searchQ, {
-          limit: 0, filter: buildFilters(key).join(' AND ') || undefined, facets: [key],
+          if (!extractedFilters[formattedKey]) {
+            extractedFilters[formattedKey] = {};
+          }
+          extractedFilters[formattedKey][stringVal] = (extractedFilters[formattedKey][stringVal] || 0) + 1;
         });
-      } catch { return { facetDistribution: {} } as any; }
-    }));
+      });
 
-    const disjunctiveFacets: Record<string, any> = {};
-    activeKeys.forEach((key, i) => {
-      const res = disjunctiveResults[i];
-      if (res?.facetDistribution?.[key]) {
-        disjunctiveFacets[key] = res.facetDistribution[key];
-      }
-    });
+      // ✅ Cena wyłącznie z Medusy (brutto + netto).
+      const { brutto, netto } = extractPrice(mainVariant);
 
-    console.log(`[search] handle=${currentHandle} brand=${brandName} model=${modelName} hits=${searchResult.hits.length}`);
+      return {
+        id: p.id,
+        sku: mainVariant?.sku || meta.sku || null,
+        name: p.title,
 
-    const mappedProducts = searchResult.hits.map((p: any) => ({
-      id: p.id,
-      sku: p.id,
-      name: p.title,
-      price: p.price || 0,
-      slug: p.handle,
-      category_text: p.Kategoria || p['Typ produktu'] || '',
-      images: p.thumbnail ? [{ url: p.thumbnail }] : [],
-    }));
+        price: brutto,
+        priceNetto: netto,
 
-    return NextResponse.json({
-      products: mappedProducts,
-      totalCount: searchResult.estimatedTotalHits || mappedProducts.length,
-      filters: baseDist || {},
-      narrowedFilters: searchResult.facetDistribution || {},
-      disjunctiveFacets,
-    }, { headers: corsHeaders });
+        slug: p.handle,
+        external_images: meta.external_images || [],
+        images: p.images || []
+      };
+    }) || [];
 
-  } catch (error: any) {
-    console.error("Błąd Meilisearch route:", error?.message || error);
-    return NextResponse.json(
-      { products: [], filters: {}, narrowedFilters: {}, disjunctiveFacets: {}, totalCount: 0, error: error?.message },
-      { status: 500, headers: corsHeaders }
-    );
+    return {
+      searchData: {
+        totalCount: productsJson.count || mappedProducts.length || 0,
+        products: mappedProducts,
+        category: {
+          ...category,
+          h1_dynamic: category.name,
+          top_seo_text: category.metadata?.top_seo_text || category.description || "",
+          bottom_seo_text: category.metadata?.bottom_seo_text || "",
+          faqs: category.metadata?.faqs || []
+        },
+        breadcrumbs: dynamicBreadcrumbs,
+        // 🚀 NAPRAWA PODKATEGORII: Przekazujemy pełne obiekty dla kafelków!
+        subcategories: category.category_children?.map((c: any) => ({
+          name: c.name,
+          path: c.handle,
+          id: c.id
+        })) || []
+      },
+      // 🚀 Przekazujemy wszystkie zbudowane filtry do lewego panelu!
+      filtersData: extractedFilters
+    };
+  } catch (error) {
+    console.error("[API LIB] Błąd pobierania kategorii z Medusy:", error);
+    return null;
   }
 }

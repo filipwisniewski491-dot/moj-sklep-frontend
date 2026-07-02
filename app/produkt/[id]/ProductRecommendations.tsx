@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
-import { getUserTier } from '@/lib/cashbackEngine';
 
 const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   if (!src.includes('b-cdn.net')) return src;
@@ -54,7 +53,6 @@ const MiniProductCard = ({ product }: { product: any }) => {
 
 export default function ProductRecommendations({ product, mainImageUrl }: { product: any, mainImageUrl: string | null }) {
   const { addItem, setIsOpen } = useCart();
-  const { currentTier } = getUserTier(105000);
 
   // --- ZMIANA: Dynamiczne pobieranie danych zamiast sztywnych mocków ---
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
@@ -93,19 +91,19 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
   const bundleProduct = relatedProducts[0];
   const othersViewedProducts = relatedProducts;
 
-  const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
-  const priceAfterDiscount = numPrice * (1 - currentTier.discountPercent);
+  // ✅ Ceny brutto wprost z Medusy (bez rabatów front-owych).
+  const priceBrutto = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
 
   const bundleProductPrice = bundleProduct ? (typeof bundleProduct.price === 'number' ? bundleProduct.price : parseFloat(bundleProduct.price) || 0) : 0;
-  const bundleProductPriceAfterDiscount = bundleProductPrice * (1 - currentTier.discountPercent);
-  const bundleTotalPrice = bundleProduct ? (priceAfterDiscount + bundleProductPriceAfterDiscount) : 0;
+  const bundleTotalPrice = bundleProduct ? (priceBrutto + bundleProductPrice) : 0;
+  // Zniżka "kup w zestawie" 5% — to realna promocja, nie VIP.
   const bundleDiscountPrice = bundleProduct ? (bundleTotalPrice * 0.95) : 0;
 
   const handleAddBundle = () => {
     if (addItem && bundleProduct) {
-      addItem({ id: product.documentId || product.id || product.sku || 'main', name: product.name, price: priceAfterDiscount, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
+      addItem({ id: product.documentId || product.id || product.sku || 'main', name: product.name, price: priceBrutto, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
       const bundleImg = bundleProduct.image || bundleProduct.external_images?.[0] || bundleProduct.images?.[0]?.url_standard || bundleProduct.images?.[0]?.url || bundleProduct.images?.[0]?.src || null;
-      addItem({ id: bundleProduct.documentId || bundleProduct.id || bundleProduct.sku || 'bundle', name: bundleProduct.name, price: bundleProductPriceAfterDiscount * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
+      addItem({ id: bundleProduct.documentId || bundleProduct.id || bundleProduct.sku || 'bundle', name: bundleProduct.name, price: bundleProductPrice * 0.95, image: bundleImg || '', quantity: 1, crossSell: [], category: '' });
       if (setIsOpen) setIsOpen(true);
     }
   };
@@ -125,7 +123,7 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
               <div>
                 <span className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Ten produkt</span>
                 <p className="text-xs font-bold text-slate-800 line-clamp-2">{product.name}</p>
-                <p className="text-sm font-black text-slate-900 mt-1">{priceAfterDiscount.toFixed(2)} zł</p>
+                <p className="text-sm font-black text-slate-900 mt-1">{priceBrutto.toFixed(2)} zł</p>
               </div>
             </div>
 
@@ -141,7 +139,7 @@ export default function ProductRecommendations({ product, mainImageUrl }: { prod
               <div>
                 <span className="bg-slate-100 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1 block w-fit">Rekomendowane</span>
                 <p className="text-xs font-bold text-slate-800 line-clamp-2">{bundleProduct.name}</p>
-                <p className="text-sm font-black text-slate-900 mt-1">{bundleProductPriceAfterDiscount.toFixed(2)} zł</p>
+                <p className="text-sm font-black text-slate-900 mt-1">{bundleProductPrice.toFixed(2)} zł</p>
               </div>
             </div>
             

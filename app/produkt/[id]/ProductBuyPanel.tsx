@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '@/store/useCart';
 import { useGarage } from '@/store/useGarage'; // IMPORT GARAŻU
-import { getUserTier, CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
+import { CONSTANT_CASHBACK_PERCENT } from '@/lib/cashbackEngine';
 import { trackViewItem, trackCopySku, trackSupportContact } from '@/lib/analytics'; 
 
 export default function ProductBuyPanel({ product, mainImageUrl, attributes }: { product: any, mainImageUrl: string | null, attributes: any }) {
@@ -15,11 +15,11 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
   const [isShippingToday, setIsShippingToday] = useState(true);
   const [skuCopied, setSkuCopied] = useState(false);
 
-  const { currentTier } = getUserTier(105000);
-  const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
-  const priceAfterDiscount = numPrice * (1 - currentTier.discountPercent);
-  const cashbackEarned = priceAfterDiscount * CONSTANT_CASHBACK_PERCENT;
-  const [mainPrice, centsPrice] = priceAfterDiscount.toFixed(2).split('.');
+  // ✅ Cena wprost z Medusy: brutto (z VAT 23%) + netto obok. Zero rabatów front-owych.
+  const priceBrutto = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
+  const priceNetto = typeof product.priceNetto === 'number' ? product.priceNetto : parseFloat(product.priceNetto) || 0;
+  const cashbackEarned = priceBrutto * CONSTANT_CASHBACK_PERCENT;
+  const [mainPrice, centsPrice] = priceBrutto.toFixed(2).split('.');
   const hasCents = centsPrice !== '00';
 
   useEffect(() => {
@@ -27,9 +27,9 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
     trackViewItem({
       item_id: product.sku || product.id,
       item_name: product.name,
-      price: priceAfterDiscount,
+      price: priceBrutto,
       item_category: product.category_text || 'Kategoria nienazwana',
-    }, priceAfterDiscount);
+    }, priceBrutto);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id, product.sku]);
 
@@ -52,7 +52,7 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
     addItem({ 
       id: product.id || product.sku, 
       name: product.name, 
-      price: priceAfterDiscount, 
+      price: priceBrutto, 
       image: mainImageUrl || '', 
       quantity: 1, 
       crossSell: [], 
@@ -110,21 +110,19 @@ export default function ProductBuyPanel({ product, mainImageUrl, attributes }: {
 
       <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6 mt-6">
         <div className="flex flex-col">
-          {currentTier.level > 1 && (
-            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-slate-900 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">
-                VIP -{currentTier.discountPercent * 100}%
-              </span>
-              <span className="text-xs text-slate-600 line-through font-bold">{numPrice.toFixed(2)} zł</span>
-            </div>
-          )}
           <div className="flex items-baseline gap-1">
             <span className="text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter">{mainPrice}</span>
             {hasCents && <span className="text-3xl font-bold text-slate-600">.{centsPrice}</span>}
             <span className="text-2xl font-bold text-slate-600 ml-1">zł</span>
           </div>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-slate-900 text-[11px] font-black uppercase tracking-widest">Cena brutto</p>
+            <span className="text-slate-300">•</span>
+            <p className="text-slate-600 text-[11px] font-bold">{priceNetto.toFixed(2)} zł netto</p>
+            <span className="text-slate-300">•</span>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">VAT 23%</p>
+          </div>
           <div className="flex items-center gap-3 mt-2">
-            <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest">Brutto (VAT 23%)</p>
             {cashbackEarned >= 0 && (
               <>
                 <div className="w-px h-3 bg-slate-200"></div>

@@ -2,16 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCart } from '@/store/useCart';
-import { getUserTier } from '@/lib/cashbackEngine';
 
 export default function StickyBottomBuy({ product, mainImageUrl }: { product: any, mainImageUrl: string | null }) {
   const [showSticky, setShowSticky] = useState(false);
   const { addItem, setIsOpen } = useCart();
-  const { currentTier } = getUserTier(105000);
 
-  const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
-  const priceAfterDiscount = numPrice * (1 - currentTier.discountPercent);
-  const [mainPrice, centsPrice] = priceAfterDiscount.toFixed(2).split('.');
+  // ✅ Cena brutto wprost z Medusy. Zero rabatów front-owych.
+  const priceBrutto = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
+  const [mainPrice, centsPrice] = priceBrutto.toFixed(2).split('.');
   const hasCents = centsPrice !== '00';
 
   useEffect(() => {
@@ -24,7 +22,7 @@ export default function StickyBottomBuy({ product, mainImageUrl }: { product: an
   }, []);
 
   const handleAddToCartMain = () => {
-    addItem({ id: product.id || product.sku || 'main', name: product.name, price: priceAfterDiscount, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
+    addItem({ id: product.id || product.sku || 'main', name: product.name, price: priceBrutto, image: mainImageUrl || '', quantity: 1, crossSell: [], category: '' });
     setIsOpen(true);
   };
 
