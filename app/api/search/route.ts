@@ -6,31 +6,25 @@ const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 // ⚙️ Region Polska (PLN + VAT 23%). Bez region_id Medusa NIE policzy VAT
 // i calculated_price będzie null. To jest klucz do poprawnych cen.
 const REGION_ID = process.env.NEXT_PUBLIC_MEDUSA_REGION_ID || "reg_01KT16M40467MTKK4ANCA96R25";
-// Kraj jest wymagany, by Medusa naliczyła VAT (stawka jest przypięta do kraju).
-const COUNTRY_CODE = process.env.NEXT_PUBLIC_MEDUSA_COUNTRY_CODE || "pl";
 
 /**
  * Jedno źródło prawdy o cenie.
- * Medusa (dzięki region_id + country_code) zwraca w calculated_price:
- *   - calculated_amount_with_tax     -> BRUTTO (z VAT 23%)
- *   - calculated_amount_without_tax  -> NETTO
+ * Medusa (dzięki region_id) zwraca w calculated_price:
+ *   - calculated_amount               -> BRUTTO (z VAT 23%)
+ *   - calculated_amount_without_tax   -> NETTO
  * Front NICZEGO nie mnoży ani nie dzieli — tylko czyta gotowe wartości.
  */
 function extractPrice(variant: any): { brutto: number; netto: number } {
   const cp = variant?.calculated_price;
   if (!cp) return { brutto: 0, netto: 0 };
 
-  // Preferujemy jawne pola z podatkiem. Fallback na calculated_amount, gdyby
-  // podatek nie był naliczony (wtedy amount = netto).
+  const brutto = typeof cp.calculated_amount === "number" ? cp.calculated_amount : 0;
+  // Medusa zwraca netto w calculated_amount_without_tax; jeśli go brak (np. cena już bez podatku),
+  // spadamy na brutto, żeby nie pokazać zera.
   const netto =
     typeof cp.calculated_amount_without_tax === "number"
       ? cp.calculated_amount_without_tax
-      : (typeof cp.calculated_amount === "number" ? cp.calculated_amount : 0);
-
-  const brutto =
-    typeof cp.calculated_amount_with_tax === "number"
-      ? cp.calculated_amount_with_tax
-      : netto; // gdy brak VAT — brutto = netto
+      : brutto;
 
   return {
     brutto: Number(brutto.toFixed(2)),
@@ -67,7 +61,7 @@ export async function getProductData(identifier: string) {
     // ⚙️ Prosimy o calculated_price (wymaga region_id w URL).
     const queryFields =
       "fields=*variants,*variants.calculated_price,*categories,+metadata,+images";
-    const regionParam = `region_id=${REGION_ID}&country_code=${COUNTRY_CODE}`;
+    const regionParam = `region_id=${REGION_ID}`;
 
     let res = await fetch(
       `${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}&${regionParam}`,
@@ -176,7 +170,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     const safeCategoryIds = allCategoryIds.slice(0, 60);
 
     // ⚙️ calculated_price + region_id także dla list kategorii.
-    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*variants.calculated_price,*images,+metadata&region_id=${REGION_ID}&country_code=${COUNTRY_CODE}&`;
+    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*variants.calculated_price,*images,+metadata&region_id=${REGION_ID}&`;
     safeCategoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });

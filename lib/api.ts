@@ -3,6 +3,41 @@
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
+// ⚙️ Region Polska (PLN + VAT 23%). Bez region_id Medusa NIE policzy VAT
+// i calculated_price będzie null. To jest klucz do poprawnych cen.
+const REGION_ID = process.env.NEXT_PUBLIC_MEDUSA_REGION_ID || "reg_01KT16M40467MTKK4ANCA96R25";
+// Kraj jest wymagany, by Medusa naliczyła VAT (stawka jest przypięta do kraju).
+const COUNTRY_CODE = process.env.NEXT_PUBLIC_MEDUSA_COUNTRY_CODE || "pl";
+
+/**
+ * Jedno źródło prawdy o cenie.
+ * Medusa (dzięki region_id + country_code) zwraca w calculated_price:
+ *   - calculated_amount_with_tax     -> BRUTTO (z VAT 23%)
+ *   - calculated_amount_without_tax  -> NETTO
+ * Front NICZEGO nie mnoży ani nie dzieli — tylko czyta gotowe wartości.
+ */
+function extractPrice(variant: any): { brutto: number; netto: number } {
+  const cp = variant?.calculated_price;
+  if (!cp) return { brutto: 0, netto: 0 };
+
+  // Preferujemy jawne pola z podatkiem. Fallback na calculated_amount, gdyby
+  // podatek nie był naliczony (wtedy amount = netto).
+  const netto =
+    typeof cp.calculated_amount_without_tax === "number"
+      ? cp.calculated_amount_without_tax
+      : (typeof cp.calculated_amount === "number" ? cp.calculated_amount : 0);
+
+  const brutto =
+    typeof cp.calculated_amount_with_tax === "number"
+      ? cp.calculated_amount_with_tax
+      : netto; // gdy brak VAT — brutto = netto
+
+  return {
+    brutto: Number(brutto.toFixed(2)),
+    netto: Number(netto.toFixed(2)),
+  };
+}
+
 function extractCategoryIds(category: any): string[] {
   let leaves: string[] = [];
   let branches: string[] = [];
@@ -28,11 +63,16 @@ export async function getProductData(identifier: string) {
     if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
-    
-    // Zaktualizowane pola zapytania o relację cen wariantów
-    const queryFields = "fields=*variants,*variants.prices,*categories,+metadata,+images";
 
-    let res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}`, options);
+    // ⚙️ Prosimy o calculated_price (wymaga region_id w URL).
+    const queryFields =
+      "fields=*variants,*variants.calculated_price,*categories,+metadata,+images";
+    const regionParam = `region_id=${REGION_ID}&country_code=${COUNTRY_CODE}`;
+
+    let res = await fetch(
+      `${MEDUSA_URL}/store/products?handle=${encodeURIComponent(identifier)}&${queryFields}&${regionParam}`,
+      options
+    );
     let json = await res.json();
 
     if (!json.products || json.products.length === 0) {
@@ -40,13 +80,19 @@ export async function getProductData(identifier: string) {
       if (slugParts.length > 1) {
         slugParts.pop();
         const shortHandle = slugParts.join('-');
-        res = await fetch(`${MEDUSA_URL}/store/products?handle=${encodeURIComponent(shortHandle)}&${queryFields}`, options);
+        res = await fetch(
+          `${MEDUSA_URL}/store/products?handle=${encodeURIComponent(shortHandle)}&${queryFields}&${regionParam}`,
+          options
+        );
         json = await res.json();
       }
     }
 
     if (!json.products || json.products.length === 0) {
-      res = await fetch(`${MEDUSA_URL}/store/products?q=${encodeURIComponent(identifier)}&${queryFields}`, options);
+      res = await fetch(
+        `${MEDUSA_URL}/store/products?q=${encodeURIComponent(identifier)}&${queryFields}&${regionParam}`,
+        options
+      );
       json = await res.json();
     }
 
@@ -58,17 +104,19 @@ export async function getProductData(identifier: string) {
     const meta = product.metadata || {};
     const mainVariant = product.variants?.[0] || null;
 
+    // ✅ Cena wyłącznie z Medusy: brutto (z VAT) + netto obok siebie.
+    const { brutto, netto } = extractPrice(mainVariant);
+
     return {
       id: product.id,
       sku: mainVariant?.sku || meta.sku || null,
       slug: product.handle,
       name: product.title || 'Produkt',
-      
-      // Zaktualizowana logika wyciągania ceny
-      price: mainVariant?.calculated_price?.calculated_amount 
-        ? (mainVariant.calculated_price.calculated_amount / 100) 
-        : (mainVariant?.prices?.[0]?.amount ? (mainVariant.prices[0].amount / 100) : 0), 
-        
+
+      // price = brutto (to, co klient płaci). netto obok, do wyświetlenia „netto".
+      price: brutto,
+      priceNetto: netto,
+
       description: product.description || '',
       category_text: product.categories?.[0]?.name || meta.category || '',
       category_path: product.categories?.[0]?.metadata?.category_path || meta.category_path || null,
@@ -94,10 +142,10 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     if (PUBLISHABLE_KEY) { headers["x-publishable-api-key"] = PUBLISHABLE_KEY; }
 
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
-    
+
     // 1. Pobieramy obecną kategorię z drzewem
     const categoryRes = await fetch(
-      `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`, 
+      `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`,
       options
     );
     const categoryJson = await categoryRes.json();
@@ -118,7 +166,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
       const cumulativePath = slugArray.slice(0, index + 1).join('/');
       const foundCat = fetchedCategories.find((c: any) => c.handle === slugPart);
       return {
-        name: foundCat?.name || slugPart.replace(/-/g, ' '), 
+        name: foundCat?.name || slugPart.replace(/-/g, ' '),
         path: cumulativePath
       };
     });
@@ -127,8 +175,8 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     const allCategoryIds = extractCategoryIds(category);
     const safeCategoryIds = allCategoryIds.slice(0, 60);
 
-    // Zaktualizowane pola zapytania o relację cen w filtrach kategorii
-    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*variants.prices,*images,+metadata&`;
+    // ⚙️ calculated_price + region_id także dla list kategorii.
+    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*variants.calculated_price,*images,+metadata&region_id=${REGION_ID}&country_code=${COUNTRY_CODE}&`;
     safeCategoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
@@ -146,7 +194,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
 
       // Zbieramy atrybuty techniczne
       let techSpecs: Record<string, any> = {};
-      
+
       if (meta.technical_specs) {
         if (typeof meta.technical_specs === 'string') {
           try { techSpecs = JSON.parse(meta.technical_specs); } catch(e) {}
@@ -154,7 +202,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
           techSpecs = meta.technical_specs;
         }
       }
-      
+
       // Dodajemy też markę i model, żeby działały jako filtry w panelu
       if (meta['Pasuje do marki']) techSpecs['Pasuje do marki'] = meta['Pasuje do marki'];
       if (meta['Pasuje do modelu']) techSpecs['Pasuje do modelu'] = meta['Pasuje do modelu'];
@@ -163,15 +211,15 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
       // Agregujemy (zliczamy) cechy do filtrów bocznych
       Object.entries(techSpecs).forEach(([key, value]) => {
         if (!value) return;
-        
+
         // Zabezpieczenie dla wartości tablicowych (np. ["Ursus", "Zetor"])
         const values = Array.isArray(value) ? value : [value];
         const formattedKey = key.charAt(0).toUpperCase() + key.slice(1); // Zawsze z dużej litery
-        
+
         values.forEach(val => {
           const stringVal = String(val).trim();
           if (!stringVal) return;
-          
+
           if (!extractedFilters[formattedKey]) {
             extractedFilters[formattedKey] = {};
           }
@@ -179,16 +227,17 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         });
       });
 
+      // ✅ Cena wyłącznie z Medusy (brutto + netto).
+      const { brutto, netto } = extractPrice(mainVariant);
+
       return {
         id: p.id,
         sku: mainVariant?.sku || meta.sku || null,
         name: p.title,
-        
-        // Zaktualizowana logika wyciągania ceny dla kart kategorii
-        price: mainVariant?.calculated_price?.calculated_amount 
-          ? (mainVariant.calculated_price.calculated_amount / 100) 
-          : (mainVariant?.prices?.[0]?.amount ? (mainVariant.prices[0].amount / 100) : 0),
-          
+
+        price: brutto,
+        priceNetto: netto,
+
         slug: p.handle,
         external_images: meta.external_images || [],
         images: p.images || []
@@ -206,7 +255,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
           bottom_seo_text: category.metadata?.bottom_seo_text || "",
           faqs: category.metadata?.faqs || []
         },
-        breadcrumbs: dynamicBreadcrumbs, 
+        breadcrumbs: dynamicBreadcrumbs,
         // 🚀 NAPRAWA PODKATEGORII: Przekazujemy pełne obiekty dla kafelków!
         subcategories: category.category_children?.map((c: any) => ({
           name: c.name,
@@ -215,7 +264,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
         })) || []
       },
       // 🚀 Przekazujemy wszystkie zbudowane filtry do lewego panelu!
-      filtersData: extractedFilters 
+      filtersData: extractedFilters
     };
   } catch (error) {
     console.error("[API LIB] Błąd pobierania kategorii z Medusy:", error);
