@@ -15,7 +15,7 @@ const meiliClient = new Meilisearch({
 });
 
 const corsHeaders = {
-  'Cache-Control': 'no-store, max-age=0',
+  'Cache-Control': 'public, max-age=60, stale-while-revalidate=120',
   'Content-Type': 'application/json'
 };
 

@@ -202,6 +202,22 @@ export default function MegaMenu() {
   const [openId, setOpenId] = useState<string | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Prefetch: gdy klient najedzie na filar, w tle pobieramy dane jego podkategorii,
+  // zeby po kliknieciu strona wskoczyla natychmiast (z cache przegladarki).
+  const prefetched = useRef<Set<string>>(new Set());
+
+  const prefetchCategory = useCallback((cat: MegaCategory) => {
+    const hrefs: string[] = [cat.href];
+    for (const col of cat.columns) for (const l of col.links) hrefs.push(l.href);
+    for (const href of hrefs) {
+      const slug = href.replace("/kategoria/", "");
+      if (!slug || prefetched.current.has(slug)) continue;
+      prefetched.current.add(slug);
+      // pobieramy tylko naglowek listy (limit=48) - to samo co pobierze strona kategorii
+      fetch(`/api/search?fullPath=${encodeURIComponent(slug)}&limit=48`).catch(() => {});
+    }
+  }, []);
+
   const open = useCallback((id: string) => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setOpenId(id);
@@ -222,7 +238,7 @@ export default function MegaMenu() {
         {MEGA_MENU_DATA.map((cat) => {
           const isOpen = openId === cat.id;
           return (
-            <li key={cat.id} className="static" onMouseEnter={() => open(cat.id)}>
+            <li key={cat.id} className="static" onMouseEnter={() => { open(cat.id); prefetchCategory(cat); }}>
               <Link
                 href={cat.href}
                 className={
