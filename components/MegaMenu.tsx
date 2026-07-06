@@ -5,14 +5,14 @@ import Link from "next/link";
 
 type MegaLink = { text: string; href: string; badge?: string };
 type MegaColumn = { heading?: string; links: MegaLink[] };
-type MegaCategory = { id: string; title: string; href: string; featured?: boolean; columns: MegaColumn[] };
+type MegaCategory = { id: string; title: string; fullTitle?: string; href: string; featured?: boolean; columns: MegaColumn[] };
 
 const P = "/kategoria/";
 
 const MEGA_MENU_DATA: MegaCategory[] = [
   {
     id: "hodowla",
-    title: "Hodowla i udój",
+    title: "Hodowla", fullTitle: "Hodowla i udój",
     href: P + "hodowla-i-zootechnika",
     featured: true,
     columns: [
@@ -43,7 +43,7 @@ const MEGA_MENU_DATA: MegaCategory[] = [
   },
   {
     id: "ciagniki",
-    title: "Części do ciągników",
+    title: "Ciągniki", fullTitle: "Części do ciągników",
     href: P + "czesci-do-ciagnikow",
     columns: [
       {
@@ -72,7 +72,7 @@ const MEGA_MENU_DATA: MegaCategory[] = [
   },
   {
     id: "maszyny",
-    title: "Części do maszyn",
+    title: "Maszyny", fullTitle: "Części do maszyn",
     href: P + "czesci-do-maszyn",
     columns: [
       {
@@ -101,7 +101,7 @@ const MEGA_MENU_DATA: MegaCategory[] = [
   },
   {
     id: "zaczepy",
-    title: "Zaczepy, koła i osprzęt",
+    title: "Zaczepy i koła", fullTitle: "Zaczepy, koła i osprzęt",
     href: P + "czesci-do-ciagnikow-i-maszyn",
     columns: [
       {
@@ -119,7 +119,7 @@ const MEGA_MENU_DATA: MegaCategory[] = [
   },
   {
     id: "hydraulika",
-    title: "Hydraulika siłowa",
+    title: "Hydraulika", fullTitle: "Hydraulika siłowa",
     href: P + "hydraulika-silowa",
     columns: [
       {
@@ -144,7 +144,7 @@ const MEGA_MENU_DATA: MegaCategory[] = [
   },
   {
     id: "uniwersalne",
-    title: "Części uniwersalne",
+    title: "Uniwersalne", fullTitle: "Części uniwersalne",
     href: P + "czesci-uniwersalne",
     columns: [
       {
@@ -173,7 +173,7 @@ const MEGA_MENU_DATA: MegaCategory[] = [
   },
   {
     id: "wiecej",
-    title: "Więcej",
+    title: "Więcej", fullTitle: "Pozostałe kategorie",
     href: P + "warsztat-i-uniwersalne",
     columns: [
       {
@@ -245,7 +245,7 @@ export default function MegaMenu() {
                 >
                   <div className="mx-auto max-w-7xl px-6 py-7">
                     <div className="mb-5 flex items-center justify-between">
-                      <h3 className="text-[18px] font-bold text-slate-900">{cat.title}</h3>
+                      <h3 className="text-[18px] font-bold text-slate-900">{cat.fullTitle || cat.title}</h3>
                       <Link href={cat.href} className="text-[14px] font-semibold text-red-600 hover:text-red-700">
                         Zobacz wszystko &rarr;
                       </Link>
