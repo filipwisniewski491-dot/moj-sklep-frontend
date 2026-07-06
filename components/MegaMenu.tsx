@@ -3,24 +3,9 @@
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 
-type MegaLink = {
-  text: string;
-  href: string;
-  badge?: string;
-};
-
-type MegaColumn = {
-  heading?: string;
-  links: MegaLink[];
-};
-
-type MegaCategory = {
-  id: string;
-  title: string;
-  href: string;
-  featured?: boolean;
-  columns: MegaColumn[];
-};
+type MegaLink = { text: string; href: string; badge?: string };
+type MegaColumn = { heading?: string; links: MegaLink[] };
+type MegaCategory = { id: string; title: string; href: string; featured?: boolean; columns: MegaColumn[] };
 
 const P = "/kategoria/";
 
@@ -79,7 +64,6 @@ const MEGA_MENU_DATA: MegaCategory[] = [
       },
       {
         links: [
-          { text: "Układ kierowniczy i oś", href: P + "uklad-kierowniczy-i-os-przednia" },
           { text: "Oświetlenie i LED", href: P + "oswietlenie-lampy-robocze-i-led" },
           { text: "Układ hamulcowy", href: P + "uklad-hamulcowy" },
         ],
@@ -187,15 +171,31 @@ const MEGA_MENU_DATA: MegaCategory[] = [
       },
     ],
   },
-];
-
-const MORE_LINKS: MegaLink[] = [
-  { text: "Warsztat i narzędzia", href: P + "warsztat-i-uniwersalne" },
-  { text: "Filtry", href: P + "filtry" },
-  { text: "Elektronika i GPS", href: P + "elektronika-i-precyzja" },
-  { text: "Chemia i smary", href: P + "chemia-i-smary" },
-  { text: "Dom, ogród, las", href: P + "dom-ogrod-las" },
-  { text: "Materiały eksploatacyjne", href: P + "materialy-eksploatacyjne" },
+  {
+    id: "wiecej",
+    title: "Więcej",
+    href: P + "warsztat-i-uniwersalne",
+    columns: [
+      {
+        links: [
+          { text: "Warsztat i narzędzia", href: P + "warsztat-i-uniwersalne" },
+          { text: "Filtry", href: P + "filtry" },
+        ],
+      },
+      {
+        links: [
+          { text: "Elektronika i GPS", href: P + "elektronika-i-precyzja" },
+          { text: "Chemia i smary", href: P + "chemia-i-smary" },
+        ],
+      },
+      {
+        links: [
+          { text: "Dom, ogród, las", href: P + "dom-ogrod-las" },
+          { text: "Materiały eksploatacyjne", href: P + "materialy-eksploatacyjne" },
+        ],
+      },
+    ],
+  },
 ];
 
 export default function MegaMenu() {
@@ -218,7 +218,7 @@ export default function MegaMenu() {
       aria-label="Menu kategorii"
       onMouseLeave={scheduleClose}
     >
-      <ul className="mx-auto flex max-w-7xl items-stretch gap-1 px-4">
+      <ul className="mx-auto flex max-w-7xl items-stretch gap-0.5 px-4">
         {MEGA_MENU_DATA.map((cat) => {
           const isOpen = openId === cat.id;
           return (
@@ -226,15 +226,15 @@ export default function MegaMenu() {
               <Link
                 href={cat.href}
                 className={
-                  "flex items-center gap-1.5 px-4 py-3.5 text-[13px] font-semibold tracking-tight transition-colors " +
-                  (cat.featured ? "text-red-700 hover:text-red-800" : "text-slate-700 hover:text-slate-900") +
-                  (isOpen ? " text-slate-900" : "")
+                  "flex items-center gap-1.5 px-3.5 py-4 text-[16px] font-semibold tracking-tight transition-colors " +
+                  (cat.featured ? "text-red-700 hover:text-red-800" : "text-slate-800 hover:text-slate-950") +
+                  (isOpen ? " text-slate-950" : "")
                 }
                 aria-expanded={isOpen}
               >
                 {cat.title}
-                <svg className="h-3.5 w-3.5 opacity-60" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <svg className="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </Link>
 
@@ -243,31 +243,31 @@ export default function MegaMenu() {
                   className="absolute left-0 right-0 top-full z-40 border-t border-slate-200 bg-white shadow-xl"
                   onMouseEnter={() => open(cat.id)}
                 >
-                  <div className="mx-auto max-w-7xl px-6 py-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-[15px] font-bold text-slate-900">{cat.title}</h3>
-                      <Link href={cat.href} className="text-[12px] font-semibold text-red-600 hover:text-red-700">
+                  <div className="mx-auto max-w-7xl px-6 py-7">
+                    <div className="mb-5 flex items-center justify-between">
+                      <h3 className="text-[18px] font-bold text-slate-900">{cat.title}</h3>
+                      <Link href={cat.href} className="text-[14px] font-semibold text-red-600 hover:text-red-700">
                         Zobacz wszystko &rarr;
                       </Link>
                     </div>
-                    <div className="grid grid-cols-3 gap-x-8 gap-y-6">
+                    <div className="grid grid-cols-3 gap-x-10 gap-y-7">
                       {cat.columns.map((col, ci) => (
                         <div key={ci}>
                           {col.heading && (
-                            <div className="mb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-400">
+                            <div className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-400">
                               {col.heading}
                             </div>
                           )}
-                          <ul className="space-y-1.5">
+                          <ul className="space-y-2.5">
                             {col.links.map((lnk) => (
                               <li key={lnk.href}>
                                 <Link
                                   href={lnk.href}
-                                  className="group flex items-center gap-2 text-[13.5px] text-slate-600 hover:text-red-600 transition-colors"
+                                  className="group flex items-center gap-2 text-[16px] font-medium text-slate-700 hover:text-red-600 transition-colors"
                                 >
                                   <span>{lnk.text}</span>
                                   {lnk.badge && (
-                                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600">
+                                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-red-600">
                                       {lnk.badge}
                                     </span>
                                   )}
@@ -285,40 +285,22 @@ export default function MegaMenu() {
           );
         })}
 
-        <li className="static" onMouseEnter={() => open("more")}>
-          <button
-            type="button"
-            className={
-              "flex items-center gap-1.5 px-4 py-3.5 text-[13px] font-semibold tracking-tight text-slate-700 hover:text-slate-900 " +
-              (openId === "more" ? "text-slate-900" : "")
-            }
-            aria-expanded={openId === "more"}
+        <li className="ml-auto flex items-center">
+          <Link
+            href="/promocje"
+            className="flex items-center gap-1.5 px-4 py-4 text-[16px] font-bold text-red-600 hover:text-red-700 transition-colors"
           >
-            Więcej
-            <svg className="h-3.5 w-3.5 opacity-60" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 14l6-6M9.5 9h.01M14.5 14h.01M6 3h12l3 6-9 12L3 9z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </button>
-
-          {openId === "more" && (
-            <div
-              className="absolute right-4 top-full z-40 min-w-[240px] rounded-b-xl border border-slate-200 bg-white p-3 shadow-xl"
-              onMouseEnter={() => open("more")}
-            >
-              <ul className="space-y-1">
-                {MORE_LINKS.map((lnk) => (
-                  <li key={lnk.href}>
-                    <Link
-                      href={lnk.href}
-                      className="block rounded-lg px-3 py-2 text-[13.5px] text-slate-600 hover:bg-slate-50 hover:text-red-600 transition-colors"
-                    >
-                      {lnk.text}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+            Promocje
+          </Link>
+          <Link
+            href="/kategorie"
+            className="flex items-center gap-1.5 border-l border-slate-200 px-4 py-4 text-[16px] font-semibold text-slate-800 hover:text-slate-950 transition-colors"
+          >
+            Cały katalog
+          </Link>
         </li>
       </ul>
     </nav>
