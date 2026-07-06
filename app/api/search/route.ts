@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { Meilisearch } from 'meilisearch';
 import { getBrandsSet, getModelsForBrand } from '@/lib/brand-utils';
+import { unstable_cache } from 'next/cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "https://panel.centrumrolnictwa.com";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
+const REGION_ID = process.env.NEXT_PUBLIC_MEDUSA_REGION_ID || "reg_01KT16M40467MTKK4ANCA96R25";
 
 const meiliClient = new Meilisearch({
   host: process.env.NEXT_PUBLIC_MEILISEARCH_HOST || '',
@@ -18,36 +20,44 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-const CANDIDATE_FACETS = [
-  'Średnica wewnętrzna (DN) [mm]', 'Średnica wewnętrzna [mm]', 'Średnica zewnętrzna [mm]', 'Średnica [mm]',
-  'Średnica sworznia [mm]', 'Średnica sworznia zaczepu [mm]', 'Średnica przyłącza [mm]', 'Średnica tłoczyska [mm]',
-  'Średnica tłoka [mm]', 'Średnica cylindra wewn. [mm]', 'Średnica otworu [mm]', 'Średnica koła pasowego [mm]',
-  'Średnica talerza [mm]', 'Średnica węża zewnętrzna [mm]', 'Ø wew. (mm)',
-  'Szerokość/Grubość [mm]', 'Szerokość [mm]', 'Szerokość robocza [mm]', 'Szerokość paska [mm]',
-  'Szerokość siedzenia [mm]', 'Szerokość szyny (mm)', 'Szerokość prowadnicy (mm)',
-  'Wysokość [mm]', 'Grubość [mm]', 'Grubość elementu [mm]', 'Grubość lemiesza/dłuta [mm]',
-  'Długość [mm]', 'Długość robocza [mm]', 'Długość paska [mm]', 'Długość śruby/elementu [mm]', 'Długość [cm]',
-  'Skok siłownika [mm]', 'Rozstaw otworów kołnierza [mm]', 'Rozstaw otworów montażowych [mm]',
-  'Napięcie [V]', 'Natężenie [A]', 'Moc [kW]', 'Moc [W]', 'Pojemność [l]', 'Pojemność [Ah]',
-  'Max. ciśnienie [bar]', 'Max. ciśnienie robocze [bar]', 'Ciśnienie robocze [bar]', 'Przepływ max [l/min]',
-  'Siła wyrzutu [N]', 'Siła nacisku/uciągu [t]', 'Wartość D [kN]', 'Nacisk pionowy [kg]', 'Obciążenie (kg)',
-  'Udźwig [kg]', 'Twardość Shore', 'Ilość zębów', 'Ilość sekcji', 'Ilość ogniw/żeber', 'Ilość pierścieni',
-  'Ilość oplotów stalowych (SN)', 'Wydajność geometryczna [cm3/obr]', 'Wymiar gwintu', 'Rozmiar klucza/końcówki [mm]',
-  'Materiał', 'Materiał (Żeliwo/Tworzywo)', 'Materiał obicia', 'Gwint', 'Kategoria zaczepu (Kat.)',
-  'Seria (L-Lekka / S-Ciężka)', 'Typ uszczelnienia (np. 2RS, Simmering)', 'Typ uszczelnienia',
-  'Kolor', 'Kolor szyby', 'Typ złącza (Męski/Żeński)', 'Typ złącza (Miękkie/Twarde)', 'Wersja', 'Rozmiar',
-  'Rozmiar gwintów przyłączeniowych', 'Kierunek obrotów (L/P)', 'Strona', 'Strona montażu (L/P)',
-  'Profil paska/łańcucha', 'Blokada', 'Funkcje światła', 'Typ sterowania (Ręczne/Elektryczne)',
-  'Standard (EURO/PUSH-PULL)', 'Klasa twardości (np. 8.8, 10.9)', 'Typ wałka (Stożek/Frez)', 'Typ łba',
-  'Rodzaj amortyzacji', 'Norma', 'Kategoria', 'Przeznaczenie', 'Model silnika',
-];
-
 function buildFilterValue(key: string, val: string): string {
   const values = String(val).split(',').map(v => v.trim()).filter(Boolean);
   if (values.length === 0) return '';
   const orConditions = values.map(v => `"${key}" = "${v.replace(/"/g, '\\"')}"`);
   return orConditions.length === 1 ? orConditions[0] : `(${orConditions.join(' OR ')})`;
 }
+
+// Pobieranie i zbieranie handli kategorii z Medusy - CACHE na 1h (drzewo kategorii zmienia sie rzadko)
+const getCategoryHandles = unstable_cache(
+  async (currentHandle: string): Promise<string[]> => {
+    const allowedHandles: string[] = [currentHandle];
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
+      const catRes = await fetch(
+        `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`,
+        { headers, next: { revalidate: 3600 } }
+      );
+      if (catRes.ok) {
+        const catJson = await catRes.json();
+        const currentCategory = catJson.product_categories?.[0];
+        if (currentCategory) {
+          const collectHandles = (cat: any) => {
+            if (!cat) return;
+            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
+            if (cat.category_children?.length) cat.category_children.forEach(collectHandles);
+          };
+          collectHandles(currentCategory);
+        }
+      }
+    } catch (error) {
+      console.warn("Nie udalo sie pobrac kategorii z Medusy:", error);
+    }
+    return allowedHandles;
+  },
+  ['category-handles'],
+  { revalidate: 3600, tags: ['categories'] }
+);
 
 async function resolvePath(slugArray: string[]) {
   const brandsMap = await getBrandsSet();
@@ -88,13 +98,13 @@ export async function GET(request: Request) {
       const searchResult = await index.search(searchQ, { limit: 6 });
       return NextResponse.json({ hits: searchResult.hits }, { headers: corsHeaders });
     } catch (error) {
-      console.error('Błąd wyszukiwarki:', error);
+      console.error('Blad wyszukiwarki:', error);
       return NextResponse.json({ hits: [] }, { status: 500, headers: corsHeaders });
     }
   }
 
   if (!fullPath) {
-    return NextResponse.json({ error: "Brak ścieżki" }, { status: 400, headers: corsHeaders });
+    return NextResponse.json({ error: "Brak sciezki" }, { status: 400, headers: corsHeaders });
   }
 
   const slugArray = fullPath.split('/').filter(Boolean);
@@ -103,32 +113,8 @@ export async function GET(request: Request) {
   const currentHandle = categorySegments.length > 0 ? categorySegments[categorySegments.length - 1] : '';
 
   let allowedHandles: string[] = currentHandle ? [currentHandle] : [];
-
   if (currentHandle) {
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-
-      const catRes = await fetch(
-        `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`,
-        { headers, next: { revalidate: 3600 } }
-      );
-
-      if (catRes.ok) {
-        const catJson = await catRes.json();
-        const currentCategory = catJson.product_categories?.[0];
-        if (currentCategory) {
-          const collectHandles = (cat: any) => {
-            if (!cat) return;
-            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-            if (cat.category_children?.length) cat.category_children.forEach(collectHandles);
-          };
-          collectHandles(currentCategory);
-        }
-      }
-    } catch (error) {
-      console.warn("Nie udało się pobrać kategorii z Medusy:", error);
-    }
+    allowedHandles = await getCategoryHandles(currentHandle);
   }
 
   const baseFilterParts: string[] = [];
@@ -185,46 +171,50 @@ export async function GET(request: Request) {
   try {
     const index = meiliClient.index('products');
 
-    let baseDist: Record<string, any> = {};
-    let safeFacets: string[] = [];
-    try {
-      const probe = await index.search(searchQ, { limit: 0, filter: baseFilter || undefined, facets: ['*'] });
-      baseDist = probe.facetDistribution || {}; safeFacets = ['*'];
-    } catch {
-      try {
-        const probe = await index.search(searchQ, { limit: 0, filter: baseFilter || undefined, facets: CANDIDATE_FACETS });
-        baseDist = probe.facetDistribution || {}; safeFacets = CANDIDATE_FACETS;
-      } catch { baseDist = {}; safeFacets = []; }
-    }
-
-    let searchResult: any;
-    try {
-      searchResult = await index.search(searchQ, {
-        limit: currentLimit, filter: finalFilter || undefined, sort: meiliSort,
-        facets: safeFacets.length ? safeFacets : undefined,
-      });
-    } catch {
-      searchResult = await index.search(searchQ, {
-        limit: currentLimit, filter: finalFilter || undefined, sort: meiliSort,
-      });
-    }
-
-    const activeKeys = Object.keys(activeFilters);
-    const disjunctiveResults = await Promise.all(activeKeys.map(async (key) => {
+    // Glowne zapytanie (produkty + facety wg finalFilter) i baseDist (facety wg baseFilter) - RÓWNOLEGLE
+    const mainSearch = async () => {
       try {
         return await index.search(searchQ, {
-          limit: 0, filter: buildFilters(key).join(' AND ') || undefined, facets: [key],
+          limit: currentLimit, filter: finalFilter || undefined, sort: meiliSort, facets: ['*'],
         });
-      } catch { return { facetDistribution: {} } as any; }
-    }));
-
-    const disjunctiveFacets: Record<string, any> = {};
-    activeKeys.forEach((key, i) => {
-      const res = disjunctiveResults[i];
-      if (res?.facetDistribution?.[key]) {
-        disjunctiveFacets[key] = res.facetDistribution[key];
+      } catch {
+        return await index.search(searchQ, {
+          limit: currentLimit, filter: finalFilter || undefined, sort: meiliSort,
+        });
       }
-    });
+    };
+    const baseDistSearch = async () => {
+      try {
+        const probe = await index.search(searchQ, { limit: 0, filter: baseFilter || undefined, facets: ['*'] });
+        return probe.facetDistribution || {};
+      } catch {
+        return {};
+      }
+    };
+
+    const activeKeys = Object.keys(activeFilters);
+    const disjunctiveSearch = async () => {
+      const results = await Promise.all(activeKeys.map(async (key) => {
+        try {
+          return await index.search(searchQ, {
+            limit: 0, filter: buildFilters(key).join(' AND ') || undefined, facets: [key],
+          });
+        } catch { return { facetDistribution: {} } as any; }
+      }));
+      const dj: Record<string, any> = {};
+      activeKeys.forEach((key, i) => {
+        const res = results[i];
+        if (res?.facetDistribution?.[key]) dj[key] = res.facetDistribution[key];
+      });
+      return dj;
+    };
+
+    // Wszystko naraz: produkty, facety bazowe, facety disjunktywne
+    const [searchResult, baseDist, disjunctiveFacets] = await Promise.all([
+      mainSearch(),
+      baseDistSearch(),
+      disjunctiveSearch(),
+    ]);
 
     console.log(`[search] handle=${currentHandle} brand=${brandName} model=${modelName} hits=${searchResult.hits.length}`);
 
@@ -247,7 +237,7 @@ export async function GET(request: Request) {
     }, { headers: corsHeaders });
 
   } catch (error: any) {
-    console.error("Błąd Meilisearch route:", error?.message || error);
+    console.error("Blad Meilisearch route:", error?.message || error);
     return NextResponse.json(
       { products: [], filters: {}, narrowedFilters: {}, disjunctiveFacets: {}, totalCount: 0, error: error?.message },
       { status: 500, headers: corsHeaders }
