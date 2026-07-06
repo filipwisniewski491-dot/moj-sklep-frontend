@@ -1,5 +1,7 @@
 // lib/api.ts
 
+import { meiliClient } from './meilisearch-client';
+
 const MEDUSA_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://178.104.130.90:9000";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY;
 
@@ -38,6 +40,10 @@ function extractPrice(variant: any): { brutto: number; netto: number } {
   };
 }
 
+// ⚠️ UWAGA: ta funkcja była używana WYŁĄCZNIE w starym (medusowym) bloku produktów
+// getCategoryData, który został zastąpiony przez Meili. Jest teraz nieużywana.
+// Zostawiona świadomie, żeby diff był chirurgiczny — usuń ją, jeśli Twój build
+// ma włączone noUnusedLocals (domyślny create-next-app tego NIE wymusza).
 function extractCategoryIds(category: any): string[] {
   let leaves: string[] = [];
   let branches: string[] = [];
@@ -143,7 +149,8 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
 
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
 
-    // 1. Pobieramy obecną kategorię z drzewem
+    // 1. Pobieramy obecną kategorię z drzewem (ZOSTAWIONE — Medusa jest źródłem
+    //    prawdy o nazwie/SEO/dzieciach kategorii; Meili tego nie trzyma).
     const categoryRes = await fetch(
       `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`,
       options
@@ -171,82 +178,70 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
       };
     });
 
-    // 2. Wyciągamy podkategorie i limitujemy ID, żeby nie przeciążyć serwera
-    const allCategoryIds = extractCategoryIds(category);
-    const safeCategoryIds = allCategoryIds.slice(0, 60);
+    // ============================================================================
+    // ⚡ MEILI: produkty + facety JEDNYM zapytaniem.
+    // Zastępuje stary blok: 100 szt. z Medusy (~1.45s) + ręczne zliczanie facetów.
+    //
+    // Każdy produkt w Meili trzyma w category_handles CAŁĄ swoją ścieżkę kategorii,
+    // więc filtr po handle bieżącej kategorii łapie całe poddrzewo — dokładnie tak
+    // samo jak /api/search (route.ts). Używamy category.handle (a nie fullPath),
+    // bo to realny handle zwrócony przez Medusę dla tej kategorii.
+    // ============================================================================
+    const meiliHandle = String(category.handle).replace(/"/g, '\\"');
+    const index = meiliClient.index('products');
 
-    // ⚙️ calculated_price + region_id także dla list kategorii.
-    let productsQueryUrl = `${MEDUSA_URL}/store/products?fields=*variants,*variants.calculated_price,*images,+metadata&region_id=${REGION_ID}&country_code=${COUNTRY_CODE}&`;
-    safeCategoryIds.forEach(id => {
-      productsQueryUrl += `category_id[]=${id}&`;
+    const searchResult = await index.search('', {
+      filter: `category_handles = "${meiliHandle}"`,
+      facets: ['*'],
+      limit: 48,
     });
-    productsQueryUrl += `limit=24`; // Ładujemy do 100 sztuk dla filtrów
 
-    const productsRes = await fetch(productsQueryUrl, options);
-    const productsJson = await productsRes.json();
+    // Produkty z hits. Kształt 1:1 z tym, co zwraca /api/search (route.ts),
+    // więc SSR i filtrowanie po stronie klienta są spójne.
+    const mappedProducts = (searchResult.hits || []).map((p: any) => ({
+      id: p.id,
+      sku: p.sku || p.id,
+      name: p.title,
 
-    // 🚀 NAPRAWA FILTRÓW: Dynamiczne wyciąganie danych z JSON (technical_specs) z Medusy
+      // ⚠️ DO WERYFIKACJI W TEŚCIE: price z indeksu Meili. Na /api/search jest
+      // podawane bezpośrednio jako cena listowa. Sprawdź, czy to BRUTTO (z VAT),
+      // bo strona produktu (getProductData) liczy brutto z Medusy.
+      price: p.price || 0,
+      // Meili może nie mieć osobnego pola netto — jeśli tile go potrzebuje,
+      // dodaj pole do indeksu. Na razie fallback do null (route.ts w ogóle go nie zwraca).
+      priceNetto: p.priceNetto ?? p.price_netto ?? null,
+
+      slug: p.handle,
+      external_images: p.external_images || [],
+      images: p.thumbnail ? [{ url: p.thumbnail }] : [],
+    }));
+
+    // Facety z facetDistribution — format {pole:{wartość:liczba}} jest IDENTYCZNY
+    // jak dawny ręczny extractedFilters, więc lewy panel dostaje to samo.
+    // BONUS: znikają popsute marki (case 'Ih'->1 itd.) — Meili trzyma czyste wartości.
+    // Klucze zostają RAW (nie kapitalizujemy) — tak samo jak /api/search, żeby
+    // facety SSR i klienta się nie rozjechały.
+    const HIDDEN_FACETS = new Set<string>([
+      'price', 'in_stock', 'inventory_quantity', 'category_handles',
+      'Pasuje do modelu', // ~5000 wartości — filtr modelu idzie ścieżką URL, nie panelem.
+                          // Usuń z tej listy, jeśli chcesz go jednak pokazywać w panelu.
+    ]);
+
+    const rawFacets = (searchResult.facetDistribution || {}) as Record<string, Record<string, number>>;
     const extractedFilters: Record<string, Record<string, number>> = {};
+    for (const [key, dist] of Object.entries(rawFacets)) {
+      if (HIDDEN_FACETS.has(key)) continue;
+      if (key.startsWith('n_')) continue; // liczbowe warianty pól (dla zakresów) — nie jako lista
+      extractedFilters[key] = dist;
+    }
 
-    const mappedProducts = productsJson.products?.map((p: any) => {
-      const meta = p.metadata || {};
-      const mainVariant = p.variants?.[0] || null;
-
-      // Zbieramy atrybuty techniczne
-      let techSpecs: Record<string, any> = {};
-
-      if (meta.technical_specs) {
-        if (typeof meta.technical_specs === 'string') {
-          try { techSpecs = JSON.parse(meta.technical_specs); } catch(e) {}
-        } else if (typeof meta.technical_specs === 'object') {
-          techSpecs = meta.technical_specs;
-        }
-      }
-
-      // Dodajemy też markę i model, żeby działały jako filtry w panelu
-      if (meta['Pasuje do marki']) techSpecs['Pasuje do marki'] = meta['Pasuje do marki'];
-      if (meta['Pasuje do modelu']) techSpecs['Pasuje do modelu'] = meta['Pasuje do modelu'];
-      if (meta.producent || meta.Producent) techSpecs['Producent'] = meta.producent || meta.Producent;
-
-      // Agregujemy (zliczamy) cechy do filtrów bocznych
-      Object.entries(techSpecs).forEach(([key, value]) => {
-        if (!value) return;
-
-        // Zabezpieczenie dla wartości tablicowych (np. ["Ursus", "Zetor"])
-        const values = Array.isArray(value) ? value : [value];
-        const formattedKey = key.charAt(0).toUpperCase() + key.slice(1); // Zawsze z dużej litery
-
-        values.forEach(val => {
-          const stringVal = String(val).trim();
-          if (!stringVal) return;
-
-          if (!extractedFilters[formattedKey]) {
-            extractedFilters[formattedKey] = {};
-          }
-          extractedFilters[formattedKey][stringVal] = (extractedFilters[formattedKey][stringVal] || 0) + 1;
-        });
-      });
-
-      // ✅ Cena wyłącznie z Medusy (brutto + netto).
-      const { brutto, netto } = extractPrice(mainVariant);
-
-      return {
-        id: p.id,
-        sku: mainVariant?.sku || meta.sku || null,
-        name: p.title,
-
-        price: brutto,
-        priceNetto: netto,
-
-        slug: p.handle,
-        external_images: meta.external_images || [],
-        images: p.images || []
-      };
-    }) || [];
+    // totalCount: dawniej productsJson.count → teraz z Meili.
+    // estimatedTotalHits (jak route.ts) — spójne z licznikiem po stronie klienta.
+    const meiliTotalCount = searchResult.estimatedTotalHits ?? mappedProducts.length;
 
     return {
       searchData: {
-        totalCount: productsJson.count || mappedProducts.length || 0,
+        totalCount: meiliTotalCount,
         products: mappedProducts,
         category: {
           ...category,
@@ -267,7 +262,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
       filtersData: extractedFilters
     };
   } catch (error) {
-    console.error("[API LIB] Błąd pobierania kategorii z Medusy:", error);
+    console.error("[API LIB] Błąd pobierania kategorii (Meili):", error);
     return null;
   }
 }
