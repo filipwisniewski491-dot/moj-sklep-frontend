@@ -149,51 +149,48 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
 
     const options: RequestInit = { headers: headers, next: { revalidate: 3600 } };
 
-    // 1. Pobieramy obecną kategorię z drzewem (ZOSTAWIONE — Medusa jest źródłem
-    //    prawdy o nazwie/SEO/dzieciach kategorii; Meili tego nie trzyma).
-    const categoryRes = await fetch(
-      `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`,
-      options
-    );
-    const categoryJson = await categoryRes.json();
-    const category = categoryJson.product_categories?.[0];
+    // Handle bieżącej kategorii = OSTATNI segment ścieżki — dokładnie jak route.ts
+    // (to jest sprawdzone przeciw indeksowi Meili; pewniejsze niż category.handle,
+    // którego format w Medusie bywa różny). category_handles w Meili trzyma pojedyncze
+    // segmenty, więc filtr po ostatnim segmencie łapie całe poddrzewo kategorii.
+    const slugArray = fullPath.split('/');
+    const currentHandle = slugArray[slugArray.length - 1] || '';
+    const meiliHandle = String(currentHandle).replace(/"/g, '\\"');
+    const index = meiliClient.index('products');
 
+    // URL-e (te same co wcześniej — Medusa nadal jest źródłem prawdy o kategorii/SEO/dzieciach).
+    const categoryUrl = `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`;
+    const handlesQuery = slugArray.map(slug => `handle[]=${slug}`).join('&');
+    const breadcrumbsUrl = `${MEDUSA_URL}/store/product-categories?${handlesQuery}`;
+
+    // ⚡ 3 zapytania RÓWNOLEGLE zamiast po kolei.
+    // Było: fetch kategorii → fetch breadcrumbs → search (suma czasów, ~1.3s TTFB).
+    // Teraz: TTFB = MAX z trzech, nie suma. Meili nie zależy od Medusy (handle mamy
+    // z URL-a), więc może startować od razu.
+    const [categoryJson, breadcrumbsJson, searchResult] = await Promise.all([
+      fetch(categoryUrl, options).then(r => r.json()),
+      fetch(breadcrumbsUrl, options).then(r => r.json()),
+      index.search('', {
+        filter: `category_handles = "${meiliHandle}"`,
+        facets: ['*'],
+        limit: 48,
+      }),
+    ]);
+
+    const category = categoryJson.product_categories?.[0];
     if (!category) {
-        return null;
+      return null;
     }
 
-    // 🚀 NAPRAWA OKRUSZKÓW: Pobieramy pełną ścieżkę z API, by mieć polskie znaki!
-    const slugArray = fullPath.split('/');
-    const handlesQuery = slugArray.map(slug => `handle[]=${slug}`).join('&');
-    const breadcrumbsRes = await fetch(`${MEDUSA_URL}/store/product-categories?${handlesQuery}`, options);
-    const breadcrumbsJson = await breadcrumbsRes.json();
+    // 🚀 NAPRAWA OKRUSZKÓW: pełne nazwy (z polskimi znakami) z API.
     const fetchedCategories = breadcrumbsJson.product_categories || [];
-
-    const dynamicBreadcrumbs = slugArray.map((slugPart, index) => {
-      const cumulativePath = slugArray.slice(0, index + 1).join('/');
+    const dynamicBreadcrumbs = slugArray.map((slugPart, idx) => {
+      const cumulativePath = slugArray.slice(0, idx + 1).join('/');
       const foundCat = fetchedCategories.find((c: any) => c.handle === slugPart);
       return {
         name: foundCat?.name || slugPart.replace(/-/g, ' '),
         path: cumulativePath
       };
-    });
-
-    // ============================================================================
-    // ⚡ MEILI: produkty + facety JEDNYM zapytaniem.
-    // Zastępuje stary blok: 100 szt. z Medusy (~1.45s) + ręczne zliczanie facetów.
-    //
-    // Każdy produkt w Meili trzyma w category_handles CAŁĄ swoją ścieżkę kategorii,
-    // więc filtr po handle bieżącej kategorii łapie całe poddrzewo — dokładnie tak
-    // samo jak /api/search (route.ts). Używamy category.handle (a nie fullPath),
-    // bo to realny handle zwrócony przez Medusę dla tej kategorii.
-    // ============================================================================
-    const meiliHandle = String(category.handle).replace(/"/g, '\\"');
-    const index = meiliClient.index('products');
-
-    const searchResult = await index.search('', {
-      filter: `category_handles = "${meiliHandle}"`,
-      facets: ['*'],
-      limit: 48,
     });
 
     // Produkty z hits. Kształt 1:1 z tym, co zwraca /api/search (route.ts),
