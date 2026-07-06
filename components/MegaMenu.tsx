@@ -19,24 +19,24 @@ const MEGA_MENU_DATA: MegaCategory[] = [
       {
         heading: "Sprzęt udojowy",
         links: [
-          { text: "Instalacje udojowe i rurociągi", href: P + "instalacje-udojowe-i-rurociagi", badge: "flagowe" },
-          { text: "Dojarki bańkowe i akcesoria", href: P + "dojarki-bankowe-i-akcesoria" },
+          { text: "Instalacje udojowe i rurociągi", href: P + "hodowla-i-zootechnika/instalacje-udojowe-i-rurociagi", badge: "flagowe" },
+          { text: "Dojarki bańkowe i akcesoria", href: P + "hodowla-i-zootechnika/dojarki-bankowe-i-akcesoria" },
         ],
       },
       {
         heading: "Bydło i produkcja",
         links: [
-          { text: "Artykuły dla bydła i cieląt", href: P + "artykuly-dla-bydla-i-cielat" },
-          { text: "Poidła, karmidła i paśniki", href: P + "poidla-karmidla-i-pasniki" },
-          { text: "Higiena, pielęgnacja, zdrowie", href: P + "higiena-pielegnacja-i-zdrowie" },
-          { text: "Wyposażenie budynków inwentarskich", href: P + "wyposazenie-budynkow-inwentarskich" },
+          { text: "Artykuły dla bydła i cieląt", href: P + "hodowla-i-zootechnika/artykuly-dla-bydla-i-cielat" },
+          { text: "Poidła, karmidła i paśniki", href: P + "hodowla-i-zootechnika/poidla-karmidla-i-pasniki" },
+          { text: "Higiena, pielęgnacja, zdrowie", href: P + "hodowla-i-zootechnika/higiena-pielegnacja-i-zdrowie" },
+          { text: "Wyposażenie budynków inwentarskich", href: P + "hodowla-i-zootechnika/wyposazenie-budynkow-inwentarskich" },
         ],
       },
       {
         heading: "Zwierzęta i wyposażenie",
         links: [
-          { text: "Konie i jeździectwo", href: P + "artykuly-dla-koni-i-jezdziectwo" },
-          { text: "Ogrodzenia elektryczne", href: P + "ogrodzenia-elektryczne" },
+          { text: "Konie i jeździectwo", href: P + "hodowla-i-zootechnika/artykuly-dla-koni-i-jezdziectwo" },
+          { text: "Ogrodzenia elektryczne", href: P + "hodowla-i-zootechnika/ogrodzenia-elektryczne" },
         ],
       },
     ],
@@ -48,24 +48,24 @@ const MEGA_MENU_DATA: MegaCategory[] = [
     columns: [
       {
         links: [
-          { text: "Kabina, szyby, karoseria", href: P + "kabina-szyby-karoseria-i-silowniki-gazowe" },
-          { text: "Układ napędowy i sprzęgła", href: P + "uklad-napedowy-i-sprzegla" },
-          { text: "Silnik i osprzęt", href: P + "silnik-i-osprzet" },
-          { text: "TUZ i hydraulika ciągnikowa", href: P + "tuz-podnosnik-i-hydraulika-ciagnikowa" },
+          { text: "Kabina, szyby, karoseria", href: P + "czesci-do-ciagnikow/kabina-szyby-karoseria-i-silowniki-gazowe" },
+          { text: "Układ napędowy i sprzęgła", href: P + "czesci-do-ciagnikow/uklad-napedowy-i-sprzegla" },
+          { text: "Silnik i osprzęt", href: P + "czesci-do-ciagnikow/silnik-i-osprzet" },
+          { text: "TUZ i hydraulika ciągnikowa", href: P + "czesci-do-ciagnikow/tuz-podnosnik-i-hydraulika-ciagnikowa" },
         ],
       },
       {
         links: [
-          { text: "Układ paliwowy i wydechowy", href: P + "uklad-paliwowy-i-wydechowy" },
-          { text: "Układ chłodzenia", href: P + "uklad-chlodzenia" },
-          { text: "Instalacja elektryczna", href: P + "instalacja-elektryczna-i-rozruszniki" },
-          { text: "Siedzenia i fotele", href: P + "siedzenia-i-fotele" },
+          { text: "Układ paliwowy i wydechowy", href: P + "czesci-do-ciagnikow/uklad-paliwowy-i-wydechowy" },
+          { text: "Układ chłodzenia", href: P + "czesci-do-ciagnikow/uklad-chlodzenia" },
+          { text: "Instalacja elektryczna", href: P + "czesci-do-ciagnikow/instalacja-elektryczna-i-rozruszniki" },
+          { text: "Siedzenia i fotele", href: P + "czesci-do-ciagnikow/siedzenia-i-fotele" },
         ],
       },
       {
         links: [
-          { text: "Oświetlenie i LED", href: P + "oswietlenie-lampy-robocze-i-led" },
-          { text: "Układ hamulcowy", href: P + "uklad-hamulcowy" },
+          { text: "Oświetlenie i LED", href: P + "czesci-do-ciagnikow/oswietlenie-lampy-robocze-i-led" },
+          { text: "Układ hamulcowy", href: P + "czesci-do-ciagnikow/uklad-hamulcowy" },
         ],
       },
     ],
@@ -77,24 +77,24 @@ const MEGA_MENU_DATA: MegaCategory[] = [
     columns: [
       {
         links: [
-          { text: "Uprawa ziemi", href: P + "uprawa-ziemi" },
-          { text: "Zbiór i żniwa", href: P + "zbior-i-zniwa" },
-          { text: "Zbiór zielonki", href: P + "zbior-zielonki" },
-          { text: "Maszyny komunalne i mulczery", href: P + "maszyny-komunalne-i-mulczery" },
+          { text: "Uprawa ziemi", href: P + "czesci-do-maszyn/uprawa-ziemi" },
+          { text: "Zbiór i żniwa", href: P + "czesci-do-maszyn/zbior-i-zniwa" },
+          { text: "Zbiór zielonki", href: P + "czesci-do-maszyn/zbior-zielonki" },
+          { text: "Maszyny komunalne i mulczery", href: P + "czesci-do-maszyn/maszyny-komunalne-i-mulczery" },
         ],
       },
       {
         links: [
-          { text: "Ładowacze czołowe (TUR)", href: P + "ladowacze-czolowe-tur-i-osprzet" },
-          { text: "Siew i sadzenie", href: P + "siew-i-sadzenie" },
-          { text: "Wycinaki i ładowacze kiszonki", href: P + "wycinaki-do-kiszonki-i-ladowacze" },
-          { text: "Beczkowozy i rozrzutniki", href: P + "beczkowozy-asenizacja-i-rozrzutniki" },
+          { text: "Ładowacze czołowe (TUR)", href: P + "czesci-do-maszyn/ladowacze-czolowe-tur-i-osprzet" },
+          { text: "Siew i sadzenie", href: P + "czesci-do-maszyn/siew-i-sadzenie" },
+          { text: "Wycinaki i ładowacze kiszonki", href: P + "czesci-do-maszyn/wycinaki-do-kiszonki-i-ladowacze" },
+          { text: "Beczkowozy i rozrzutniki", href: P + "czesci-do-maszyn/beczkowozy-asenizacja-i-rozrzutniki" },
         ],
       },
       {
         links: [
-          { text: "Ochrona roślin i nawożenie", href: P + "ochrona-roslin-i-nawozenie" },
-          { text: "Wozy paszowe", href: P + "wozy-paszowe-i-technika-paszowa" },
+          { text: "Ochrona roślin i nawożenie", href: P + "czesci-do-maszyn/ochrona-roslin-i-nawozenie" },
+          { text: "Wozy paszowe", href: P + "czesci-do-maszyn/wozy-paszowe-i-technika-paszowa" },
         ],
       },
     ],
@@ -106,13 +106,13 @@ const MEGA_MENU_DATA: MegaCategory[] = [
     columns: [
       {
         links: [
-          { text: "Pneumatyka rolnicza i złącza", href: P + "pneumatyka-rolnicza-i-zlacza" },
-          { text: "Zaczepy, dyszle, technika sprzęgu", href: P + "zaczepy-dyszle-i-technika-sprzegu" },
+          { text: "Pneumatyka rolnicza i złącza", href: P + "czesci-do-ciagnikow-i-maszyn/pneumatyka-rolnicza-i-zlacza" },
+          { text: "Zaczepy, dyszle, technika sprzęgu", href: P + "czesci-do-ciagnikow-i-maszyn/zaczepy-dyszle-i-technika-sprzegu" },
         ],
       },
       {
         links: [
-          { text: "Oświetlenie ostrzegawcze i znakowanie", href: P + "oswietlenie-ostrzegawcze-i-znakowanie" },
+          { text: "Oświetlenie ostrzegawcze i znakowanie", href: P + "czesci-do-ciagnikow-i-maszyn/oswietlenie-ostrzegawcze-i-znakowanie" },
         ],
       },
     ],
@@ -124,20 +124,20 @@ const MEGA_MENU_DATA: MegaCategory[] = [
     columns: [
       {
         links: [
-          { text: "Szybkozłącza i złącza gwintowane", href: P + "szybkozlacza-i-zlacza-gwintowane", badge: "bestseller" },
-          { text: "Siłowniki hydrauliczne", href: P + "silowniki-hydrauliczne" },
+          { text: "Szybkozłącza i złącza gwintowane", href: P + "hydraulika-silowa/szybkozlacza-i-zlacza-gwintowane", badge: "bestseller" },
+          { text: "Siłowniki hydrauliczne", href: P + "hydraulika-silowa/silowniki-hydrauliczne" },
         ],
       },
       {
         links: [
-          { text: "Pompy, silniki, hydroakumulatory", href: P + "pompy-silniki-i-hydroakumulatory" },
-          { text: "Rozdzielacze i zawory", href: P + "rozdzielacze-i-zawory" },
+          { text: "Pompy, silniki, hydroakumulatory", href: P + "hydraulika-silowa/pompy-silniki-i-hydroakumulatory" },
+          { text: "Rozdzielacze i zawory", href: P + "hydraulika-silowa/rozdzielacze-i-zawory" },
         ],
       },
       {
         links: [
-          { text: "Akcesoria i filtry hydrauliczne", href: P + "akcesoria-i-filtry-hydrauliczne" },
-          { text: "Przewody, węże i rury", href: P + "przewody-weze-i-rury" },
+          { text: "Akcesoria i filtry hydrauliczne", href: P + "hydraulika-silowa/akcesoria-i-filtry-hydrauliczne" },
+          { text: "Przewody, węże i rury", href: P + "hydraulika-silowa/przewody-weze-i-rury" },
         ],
       },
     ],
@@ -150,23 +150,23 @@ const MEGA_MENU_DATA: MegaCategory[] = [
       {
         heading: "Elementy złączne",
         links: [
-          { text: "Śruby i nakrętki", href: P + "sruby-i-nakretki" },
-          { text: "Pierścienie", href: P + "pierscienie" },
-          { text: "Uchwyty", href: P + "uchwyty" },
+          { text: "Śruby i nakrętki", href: P + "czesci-uniwersalne/elementy-zlaczne-i-montazowe/sruby-i-nakretki" },
+          { text: "Pierścienie", href: P + "czesci-uniwersalne/elementy-zlaczne-i-montazowe/pierscienie" },
+          { text: "Uchwyty", href: P + "czesci-uniwersalne/elementy-zlaczne-i-montazowe/uchwyty" },
         ],
       },
       {
         heading: "Łożyska i uszczelnienia",
         links: [
-          { text: "Talerze", href: P + "talerze" },
-          { text: "Pierścienie uszczelniające", href: P + "pierscienie-uszczelniajace" },
+          { text: "Talerze", href: P + "czesci-uniwersalne/lozyska-uszczelnienia-i-o-ringi/talerze" },
+          { text: "Pierścienie uszczelniające", href: P + "czesci-uniwersalne/lozyska-uszczelnienia-i-o-ringi/pierscienie-uszczelniajace" },
         ],
       },
       {
         heading: "Pasy i łańcuchy",
         links: [
-          { text: "Pasy klinowe", href: P + "pasy-klinowe" },
-          { text: "Łańcuchy", href: P + "lancuchy" },
+          { text: "Pasy klinowe", href: P + "czesci-uniwersalne/pasy-klinowe-i-lancuchy-napedowe/pasy-klinowe" },
+          { text: "Łańcuchy", href: P + "czesci-uniwersalne/pasy-klinowe-i-lancuchy-napedowe/lancuchy" },
         ],
       },
     ],
