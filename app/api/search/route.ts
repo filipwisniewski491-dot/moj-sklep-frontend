@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Meilisearch } from 'meilisearch';
 import { getBrandsSet, getModelsForBrand } from '@/lib/brand-utils';
-import { unstable_cache } from 'next/cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,39 +26,12 @@ function buildFilterValue(key: string, val: string): string {
   return orConditions.length === 1 ? orConditions[0] : `(${orConditions.join(' OR ')})`;
 }
 
-// Pobieranie i zbieranie handli kategorii z Medusy - CACHE na 1h (drzewo kategorii zmienia sie rzadko)
-const getCategoryHandles = unstable_cache(
-  async (currentHandle: string): Promise<string[]> => {
-    const allowedHandles: string[] = [currentHandle];
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (PUBLISHABLE_KEY) headers["x-publishable-api-key"] = PUBLISHABLE_KEY;
-      const catRes = await fetch(
-        `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}`,
-        { headers, next: { revalidate: 3600 } }
-      );
-      if (catRes.ok) {
-        const catJson = await catRes.json();
-        const currentCategory = catJson.product_categories?.[0];
-        if (currentCategory) {
-          const collectHandles = (cat: any) => {
-            if (!cat) return;
-            if (!allowedHandles.includes(cat.handle)) allowedHandles.push(cat.handle);
-            if (cat.category_children?.length) cat.category_children.forEach(collectHandles);
-          };
-          collectHandles(currentCategory);
-        }
-      }
-    } catch (error) {
-      console.warn("Nie udalo sie pobrac kategorii z Medusy:", error);
-    }
-    return allowedHandles;
-  },
-  ['category-handles'],
-  { revalidate: 3600, tags: ['categories'] }
-);
-
 async function resolvePath(slugArray: string[]) {
+  // Sciezka 1-segmentowa to czysta kategoria (np. "silnik-i-osprzet") - nie ma marki,
+  // wiec nie wolamy getBrandsSet. Marki tylko gdy sciezka moze je zawierac (2+ segmenty).
+  if (slugArray.length < 2) {
+    return { categorySegments: slugArray, brandName: null, modelName: null };
+  }
   const brandsMap = await getBrandsSet();
   let categorySegments: string[] = [];
   let brandName: string | null = null;
@@ -112,10 +84,10 @@ export async function GET(request: Request) {
 
   const currentHandle = categorySegments.length > 0 ? categorySegments[categorySegments.length - 1] : '';
 
-  let allowedHandles: string[] = currentHandle ? [currentHandle] : [];
-  if (currentHandle) {
-    allowedHandles = await getCategoryHandles(currentHandle);
-  }
+  // Kazdy produkt w Meili ma w category_handles CALA swoja sciezke kategorii,
+  // wiec filtr po samym handle kategorii lapie wszystkie produkty z poddrzewa.
+  // Nie trzeba pytac Medusy o dzieci - to eliminuje ~1s narzutu.
+  const allowedHandles: string[] = currentHandle ? [currentHandle] : [];
 
   const baseFilterParts: string[] = [];
   if (allowedHandles.length > 0) {
