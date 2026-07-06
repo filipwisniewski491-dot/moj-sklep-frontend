@@ -1,212 +1,290 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import { useState, useRef, useCallback } from "react";
+import Link from "next/link";
 
-// GŁÓWNA STRUKTURA DANYCH MEGA MENU
-const MEGA_MENU_DATA = [
-  { 
-    name: "Części do ciągników", slug: "czesci-do-ciagnikow", icon: "🚜",
+type MegaLink = {
+  text: string;
+  href: string;
+  badge?: string;
+};
+
+type MegaColumn = {
+  heading?: string;
+  links: MegaLink[];
+};
+
+type MegaCategory = {
+  id: string;
+  title: string;
+  href: string;
+  featured?: boolean;
+  columns: MegaColumn[];
+};
+
+const P = "/kategoria/";
+
+const MEGA_MENU_DATA: MegaCategory[] = [
+  {
+    id: "hodowla",
+    title: "Hodowla i udój",
+    href: P + "hodowla-i-zootechnika",
+    featured: true,
     columns: [
-      { 
-        title: "Silnik i osprzęt", slug: "silnik-i-osprzet", 
+      {
+        heading: "Sprzęt udojowy",
         links: [
-          { name: "Układ chłodzenia", slug: "uklad-chlodzenia" },
-          { name: "Układ paliwowy", slug: "uklad-paliwowy-i-wydechowy" },
-          { name: "Rozruszniki i alternatory", slug: "rozruszniki-i-alternatory" },
-          { name: "Filtry", slug: "filtry" }
-        ] 
+          { text: "Instalacje udojowe i rurociągi", href: P + "hodowla-i-zootechnika-instalacje-udojowe-i-rurociagi", badge: "flagowe" },
+          { text: "Dojarki bańkowe i akcesoria", href: P + "hodowla-i-zootechnika-dojarki-bankowe-i-akcesoria" },
+        ],
       },
-      { 
-        title: "Układ napędowy", slug: "uklad-napedowy", 
+      {
+        heading: "Bydło i produkcja",
         links: [
-          { name: "Sprzęgła", slug: "sprzegla" },
-          { name: "Skrzynia biegów", slug: "skrzynia-biegow" },
-          { name: "Wały i mosty", slug: "waly-i-mosty" },
-          { name: "Układ hamulcowy", slug: "uklad-hamulcowy" }
-        ] 
+          { text: "Artykuły dla bydła i cieląt", href: P + "hodowla-i-zootechnika-artykuly-dla-bydla-i-cielat" },
+          { text: "Poidła, karmidła i paśniki", href: P + "hodowla-i-zootechnika-poidla-karmidla-i-pasniki" },
+          { text: "Higiena, pielęgnacja, zdrowie", href: P + "hodowla-i-zootechnika-higiena-pielegnacja-zdrowie" },
+          { text: "Wyposażenie budynków inwentarskich", href: P + "hodowla-i-zootechnika-wyposazenie-budynkow-inwentarskich" },
+        ],
       },
-      { 
-        title: "Kabina i TUZ", slug: "kabina-i-tuz", 
+      {
+        heading: "Zwierzęta i wyposażenie",
         links: [
-          { name: "Siedzenia i fotele", slug: "siedzenia-i-fotele" },
-          { name: "TUZ i podnośnik", slug: "tuz-podnosnik-i-hydraulika-ciagnikowa" },
-          { name: "Szyby i uszczelki", slug: "szyby-i-uszczelki" },
-          { name: "Oświetlenie", slug: "oswietlenie" }
-        ] 
-      }
+          { text: "Konie i jeździectwo", href: P + "hodowla-i-zootechnika-artykuly-dla-koni-i-jezdziectwo" },
+          { text: "Psy, koty i inne", href: P + "hodowla-i-zootechnika-artykuly-dla-psow-i-kotow" },
+          { text: "Trzoda chlewna", href: P + "hodowla-i-zootechnika-artykuly-dla-trzody-chlewnej" },
+          { text: "Drób", href: P + "hodowla-i-zootechnika-artykuly-dla-drobiu" },
+        ],
+      },
     ],
-    promo: {
-      tag: "Top Kategoria",
-      title: "Sezon na przeglądy",
-      desc: "Zadbaj o silnik przed żniwami. Najwyższej jakości filtry i oleje silnikowe od ręki.",
-      linkText: "Sprawdź filtry",
-      linkUrl: "/kategoria/czesci-do-ciagnikow/filtry"
-    }
   },
-  { 
-    name: "Części do maszyn", slug: "czesci-do-maszyn", icon: "⚙️",
+  {
+    id: "ciagniki",
+    title: "Części do ciągników",
+    href: P + "czesci-do-ciagnikow",
     columns: [
-      { 
-        title: "Uprawa ziemi", slug: "uprawa-ziemi", 
+      {
         links: [
-          { name: "Pługi (Lemiesze, dłuta)", slug: "plugi" },
-          { name: "Brony i kultywatory", slug: "brony-i-kultywatory" },
-          { name: "Agregaty uprawowe", slug: "agregaty" },
-          { name: "Wały uprawowe", slug: "waly" }
-        ] 
+          { text: "Kabina, szyby, karoseria", href: P + "czesci-do-ciagnikow-kabina-szyby-karoseria" },
+          { text: "Układ napędowy i sprzęgła", href: P + "czesci-do-ciagnikow-uklad-napedowy-i-sprzegla" },
+          { text: "Silnik i osprzęt", href: P + "czesci-do-ciagnikow-silnik-i-osprzet" },
+          { text: "TUZ i hydraulika ciągnikowa", href: P + "czesci-do-ciagnikow-tuz-i-hydraulika-ciagnikowa" },
+        ],
       },
-      { 
-        title: "Zbiór i żniwa", slug: "zbior-i-zniwa", 
+      {
         links: [
-          { name: "Zbiór zielonki", slug: "zbior-zielonki" },
-          { name: "Zbiór zbóż (Kombajny)", slug: "zbior-zboz" },
-          { name: "Prasy i owijarki", slug: "prasy-i-owijarki" },
-          { name: "Kosiarki", slug: "kosiarki" }
-        ] 
+          { text: "Układ paliwowy i wydechowy", href: P + "czesci-do-ciagnikow-uklad-paliwowy-i-wydechowy" },
+          { text: "Układ chłodzenia", href: P + "czesci-do-ciagnikow-uklad-chlodzenia" },
+          { text: "Instalacja elektryczna", href: P + "czesci-do-ciagnikow-instalacja-elektryczna" },
+          { text: "Siedzenia i fotele", href: P + "czesci-do-ciagnikow-siedzenia-i-fotele" },
+        ],
       },
-      { 
-        title: "Siew, sadzenie, ochrona", slug: "siew-sadzenie-ochrona", 
+      {
         links: [
-          { name: "Siewniki", slug: "siewniki" },
-          { name: "Sadarki", slug: "sadzarki" },
-          { name: "Opryskiwacze", slug: "ochrona-roslin-i-nawozenie" },
-          { name: "Rozsiewacze nawozów", slug: "rozsiewacze-nawozow" }
-        ] 
-      }
+          { text: "Układ kierowniczy i oś", href: P + "czesci-do-ciagnikow-uklad-kierowniczy-i-os" },
+          { text: "Oświetlenie i LED", href: P + "czesci-do-ciagnikow-oswietlenie-i-led" },
+          { text: "Układ hamulcowy", href: P + "czesci-do-ciagnikow-uklad-hamulcowy" },
+          { text: "Klimatyzacja i ogrzewanie", href: P + "czesci-do-ciagnikow-klimatyzacja-i-ogrzewanie" },
+        ],
+      },
     ],
-    promo: {
-      tag: "Przygotuj maszynę",
-      title: "Zbiór zielonki",
-      desc: "Nożyki, bagnety, palce podbieracza. Części do maszyn Claas, Krone, Kuhn.",
-      linkText: "Przygotuj się",
-      linkUrl: "/kategoria/czesci-do-maszyn/zbior-zielonki"
-    }
   },
-  { 
-    name: "Hydraulika siłowa", slug: "hydraulika-silowa", icon: "🗜️",
+  {
+    id: "maszyny",
+    title: "Części do maszyn",
+    href: P + "czesci-do-maszyn",
     columns: [
-      { 
-        title: "Sterowanie i pompy", slug: "sterowanie-i-pompy", 
+      {
         links: [
-          { name: "Rozdzielacze hydrauliczne", slug: "rozdzielacze-i-zawory" },
-          { name: "Pompy hydrauliczne", slug: "pompy-silniki-i-hydroakumulatory" },
-          { name: "Silniki hydrauliczne", slug: "silniki" },
-          { name: "Filtry hydrauliczne", slug: "filtry-hydrauliczne" }
-        ] 
+          { text: "Uprawa ziemi", href: P + "czesci-do-maszyn-uprawa-ziemi" },
+          { text: "Zbiór i żniwa", href: P + "czesci-do-maszyn-zbior-i-zniwa" },
+          { text: "Zbiór zielonki", href: P + "czesci-do-maszyn-zbior-zielonki" },
+          { text: "Maszyny komunalne i mulczery", href: P + "czesci-do-maszyn-maszyny-komunalne-i-mulczery" },
+        ],
       },
-      { 
-        title: "Siłowniki i złącza", slug: "silowniki-i-zlacza", 
+      {
         links: [
-          { name: "Siłowniki hydrauliczne", slug: "silowniki" },
-          { name: "Szybkozłącza i złącza", slug: "szybkozlacza-i-zlacza-gwintowane" },
-          { name: "Przewody i węże", slug: "przewody-weze-i-rury" },
-          { name: "Uszczelnienia", slug: "uszczelnienia" }
-        ] 
-      }
+          { text: "Ładowacze czołowe (TUR)", href: P + "czesci-do-maszyn-ladowacze-czolowe-tur" },
+          { text: "Siew i sadzenie", href: P + "czesci-do-maszyn-siew-i-sadzenie" },
+          { text: "Wycinaki i ładowacze kiszonki", href: P + "czesci-do-maszyn-wycinaki-i-ladowacze-kiszonki" },
+          { text: "Beczkowozy i rozrzutniki", href: P + "czesci-do-maszyn-beczkowozy-i-rozrzutniki" },
+        ],
+      },
+      {
+        links: [
+          { text: "Ochrona roślin i nawożenie", href: P + "czesci-do-maszyn-ochrona-roslin-i-nawozenie" },
+          { text: "Wozy paszowe", href: P + "czesci-do-maszyn-wozy-paszowe" },
+          { text: "Transport rolniczy", href: P + "czesci-do-maszyn-transport-rolniczy" },
+        ],
+      },
     ],
-    promo: {
-      tag: "Ekspert radzi",
-      title: "Rozdzielacze",
-      desc: "Kompletne sekcje, zawory krzyżowe i joysticki. Niezawodne sterowanie dla Twojego ładowacza.",
-      linkText: "Zobacz rozdzielacze",
-      linkUrl: "/kategoria/hydraulika-silowa/rozdzielacze-i-zawory"
-    }
-  }, 
-  { 
-    name: "Warsztat", slug: "warsztat-i-uniwersalne", icon: "🔧",
-    columns: [
-       { 
-         title: "Wyposażenie", slug: "wyposazenie-warsztatu", 
-         links: [
-           { name: "Narzędzia ręczne", slug: "narzedzia-reczne" },
-           { name: "Elektronarzędzia", slug: "elektronarzedzia" },
-           { name: "Łożyska i uszczelnienia", slug: "lozyska-uszczelnienia-i-o-ringi" },
-           { name: "Elementy złączne", slug: "elementy-zlaczne-i-montazowe" }
-         ] 
-       },
-       { 
-         title: "Eksploatacja", slug: "eksploatacja", 
-         links: [
-           { name: "Oleje i smary", slug: "oleje-i-smary" },
-           { name: "Chemia warsztatowa", slug: "chemia-warsztatowa" },
-           { name: "Płyny eksploatacyjne", slug: "plyny-eksploatacyjne" },
-           { name: "Odzież BHP", slug: "odziez-bhp" }
-         ] 
-       }
-    ],
-    promo: {
-      tag: "Polecane dla mechanika",
-      title: "Chemia i Oleje",
-      desc: "Zabezpiecz maszynę na sezon. Zamów komplet smarów i płynów z szybką wysyłką.",
-      linkText: "Zobacz cały dział",
-      linkUrl: "/kategoria/warsztat-i-uniwersalne"
-    }
   },
-  { 
-    name: "Hodowla", slug: "hodowla-i-zootechnika", icon: "🐄",
+  {
+    id: "zaczepy",
+    title: "Zaczepy, koła i osprzęt",
+    href: P + "czesci-do-ciagnikow-i-maszyn",
     columns: [
-      { 
-        title: "Wyposażenie budynków", slug: "wyposazenie-budynkow", 
+      {
         links: [
-          { name: "Poidła i karmidła", slug: "poidla-karmidla-i-pasniki" },
-          { name: "Ogrodzenia elektryczne", slug: "ogrodzenia-elektryczne-pastuchy" },
-          { name: "Wygrodzenia", slug: "wygrodzenia" },
-          { name: "Dojarki i akcesoria", slug: "dojarki-bankowe-i-akcesoria" }
-        ] 
+          { text: "Pneumatyka rolnicza i złącza", href: P + "czesci-do-ciagnikow-i-maszyn-pneumatyka-rolnicza-i-zlacza" },
+          { text: "Zaczepy, dyszle, technika sprzęgu", href: P + "czesci-do-ciagnikow-i-maszyn-zaczepy-dyszle-technika-sprzegu" },
+        ],
       },
-      { 
-        title: "Zwierzęta", slug: "zwierzeta", 
+      {
         links: [
-          { name: "Artykuły dla bydła", slug: "artykuly-dla-bydla-i-cielat" },
-          { name: "Artykuły dla trzody", slug: "artykuly-dla-trzody" },
-          { name: "Drób i ptactwo", slug: "drob-i-ptactwo" },
-          { name: "Psy i koty", slug: "zwierzeta-domowe-psy-koty-inne" }
-        ] 
-      }
+          { text: "Oświetlenie ostrzegawcze i znakowanie", href: P + "czesci-do-ciagnikow-i-maszyn-oswietlenie-ostrzegawcze-i-znakowanie" },
+          { text: "Opony, felgi, dętki", href: P + "czesci-do-ciagnikow-i-maszyn-opony-felgi-detki" },
+        ],
+      },
     ],
-    promo: {
-      tag: "Bestseller",
-      title: "Ogrodzenia elektryczne",
-      desc: "Elektryzatory, taśmy, izolatory i słupki. Skompletuj bezpieczne pastwisko.",
-      linkText: "Buduj ogrodzenie",
-      linkUrl: "/kategoria/hodowla-i-zootechnika/ogrodzenia-elektryczne-pastuchy"
-    }
-  }
+  },
+  {
+    id: "hydraulika",
+    title: "Hydraulika siłowa",
+    href: P + "hydraulika-silowa",
+    columns: [
+      {
+        links: [
+          { text: "Szybkozłącza i złącza gwintowane", href: P + "hydraulika-silowa-szybkozlacza-i-zlacza-gwintowane", badge: "bestseller" },
+          { text: "Siłowniki hydrauliczne", href: P + "hydraulika-silowa-silowniki-hydrauliczne" },
+        ],
+      },
+      {
+        links: [
+          { text: "Pompy, silniki, hydroakumulatory", href: P + "hydraulika-silowa-pompy-silniki-i-hydroakumulatory" },
+          { text: "Rozdzielacze i zawory", href: P + "hydraulika-silowa-rozdzielacze-i-zawory" },
+        ],
+      },
+      {
+        links: [
+          { text: "Akcesoria i filtry hydrauliczne", href: P + "hydraulika-silowa-akcesoria-i-filtry-hydrauliczne" },
+          { text: "Przewody, węże i rury", href: P + "hydraulika-silowa-przewody-weze-i-rury" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "uniwersalne",
+    title: "Części uniwersalne",
+    href: P + "czesci-uniwersalne",
+    columns: [
+      {
+        heading: "Elementy złączne i montażowe",
+        links: [
+          { text: "Śruby i nakrętki", href: P + "czesci-uniwersalne-elementy-zlaczne-i-montazowe-sruby-i-nakretki" },
+          { text: "Pierścienie", href: P + "czesci-uniwersalne-elementy-zlaczne-i-montazowe-pierscienie" },
+          { text: "Uchwyty", href: P + "czesci-uniwersalne-elementy-zlaczne-i-montazowe-uchwyty" },
+          { text: "Osłony", href: P + "czesci-uniwersalne-elementy-zlaczne-i-montazowe-oslony" },
+        ],
+      },
+      {
+        heading: "Łożyska i uszczelnienia",
+        links: [
+          { text: "Talerze", href: P + "czesci-uniwersalne-lozyska-uszczelnienia-i-o-ringi-talerze" },
+          { text: "Pierścienie uszczelniające", href: P + "czesci-uniwersalne-lozyska-uszczelnienia-i-o-ringi-pierscienie-uszczelniajace" },
+          { text: "O-ringi", href: P + "czesci-uniwersalne-lozyska-uszczelnienia-i-o-ringi-o-ringi" },
+        ],
+      },
+      {
+        heading: "Pasy klinowe i łańcuchy",
+        links: [
+          { text: "Pasy klinowe", href: P + "czesci-uniwersalne-pasy-klinowe-i-lancuchy-napedowe-pasy-klinowe" },
+          { text: "Łańcuchy", href: P + "czesci-uniwersalne-pasy-klinowe-i-lancuchy-napedowe-lancuchy" },
+          { text: "Ogniwa łańcucha", href: P + "czesci-uniwersalne-pasy-klinowe-i-lancuchy-napedowe-ogniwa-lancucha" },
+        ],
+      },
+    ],
+  },
+];
+
+const MORE_LINKS: MegaLink[] = [
+  { text: "Warsztat i narzędzia", href: P + "warsztat-i-uniwersalne" },
+  { text: "Filtry", href: P + "filtry" },
+  { text: "Elektronika i GPS", href: P + "elektronika-i-precyzja" },
+  { text: "Chemia i smary", href: P + "chemia-i-smary" },
+  { text: "Dom, ogród, las", href: P + "dom-ogrod-las" },
+  { text: "Materiały eksploatacyjne", href: P + "materialy-eksploatacyjne" },
 ];
 
 export default function MegaMenu() {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const open = useCallback((id: string) => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setOpenId(id);
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setOpenId(null), 120);
+  }, []);
+
   return (
-    <div className="hidden lg:block bg-white border-b border-slate-200 shadow-sm relative z-40">
-      <div className="max-w-7xl mx-auto px-4 flex items-center relative"> 
-        <Link href="/kategorie" prefetch={false} className="flex items-center gap-2 py-4 px-6 font-black text-white bg-slate-900 uppercase text-[11px] tracking-widest hover:bg-red-600 transition-colors shrink-0 z-20">
-          <span>☰</span> Pełny Katalog
-        </Link>
-        
-        <ul className="flex flex-1 items-center justify-between px-4 divide-x divide-slate-100">
-          {MEGA_MENU_DATA.map((cat) => (
-            <li key={cat.slug} className="group text-center py-5 flex-1 static">
-              {/* Główny link kategorii (L1) - prefetch, bo zawsze widoczny w pasku */}
-              <Link href={`/kategoria/${cat.slug}`} prefetch={true} className="block font-black text-slate-800 hover:text-red-600 transition-all uppercase text-[10px] xl:text-[11px] tracking-widest whitespace-nowrap">
-                <span className="mr-1.5 text-base align-middle grayscale group-hover:grayscale-0 transition-all">{cat.icon}</span> {cat.name}
+    <nav
+      className="relative hidden lg:block border-b border-slate-200 bg-white"
+      aria-label="Menu kategorii"
+      onMouseLeave={scheduleClose}
+    >
+      <ul className="mx-auto flex max-w-7xl items-stretch gap-1 px-4">
+        {MEGA_MENU_DATA.map((cat) => {
+          const isOpen = openId === cat.id;
+          return (
+            <li
+              key={cat.id}
+              className="static"
+              onMouseEnter={() => open(cat.id)}
+            >
+              <Link
+                href={cat.href}
+                className={
+                  "flex items-center gap-1.5 px-4 py-3.5 text-[13px] font-semibold tracking-tight transition-colors " +
+                  (cat.featured
+                    ? "text-red-700 hover:text-red-800"
+                    : "text-slate-700 hover:text-slate-900") +
+                  (isOpen ? " text-slate-900" : "")
+                }
+                aria-expanded={isOpen}
+              >
+                {cat.title}
+                <svg className="h-3.5 w-3.5 opacity-60" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </Link>
 
-              {cat.columns && cat.columns.length > 0 && (
-                <div className="absolute left-0 right-0 top-full w-full bg-white border border-slate-100 shadow-[0_30px_60px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 rounded-b-2xl p-8 z-50 text-left text-slate-900">
-                  <div className="grid grid-cols-5 gap-8">
-                    
-                    {/* Renderowanie Kolumn z podkategoriami (L2 i L3) */}
-                    <div className="col-span-4 grid grid-cols-3 gap-8">
-                      {cat.columns.map(col => (
-                        <div key={col.slug}>
-                          <Link href={`/kategoria/${cat.slug}/${col.slug}`} prefetch={false} className="text-red-600 font-black uppercase tracking-widest text-xs border-b-2 border-red-100 pb-2 mb-4 block hover:text-slate-900 transition-colors">
-                            {col.title}
-                          </Link>
-                          <ul className="space-y-2.5">
-                            {col.links.map(link => (
-                              <li key={link.slug}>
-                                <Link href={`/kategoria/${cat.slug}/${col.slug}/${link.slug}`} prefetch={false} className="text-sm font-medium text-slate-600 hover:text-red-600 hover:translate-x-1 inline-block transition-all">
-                                  {link.name}
+              {isOpen && (
+                <div
+                  className="absolute left-0 right-0 top-full z-40 border-t border-slate-200 bg-white shadow-xl"
+                  onMouseEnter={() => open(cat.id)}
+                >
+                  <div className="mx-auto max-w-7xl px-6 py-6">
+                    <div className="mb-4 flex items-center justify-between">
+                      <h3 className="text-[15px] font-bold text-slate-900">{cat.title}</h3>
+                      <Link href={cat.href} className="text-[12px] font-semibold text-red-600 hover:text-red-700">
+                        Zobacz wszystko →
+                      </Link>
+                    </div>
+                    <div className="grid grid-cols-3 gap-x-8 gap-y-6">
+                      {cat.columns.map((col, ci) => (
+                        <div key={ci}>
+                          {col.heading && (
+                            <div className="mb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-400">
+                              {col.heading}
+                            </div>
+                          )}
+                          <ul className="space-y-1.5">
+                            {col.links.map((lnk) => (
+                              <li key={lnk.href}>
+                                <Link
+                                  href={lnk.href}
+                                  className="group flex items-center gap-2 text-[13.5px] text-slate-600 hover:text-red-600 transition-colors"
+                                >
+                                  <span>{lnk.text}</span>
+                                  {lnk.badge && (
+                                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600">
+                                      {lnk.badge}
+                                    </span>
+                                  )}
                                 </Link>
                               </li>
                             ))}
@@ -214,33 +292,52 @@ export default function MegaMenu() {
                         </div>
                       ))}
                     </div>
-
-                    {/* Dynamiczny baner promujący specyficzny dla danej głównej kategorii */}
-                    <div className="col-span-1 bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col justify-between">
-                       <div>
-                          <span className="bg-red-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-md mb-4 inline-block shadow-sm">
-                            {cat.promo.tag}
-                          </span>
-                          <h4 className="font-black uppercase text-lg text-slate-900 leading-tight mb-2">
-                            {cat.promo.title}
-                          </h4>
-                          <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                            {cat.promo.desc}
-                          </p>
-                       </div>
-                       <Link href={cat.promo.linkUrl} prefetch={false} className="mt-4 text-[10px] font-black text-slate-900 uppercase tracking-widest hover:text-red-600 flex items-center gap-1 transition-colors">
-                         {cat.promo.linkText} 
-                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
-                       </Link>
-                    </div>
-
                   </div>
                 </div>
               )}
             </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+          );
+        })}
+
+        <li
+          className="static"
+          onMouseEnter={() => open("more")}
+        >
+          <button
+            type="button"
+            className={
+              "flex items-center gap-1.5 px-4 py-3.5 text-[13px] font-semibold tracking-tight text-slate-700 hover:text-slate-900 " +
+              (openId === "more" ? "text-slate-900" : "")
+            }
+            aria-expanded={openId === "more"}
+          >
+            Więcej
+            <svg className="h-3.5 w-3.5 opacity-60" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path d="M5.5 7.5L10 12l4.5-4.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          {openId === "more" && (
+            <div
+              className="absolute right-4 top-full z-40 min-w-[240px] rounded-b-xl border border-slate-200 bg-white p-3 shadow-xl"
+              onMouseEnter={() => open("more")}
+            >
+              <ul className="space-y-1">
+                {MORE_LINKS.map((lnk) => (
+                  <li key={lnk.href}>
+                    <Link
+                      href={lnk.href}
+                      className="block rounded-lg px-3 py-2 text-[13.5px] text-slate-600 hover:bg-slate-50 hover:text-red-600 transition-colors"
+                    >
+                      {lnk.text}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </li>
+      </ul>
+    </nav>
   );
 }
