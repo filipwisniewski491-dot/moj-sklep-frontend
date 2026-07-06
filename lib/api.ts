@@ -180,7 +180,7 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     safeCategoryIds.forEach(id => {
       productsQueryUrl += `category_id[]=${id}&`;
     });
-    productsQueryUrl += `limit=100`; // Ładujemy do 100 sztuk dla filtrów
+    productsQueryUrl += `limit=24`; // Ładujemy do 100 sztuk dla filtrów
 
     const productsRes = await fetch(productsQueryUrl, options);
     const productsJson = await productsRes.json();
