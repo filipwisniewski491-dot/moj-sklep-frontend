@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/store/useCart';
@@ -13,25 +13,17 @@ const bunnyLoader = ({ src, width }: { src: string; width: number }) => {
   return `${cleanSrc}?width=${width}&format=webp&quality=${quality}&sharpen=false`;
 };
 
-const ProductCard = React.memo(({ product, isListView, index, priority = false }: { product: any, isListView: boolean, index: number, priority?: boolean }) => {
+const ProductCard = React.memo(({ product, isListView, index, priority = false, shippingTag = null }: { product: any, isListView: boolean, index: number, priority?: boolean, shippingTag?: {text: string, style: string, pulse: boolean} | null }) => {
   const { addItem, setIsOpen } = useCart() as any;
   const [qty, setQty] = useState(1);
-  const [shippingTag, setShippingTag] = useState<{text: string, style: string, pulse: boolean} | null>(null);
 
   const sku = product.sku || product.id || "BRAK SKU";
 
-  // Realny motywator wysyłki (NIE losowy): przed 12:00 w dni robocze zdążymy wysłać dziś.
-  useEffect(() => {
-    const now = new Date();
-    const day = now.getDay();
-    const hour = now.getHours();
-    const isWorkdayBeforeNoon = day !== 0 && day !== 6 && hour < 12;
-    if (isWorkdayBeforeNoon) {
-      setShippingTag({ text: "Wysyłka w 24h", style: "bg-emerald-50 text-emerald-700 border-emerald-100", pulse: true });
-    } else {
-      setShippingTag(null);
-    }
-  }, []);
+  // ⚡ shippingTag ("Wysyłka w 24h") liczony jest RAZ w rodzicu (ProductGrid) i podany
+  // propem — wcześniej każda z 48 kart robiła własny useEffect z new Date() po hydratacji
+  // (47 zbędnych efektów na głównym wątku, wszystkie z identycznym wynikiem: ta sama
+  // data/godzina dla całej siatki). Liczenie w useEffect było tylko po to, by uniknąć
+  // hydration mismatch — rodzic rozwiązuje to raz, bez rozjazdu i bez 48× pracy.
 
   let parsedExternalImages: string[] = [];
   if (Array.isArray(product.external_images)) {

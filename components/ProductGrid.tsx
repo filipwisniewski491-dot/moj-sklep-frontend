@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import ProductCard from './ProductCard';
 import { trackViewItemList } from '@/lib/analytics';
 import { useGarage } from '@/store/useGarage'; 
@@ -28,6 +28,20 @@ export default function ProductGrid({
 }: ProductGridProps) {
   
   const { isActive, brand, model, clearGarage } = useGarage();
+
+  // ⚡ shippingTag ("Wysyłka w 24h") liczony RAZ dla całej siatki i przekazywany do kart.
+  // Wcześniej każda z 48 kart robiła własny useEffect z new Date() po hydratacji — ten sam
+  // wynik 48×. Liczymy w useEffect (nie inline), żeby uniknąć hydration mismatch: serwer nie
+  // zna lokalnej godziny klienta, więc na starcie null (jak dotąd), po hydratacji ustawiamy raz.
+  const [shippingTag, setShippingTag] = useState<{text: string, style: string, pulse: boolean} | null>(null);
+  useEffect(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const isWorkdayBeforeNoon = day !== 0 && day !== 6 && now.getHours() < 12;
+    setShippingTag(isWorkdayBeforeNoon
+      ? { text: "Wysyłka w 24h", style: "bg-emerald-50 text-emerald-700 border-emerald-100", pulse: true }
+      : null);
+  }, []);
 
   // Filtr garażu działa w pamięci na dostarczonym zbiorze. Reszta to doładowanie z serwera.
   const productsToDisplay = isActive && initialProducts
@@ -142,6 +156,7 @@ export default function ProductGrid({
                 index={idx + 1} 
                 isListView={isListView} 
                 priority={idx < 4}
+                shippingTag={shippingTag}
               />
             ))}
           </div>
