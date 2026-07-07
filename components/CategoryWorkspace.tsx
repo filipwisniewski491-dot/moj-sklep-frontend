@@ -124,7 +124,13 @@ export default function CategoryWorkspace({
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
-      if (!initialData?.products?.length) {
+      // ISR: serwer renderuje BAZOWĄ kategorię (bez filtrów z URL — patrz page.tsx).
+      // Jeśli w URL są filtry techniczne / sort / cena / q, dociągnij przefiltrowany
+      // zestaw TERAZ. Nakładka isReallyLoading pokazuje płynny spinner, więc nie ma
+      // brzydkiego flasha — user widzi bazę → spinner → wynik, jak przy zmianie filtra.
+      // 'view' (grid/list) to tylko widok, nie zmienia wyników → nie wymusza fetcha.
+      const hasUrlParams = Object.keys(activeFilters).some((k) => k !== 'view');
+      if (!initialData?.products?.length || hasUrlParams) {
         fetchProducts(activeFilters, 48);
       }
       return;

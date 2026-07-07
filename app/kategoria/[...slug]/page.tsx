@@ -266,9 +266,17 @@ export async function generateMetadata({ params }: any): Promise<Metadata> {
   };
 }
 
-export default async function CategoryPage({ params, searchParams }: any) {
+export default async function CategoryPage({ params }: any) {
   const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
+  // ⚡ ISR: świadomie NIE czytamy searchParams na serwerze. Dotknięcie searchParams
+  // w komponencie serwerowym przełącza stronę w tryb DYNAMICZNY (render per-request),
+  // co unieważnia generateStaticParams + revalidate. Renderujemy bazową kategorię
+  // (zależną tylko od params → statyczna/ISR, TTFB ~50ms), a filtry techniczne, sort,
+  // cenę i q z URL dokłada klient (CategoryWorkspace) przez /api/search — z nakładką
+  // ładowania, więc bez brzydkiego flasha. Filtrowane URL-e konsolidują się do bazowej
+  // przez canonical (patrz generateMetadata) = poprawne SEO faceted-nav.
+  // Stub {} sprawia, że cała logika niżej renderuje wariant bazowy (brak filtrów/sortu/q).
+  const resolvedSearchParams: any = {};
 
   const slugArray = Array.isArray(resolvedParams?.slug) ? resolvedParams.slug : [resolvedParams?.slug].filter(Boolean);
   const fullPath = slugArray.join('/');
