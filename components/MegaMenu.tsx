@@ -241,6 +241,7 @@ export default function MegaMenu() {
             <li key={cat.id} className="static" onMouseEnter={() => { open(cat.id); prefetchCategory(cat); }}>
               <Link
                 href={cat.href}
+                prefetch={false}
                 className={
                   "flex items-center gap-1.5 px-3.5 py-4 text-[16px] font-semibold tracking-tight transition-colors " +
                   (cat.featured ? "text-red-700 hover:text-red-800" : "text-slate-800 hover:text-slate-950") +
@@ -262,7 +263,7 @@ export default function MegaMenu() {
                   <div className="mx-auto max-w-7xl px-6 py-7">
                     <div className="mb-5 flex items-center justify-between">
                       <h3 className="text-[18px] font-bold text-slate-900">{cat.fullTitle || cat.title}</h3>
-                      <Link href={cat.href} className="text-[14px] font-semibold text-red-600 hover:text-red-700">
+                      <Link href={cat.href} prefetch={false} className="text-[14px] font-semibold text-red-600 hover:text-red-700">
                         Zobacz wszystko &rarr;
                       </Link>
                     </div>
@@ -279,6 +280,7 @@ export default function MegaMenu() {
                               <li key={lnk.href}>
                                 <Link
                                   href={lnk.href}
+                                  prefetch={false}
                                   className="group flex items-center gap-2 text-[16px] font-medium text-slate-700 hover:text-red-600 transition-colors"
                                 >
                                   <span>{lnk.text}</span>
