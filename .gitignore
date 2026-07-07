@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# duze pliki danych – NIE commitowac
+products_backup_*.json
+ceny-woo.json
+*.report.html
+synonyms.json
+app/api/search/route.ts.BROKEN-backup
