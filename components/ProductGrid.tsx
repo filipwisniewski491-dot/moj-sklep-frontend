@@ -45,18 +45,34 @@ export default function ProductGrid({
 
   useEffect(() => {
     if (productsToDisplay.length > 0 && !loading) {
-      const ga4Items = productsToDisplay.map((product: any, index: number) => ({
-        item_id: String(product.id || product.sku),
-        item_name: product.name,
-        price: typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0,
-        item_category: product.category_text || product.category || 'Brak kategorii',
-        index: index + 1
-      }));
-      
-      let listName = fullPath ? `Kategoria: ${fullPath}` : "Katalog kategorii";
-      if (isActive) listName += ` [Filtr Garaż: ${brand} ${model}]`;
-      
-      trackViewItemList(ga4Items, "category_list", listName);
+      // ⚡ GA4 view_item_list liczymy i wysyłamy DOPIERO gdy główny wątek zwolni (po LCP).
+      // Wcześniej mapowanie 48 produktów + import analytics szło synchronicznie przy
+      // pierwszym renderze i opóźniało paint elementu LCP. requestIdleCallback zdejmuje
+      // to z krytycznej ścieżki — zero straty danych, tekst maluje się wcześniej.
+      // (Spójne z lazy-GTM w layout.tsx: telemetria czeka, treść nie.)
+      const sendListView = () => {
+        const ga4Items = productsToDisplay.map((product: any, index: number) => ({
+          item_id: String(product.id || product.sku),
+          item_name: product.name,
+          price: typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0,
+          item_category: product.category_text || product.category || 'Brak kategorii',
+          index: index + 1
+        }));
+
+        let listName = fullPath ? `Kategoria: ${fullPath}` : "Katalog kategorii";
+        if (isActive) listName += ` [Filtr Garaż: ${brand} ${model}]`;
+
+        trackViewItemList(ga4Items, "category_list", listName);
+      };
+
+      const w = window as any;
+      if (typeof w.requestIdleCallback === 'function') {
+        const id = w.requestIdleCallback(sendListView, { timeout: 3000 });
+        return () => w.cancelIdleCallback?.(id);
+      } else {
+        const t = setTimeout(sendListView, 800);
+        return () => clearTimeout(t);
+      }
     }
   }, [productsToDisplay, loading, fullPath, isActive, brand, model]);
 

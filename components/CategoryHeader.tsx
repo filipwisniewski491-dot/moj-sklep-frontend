@@ -1,8 +1,11 @@
-'use client';
+// ⚡ Server Component (brak dyrektywy klienta). Wcześniej był kliencki tylko przez hook
+// ścieżki. Teraz ścieżkę bierzemy z propa fullPath (page.tsx i tak go przekazuje), dzięki czemu
+// breadcrumbs, H1 i akapit opisu (element LCP) renderują się jako czysty HTML serwera —
+// nie hydratują się, więc nie czekają na wolny główny wątek. SubcategoryNav i PopularBrands
+// zostają klienckie (mają useState) jako małe, oddzielne wyspy.
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import SubcategoryNav from './SubcategoryNav';
 import PopularBrands from './PopularBrands';
 
@@ -20,11 +23,6 @@ const BREADCRUMB_DICTIONARY: Record<string, string> = {
   'uprawa-ziemi': 'Uprawa ziemi'
 };
 
-const capitalizeWords = (str: string) => {
-  if (!str) return '';
-  return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
-};
-
 const parseMarkdown = (text: string) => {
   if (!text) return '';
   let html = text.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-4 mb-2 text-slate-900">$1</h2>');
@@ -35,8 +33,26 @@ const parseMarkdown = (text: string) => {
   return html;
 };
 
-export default function CategoryHeader({ initialData, searchParams, topSeoText, brands, categoryPath, showBrands, brandSlug = null, modelSlug = null }: { initialData: any, searchParams: any, fullPath?: string, topSeoText?: string, brands?: Record<string, number>, categoryPath?: string, showBrands?: boolean, brandSlug?: string | null, modelSlug?: string | null }) {
-  const pathname = usePathname();
+export default function CategoryHeader({
+  initialData,
+  fullPath = '',
+  topSeoText,
+  brands,
+  categoryPath,
+  showBrands,
+  brandSlug = null,
+  modelSlug = null,
+}: {
+  initialData: any,
+  searchParams?: any, // ignorowane (zostawione dla zgodności call-site w page.tsx)
+  fullPath?: string,
+  topSeoText?: string,
+  brands?: Record<string, number>,
+  categoryPath?: string,
+  showBrands?: boolean,
+  brandSlug?: string | null,
+  modelSlug?: string | null,
+}) {
   const categoryData = initialData?.category || null;
 
   let subcategories = initialData?.subcategories;
@@ -44,12 +60,13 @@ export default function CategoryHeader({ initialData, searchParams, topSeoText, 
     subcategories = categoryData?.category_children || categoryData?.children || [];
   }
 
-  // PRIORYTET: breadcrumby z page.tsx (kategorie + marka + model). Fallback: z URL.
+  // PRIORYTET: breadcrumby z page.tsx (kategorie + marka + model). Fallback: z fullPath.
+  // (Wcześniej fallback szedł z usePathname — teraz z propa, więc komponent jest serwerowy.)
   let breadcrumbs: any[] = [];
   if (Array.isArray(initialData?.breadcrumbs) && initialData.breadcrumbs.length > 0) {
     breadcrumbs = initialData.breadcrumbs.map((b: any) => ({ name: b.name, path: b.path }));
   } else {
-    const pathSegments = pathname.split('/').filter(p => p && p !== 'kategoria');
+    const pathSegments = fullPath.split('/').filter((p) => p && p !== 'kategoria');
     breadcrumbs = pathSegments.map((slugPart: string, index: number) => {
       const cumulativePath = pathSegments.slice(0, index + 1).join('/');
       let prettyName = '';
@@ -100,7 +117,7 @@ export default function CategoryHeader({ initialData, searchParams, topSeoText, 
         {subcategories && subcategories.length > 0 && (
           <SubcategoryNav
             subcategories={subcategories}
-            fullPath={pathname.replace('/kategoria/', '')}
+            fullPath={fullPath}
             categoryPath={categoryPath}
             brandSlug={brandSlug}
             modelSlug={modelSlug}
