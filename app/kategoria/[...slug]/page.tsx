@@ -451,15 +451,17 @@ export default async function CategoryPage({ params, searchParams }: any) {
     try {
       let baseFacetsResult: any;
       try {
-        // Małe/średnie kategorie: pełny wachlarz pól ("*") — daje NAJLEPSZE filtry z realnych danych
-        // (każda kategoria dostaje swoje pola, nie tylko z naszej puli). Meili to wytrzymuje.
-        baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
-          limit: 0, filter: baseFilter || undefined, facets: ["*"],
-        });
-      } catch {
-        // DUŻE kategorie: "*" wywala Meili (panic na polach-potworach) → bezpieczna lista kandydatów.
+        // ⚡ Bounded lista (bez pól-potworów: Typ produktu / Waga / Pasuje do modelu / price).
+        // NIE ['*'] — sonda ['*'] facetuje 200+ pól przy każdym wejściu i kosztuje ~0.5–0.7s
+        // (potwierdzone curlem). CANDIDATE_FACETS daje te same realne filtry ~4x szybciej.
         baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
           limit: 0, filter: baseFilter || undefined, facets: CANDIDATE_FACETS,
+        });
+      } catch {
+        // Gdyby któreś pole z CANDIDATE_FACETS nie było filtrowalne (400) → minimalna,
+        // zawsze-bezpieczna lista. NIE wracamy do ['*'], żeby nie wpaść w wolną ścieżkę.
+        baseFacetsResult = await index.search(resolvedSearchParams.q || "", {
+          limit: 0, filter: baseFilter || undefined, facets: FACET_FALLBACK,
         });
       }
       baseDist = baseFacetsResult.facetDistribution || {};
