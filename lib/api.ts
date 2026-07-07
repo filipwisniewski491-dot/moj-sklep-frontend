@@ -12,6 +12,43 @@ const REGION_ID = process.env.NEXT_PUBLIC_MEDUSA_REGION_ID || "reg_01KT16M40467M
 const COUNTRY_CODE = process.env.NEXT_PUBLIC_MEDUSA_COUNTRY_CODE || "pl";
 
 /**
+ * ⚡ Facety liczone w kategorii. NIE używamy ['*'] — gwiazdka liczy rozkład dla
+ * ~200 pól (m.in. "Pasuje do modelu" 1267 wart., price 1127, inventory 111) i to
+ * jest cały koszt strony kategorii (~0.7–1.2s na żądanie). Tu jest krótka lista
+ * pól, które REALNIE pokazujesz jako filtry. Wyrzucone celowo: price, Pasuje do
+ * modelu (idzie ścieżką URL), inventory_quantity, in_stock, category_handles oraz
+ * wszystkie n_* (duble numeryczne do zakresów).
+ *
+ * ⚠️ To lista globalna dla wszystkich kategorii — dopisz tu KAŻDE pole, które ma
+ * móc pojawić się w panelu. Pola nieobecne w danej kategorii Meili po prostu pominie.
+ * Jeśli po zmianie brakuje jakiegoś filtra — dopisz jego nazwę tutaj (dokładnie jak
+ * w indeksie) i przebuduj.
+ */
+const CATEGORY_FACETS: string[] = [
+  "Pasuje do marki",
+  "Marka",
+  "Typ produktu",
+  "Grupa produktowa",
+  "Zastosowanie",
+  "Materiał",
+  "Gwint",
+  "Wymiar gwintu",
+  "Rozmiar gwintów przyłączeniowych",
+  "Seria",
+  "Wersja",
+  "Model silnika",
+  "Kolor",
+  "Napięcie [V]",
+  "Strona",
+  "Ilość",
+  "Ilość sekcji",
+  "Rozmiar",
+  "Typ złącza",
+  "Typ sterowania (Ręczne/Elektryczne)",
+  "Przeznaczenie",
+];
+
+/**
  * Jedno źródło prawdy o cenie.
  * Medusa (dzięki region_id + country_code) zwraca w calculated_price:
  *   - calculated_amount_with_tax     -> BRUTTO (z VAT 23%)
@@ -158,8 +195,10 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     const meiliHandle = String(currentHandle).replace(/"/g, '\\"');
     const index = meiliClient.index('products');
 
-    // URL-e (te same co wcześniej — Medusa nadal jest źródłem prawdy o kategorii/SEO/dzieciach).
-    const categoryUrl = `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(fullPath)}&include_descendants_tree=true`;
+    // URL-e. UWAGA: handle kategorii to LIŚĆ, nie cała ścieżka — handle w Medusie są
+    // jednosegmentowe. Fetch z całym fullPath (encodeURIComponent) zwracał PUSTO (57B),
+    // bo "hodowla.../instalacje..." nie istnieje jako handle. Używamy currentHandle.
+    const categoryUrl = `${MEDUSA_URL}/store/product-categories?handle=${encodeURIComponent(currentHandle)}&include_descendants_tree=true`;
     const handlesQuery = slugArray.map(slug => `handle[]=${slug}`).join('&');
     const breadcrumbsUrl = `${MEDUSA_URL}/store/product-categories?${handlesQuery}`;
 
@@ -170,11 +209,22 @@ export async function getCategoryData(fullPath: string, searchParams: any) {
     const [categoryJson, breadcrumbsJson, searchResult] = await Promise.all([
       fetch(categoryUrl, options).then(r => r.json()),
       fetch(breadcrumbsUrl, options).then(r => r.json()),
-      index.search('', {
-        filter: `category_handles = "${meiliHandle}"`,
-        facets: ['*'],
-        limit: 48,
-      }),
+      // Facety tylko z listy (nie ['*']). Fallback: gdyby któreś pole nie było
+      // facetowalne (HTTP 400), degradujemy do wyszukania bez facetów zamiast
+      // wywalać całą stronę (return null).
+      index
+        .search('', {
+          filter: `category_handles = "${meiliHandle}"`,
+          facets: CATEGORY_FACETS,
+          limit: 48,
+        })
+        .catch((e: any) => {
+          console.error("[API LIB] Meili facets error, fallback bez facetów:", e?.message || e);
+          return index.search('', {
+            filter: `category_handles = "${meiliHandle}"`,
+            limit: 48,
+          });
+        }),
     ]);
 
     const category = categoryJson.product_categories?.[0];
