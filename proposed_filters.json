@@ -141,5 +141,8 @@
   "Średnica wewnętrzna [mm]",
   "Średnica węża",
   "Średnica węża zewnętrzna [mm]",
-  "Średnica zewnętrzna [mm]"
+  "Średnica zewnętrzna [mm]",
+  "price",
+  "inventory_quantity",
+  "in_stock"
 ]
