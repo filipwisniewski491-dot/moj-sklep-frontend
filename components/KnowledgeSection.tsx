@@ -57,9 +57,9 @@ export default function KnowledgeSection({ initialArticles = [] }: KnowledgeSect
       return;
     }
 
-    setArticles([]);
+    setArticles(prev => (prev.length === 0 ? prev : []));
     
-  }, [currentMarka, initialArticles, isMounted]);
+  }, [currentMarka, isMounted]);
 
   return (
     <section className="py-20 w-full">
