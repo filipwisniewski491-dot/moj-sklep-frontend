@@ -35,13 +35,13 @@ export default function MobileBottomNav() {
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          aria-label="Menu"
+          aria-label="Działy"
           aria-expanded={menuOpen}
           aria-haspopup="dialog"
           className="flex flex-col items-center justify-center flex-1 min-h-[64px] text-slate-600 hover:text-red-600 transition-colors cursor-pointer"
         >
           <span className="text-xl mb-0.5">☰</span>
-          <span className="text-[9px] font-black uppercase tracking-widest">Działy</span>
+          <span className="text-[9px] font-black uppercase tracking-widest">Menu</span>
         </button>
 
         <Link href="/" prefetch={false} aria-label="Strona Główna" className="flex flex-col items-center justify-center flex-1 relative -top-4 z-50">
