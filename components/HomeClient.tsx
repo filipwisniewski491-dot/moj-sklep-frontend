@@ -39,7 +39,7 @@ const TRUST = [
   { icon: '📞', title: 'Doradztwo techniczne', desc: 'Zadzwoń: 25 788 89 00 (pn–pt 8:00–16:00).' },
 ];
 
-export default function HomeClient({ initialProducts }: { initialProducts: any[] }) {
+export default function HomeClient({ initialProducts, children }: { initialProducts: any[]; children?: React.ReactNode }) {
   const [products] = useState<any[]>(initialProducts || []);
   const [isNetto, setIsNetto] = useState(false);
   const { setIsOpen: setCartOpen } = useCart() as any;
@@ -264,6 +264,9 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
             </p>
           </div>
         </section>
+
+        {/* Sekcja opinii (serwerowa, przekazana z page.tsx jako children) — przed stopką */}
+        {children}
       </main>
 
       <MobileBottomNav />
