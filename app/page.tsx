@@ -1,4 +1,7 @@
 import HomeClient from '@/components/HomeClient';
+import SeasonalBanner from '@/components/SeasonalBanner';
+import BrandStrip from '@/components/BrandStrip';
+import ExpertHelp from '@/components/ExpertHelp';
 import ReviewsSection from '@/components/ReviewsSection';
 import { getProductData } from '@/lib/api';
 
@@ -53,15 +56,17 @@ async function getBestsellers() {
 export default async function HomePage() {
   const products = await getBestsellers();
 
+  // Sekcje SERWEROWE (async/ISR) renderujemy tutaj i przekazujemy do HomeClient
+  // jako "slots", żeby wpadły w odpowiednich miejscach między sekcjami klienckimi.
   return (
     <main className="min-h-screen bg-slate-50">
-      {/* ReviewsSection jest SERWEROWY (async, ISR) — renderujemy go tutaj i przekazujemy
-          do HomeClient jako children, żeby wpadł PRZED stopką, nie pod nią. */}
-      <HomeClient initialProducts={products}>
-        <div className="max-w-7xl mx-auto px-4">
-          <ReviewsSection limit={6} />
-        </div>
-      </HomeClient>
+      <HomeClient
+        initialProducts={products}
+        seasonalSlot={<SeasonalBanner />}
+        brandsSlot={<BrandStrip />}
+        expertSlot={<ExpertHelp />}
+        reviewsSlot={<ReviewsSection limit={6} />}
+      />
     </main>
   );
 }

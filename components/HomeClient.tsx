@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import VehicleGarage from '@/components/VehicleGarage';
 import HeroSearch from '@/components/HeroSearch';
+import RecentlyViewed from '@/components/RecentlyViewed';
 import KnowledgeSection from '@/components/KnowledgeSection';
 import { useCart } from '@/store/useCart';
 import Header from '@/components/Header';
@@ -39,7 +40,19 @@ const TRUST = [
   { icon: '📞', title: 'Doradztwo techniczne', desc: 'Zadzwoń: 25 788 89 00 (pn–pt 8:00–16:00).' },
 ];
 
-export default function HomeClient({ initialProducts, children }: { initialProducts: any[]; children?: React.ReactNode }) {
+export default function HomeClient({
+  initialProducts,
+  seasonalSlot,
+  brandsSlot,
+  expertSlot,
+  reviewsSlot,
+}: {
+  initialProducts: any[];
+  seasonalSlot?: React.ReactNode;
+  brandsSlot?: React.ReactNode;
+  expertSlot?: React.ReactNode;
+  reviewsSlot?: React.ReactNode;
+}) {
   const [products] = useState<any[]>(initialProducts || []);
   const [isNetto, setIsNetto] = useState(false);
   const { setIsOpen: setCartOpen } = useCart() as any;
@@ -136,6 +149,9 @@ export default function HomeClient({ initialProducts, children }: { initialProdu
           ))}
         </section>
 
+        {/* SEZONOWY BANER (serwerowy slot) — dobiera treść do pory roku */}
+        {seasonalSlot}
+
         {/* KATEGORIE — główna nawigacja sklepu */}
         <section className="mb-20">
           <div className="mb-8">
@@ -156,6 +172,9 @@ export default function HomeClient({ initialProducts, children }: { initialProdu
             ))}
           </div>
         </section>
+
+        {/* MARKI MASZYN (serwerowy slot) — pasujemy do Twojej maszyny */}
+        {brandsSlot}
 
         {/* BESTSELLERY */}
         <section className="mb-20">
@@ -248,6 +267,12 @@ export default function HomeClient({ initialProducts, children }: { initialProdu
           )}
         </section>
 
+        {/* OSTATNIO OGLĄDANE (kliencki — czyta localStorage) */}
+        <RecentlyViewed />
+
+        {/* DORADZTWO (serwerowy slot) — dobór po VIN/OEM/modelu */}
+        {expertSlot}
+
         <KnowledgeSection />
 
         {/* TEKST SEO */}
@@ -265,8 +290,8 @@ export default function HomeClient({ initialProducts, children }: { initialProdu
           </div>
         </section>
 
-        {/* Sekcja opinii (serwerowa, przekazana z page.tsx jako children) — przed stopką */}
-        {children}
+        {/* OPINIE (serwerowy slot, ISR) — przed stopką */}
+        {reviewsSlot}
       </main>
 
       <MobileBottomNav />
