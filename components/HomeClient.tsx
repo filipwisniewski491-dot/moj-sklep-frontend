@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import VehicleGarage from '@/components/VehicleGarage';
+import HeroSearch from '@/components/HeroSearch';
 import KnowledgeSection from '@/components/KnowledgeSection';
 import { useCart } from '@/store/useCart';
 import Header from '@/components/Header';
@@ -103,30 +104,22 @@ export default function HomeClient({ initialProducts }: { initialProducts: any[]
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* HERO */}
-        <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          <div className="lg:col-span-3 bg-slate-900 rounded-[32px] md:rounded-[48px] p-8 md:p-14 flex flex-col justify-center items-start text-white relative overflow-hidden shadow-xl border border-slate-800">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600 rounded-full blur-[140px] opacity-20 -mr-20 -mt-20 pointer-events-none" />
-            <span className="bg-white/10 border border-white/20 text-[10px] font-black px-4 py-1.5 rounded-full mb-6 uppercase tracking-widest relative z-10 backdrop-blur-sm">
-              Sezon polowy 2026
-            </span>
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black mb-6 relative z-10 leading-[1.1] uppercase tracking-tight text-slate-50">
-              Części do ciągników i maszyn <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-600">z wysyłką w 24 godziny.</span>
-            </h1>
-            <p className="text-slate-400 mb-10 max-w-lg relative z-10 text-sm md:text-base font-medium leading-relaxed">
-              Awaria w polu to strata czasu i pieniędzy. Zamów oryginalne części i sprawdzone zamienniki OEM — z gwarancją dopasowania i najszybszą dostawą kurierską.
-            </p>
-            <Link
-              href="/kategorie"
-              prefetch={true}
-              className="bg-red-600 text-white px-8 py-5 rounded-2xl font-black uppercase text-[11px] lg:text-xs tracking-widest hover:bg-red-700 transition-colors relative z-10 shadow-lg shadow-red-600/30 flex items-center gap-3 w-full sm:w-auto justify-center"
-            >
-              Przeglądaj katalog części <span className="text-lg">➔</span>
-            </Link>
-          </div>
+        {/* HERO: wyszukiwarka OEM/SKU jako bohater (opakowuje istniejący SearchBar) */}
+        <HeroSearch />
 
-          {/* Wirtualny garaż — killer feature: dobór po marce/modelu maszyny */}
+        {/* WIRTUALNY GARAŻ — killer feature: dobór części po marce/modelu maszyny */}
+        <section className="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="lg:col-span-2 bg-slate-900 rounded-[32px] md:rounded-[40px] p-8 md:p-10 flex flex-col justify-center text-white relative overflow-hidden border border-slate-800">
+            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-red-600 rounded-full blur-[140px] opacity-15 -mr-16 -mt-16 pointer-events-none" />
+            <p className="text-red-500 font-black uppercase text-[10px] tracking-[0.3em] mb-3 relative z-10">Oszczędź czas</p>
+            <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tight leading-tight mb-4 relative z-10">
+              Nie znasz numeru części?<br />
+              <span className="text-slate-400">Dobierz ją pod swoją maszynę.</span>
+            </h2>
+            <p className="text-slate-400 text-sm md:text-base font-medium max-w-lg relative z-10 leading-relaxed">
+              Wybierz markę i model ciągnika — pokażemy wyłącznie części pasujące do Twojej maszyny. Zero pomyłek, zero zwrotów.
+            </p>
+          </div>
           <aside className="lg:col-span-1 h-full">
             <VehicleGarage />
           </aside>
