@@ -6,6 +6,7 @@ import Image from 'next/image';
 import VehicleGarage from '@/components/VehicleGarage';
 import HeroSearch from '@/components/HeroSearch';
 import RecentlyViewed from '@/components/RecentlyViewed';
+import DiscountProgramSection from '@/components/loyalty/DiscountProgramSection';
 import KnowledgeSection from '@/components/KnowledgeSection';
 import { useCart } from '@/store/useCart';
 import Header from '@/components/Header';
@@ -266,6 +267,9 @@ export default function HomeClient({
             </div>
           )}
         </section>
+
+        {/* PROGRAM RABATOWY (kliencki — czyta poziom klienta przez useCustomerSpend) */}
+        <DiscountProgramSection />
 
         {/* OSTATNIO OGLĄDANE (kliencki — czyta localStorage) */}
         <RecentlyViewed />

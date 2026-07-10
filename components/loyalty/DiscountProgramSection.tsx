@@ -1,202 +1,200 @@
-// src/components/loyalty/DiscountProgramSection.tsx
-"use client"
+'use client';
 
-import Link from "next/link"
-import { LOYALTY_TIERS, getUserTier, formatPLN } from "@/lib/loyalty"
-import { useCustomerSpend } from "@/hooks/useCustomerSpend"
+import Link from 'next/link';
+import { LOYALTY_TIERS, getUserTier, formatPLN } from '@/lib/loyalty';
+import { useCustomerSpend } from '@/hooks/useCustomerSpend';
 
-const MAX_DISCOUNT = Math.max(...LOYALTY_TIERS.map((t) => t.discountPercent))
+const MAX_DISCOUNT = Math.max(...LOYALTY_TIERS.map((t) => t.discountPercent));
 
 export default function DiscountProgramSection() {
-  const { isLoading, isLoggedIn, totalSpent } = useCustomerSpend()
-  const currentTierId = isLoggedIn ? getUserTier(totalSpent).currentTier.id : undefined
+  const { isLoading, isLoggedIn, totalSpent } = useCustomerSpend();
+  const currentTierId = isLoggedIn ? getUserTier(totalSpent).currentTier.id : undefined;
 
   return (
-    <section aria-labelledby="loyalty-heading" className="w-full bg-stone-50 py-14">
-      <div className="mx-auto max-w-5xl px-4">
-        <header className="mb-8">
-          <p className="text-sm font-semibold uppercase tracking-wide text-green-700">
-            Program rabatowy dla stałych klientów
-          </p>
-          <h2
-            id="loyalty-heading"
-            className="mt-1 text-2xl font-bold text-stone-900 sm:text-3xl"
-          >
-            Im więcej kupujesz, tym niższe ceny — na stałe
-          </h2>
-          <p className="mt-2 max-w-2xl text-stone-600">
-            Rabat naliczamy od sumy wszystkich Twoich zakupów i stosujemy na każdej
-            kolejnej fakturze. Bez punktów, bez kombinowania — po prostu niższa cena.
-          </p>
-        </header>
-
-        {isLoading ? (
-          <LadderSkeleton />
-        ) : isLoggedIn ? (
-          <MemberView totalSpent={totalSpent} />
-        ) : (
-          <GuestView />
-        )}
-
-        <div className="mt-8">
-          <TierLadder currentTierId={currentTierId} />
-        </div>
-
-        <p className="mt-6 text-sm text-stone-500">
-          Rabaty naliczane zgodnie z regulaminem programu.{" "}
-          <Link
-            href="/regulamin-programu"
-            className="font-medium text-green-700 underline underline-offset-2 hover:text-green-800"
-          >
-            Zobacz regulamin programu
-          </Link>
+    <section aria-labelledby="loyalty-heading" className="mb-20">
+      <div className="mb-8 border-b-2 border-slate-100 pb-6">
+        <p className="text-red-600 font-black uppercase text-[10px] tracking-[0.3em] mb-2">
+          Program dla stałych klientów
+        </p>
+        <h2
+          id="loyalty-heading"
+          className="text-2xl md:text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none"
+        >
+          Im więcej kupujesz, tym niższe ceny
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm text-slate-500 font-medium leading-relaxed">
+          Rabat liczymy od sumy wszystkich Twoich zakupów i stosujemy na każdej kolejnej fakturze.
+          Bez punktów, bez kombinowania — po prostu niższa cena, na stałe.
         </p>
       </div>
+
+      {isLoading ? (
+        <MemberSkeleton />
+      ) : isLoggedIn ? (
+        <MemberCard totalSpent={totalSpent} />
+      ) : (
+        <GuestCard />
+      )}
+
+      <div className="mt-6">
+        <TierLadder currentTierId={currentTierId} />
+      </div>
+
+      <p className="mt-5 text-[11px] text-slate-400 font-medium">
+        Rabaty naliczane zgodnie z regulaminem programu.{' '}
+        <Link
+          href="/regulamin-programu"
+          className="font-black uppercase tracking-widest text-slate-600 underline underline-offset-2 hover:text-red-600 transition-colors"
+        >
+          Zobacz regulamin
+        </Link>
+      </p>
     </section>
-  )
+  );
 }
 
-function MemberView({ totalSpent }: { totalSpent: number }) {
-  const { currentTier, nextTier, amountToNext, progressToNext, isTopTier } =
-    getUserTier(totalSpent)
+function MemberCard({ totalSpent }: { totalSpent: number }) {
+  const { currentTier, nextTier, amountToNext, progressToNext, isTopTier } = getUserTier(totalSpent);
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="relative overflow-hidden bg-slate-900 rounded-[32px] md:rounded-[40px] p-8 md:p-10 text-white border border-slate-800">
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-red-600 rounded-full blur-[140px] opacity-15 -mr-16 -mt-16 pointer-events-none" />
+
+      <div className="relative z-10 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-stone-500">Twój poziom</p>
-          <p className="text-xl font-bold text-stone-900">{currentTier.name}</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400 font-black mb-2">Twój poziom</p>
+          <p className="text-2xl md:text-3xl font-black uppercase tracking-tight">{currentTier.name}</p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-stone-500">Twój stały rabat</p>
-          <p className="text-3xl font-bold text-green-700">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400 font-black mb-1">Twój stały rabat</p>
+          <p className="text-4xl md:text-5xl font-black text-red-500 tracking-tighter leading-none">
             {currentTier.discountPercent}%
           </p>
         </div>
       </div>
 
-      <p className="mt-4 text-sm text-stone-600">
-        Wydano łącznie:{" "}
-        <span className="font-semibold text-stone-900">{formatPLN(totalSpent)}</span>
+      <p className="relative z-10 mt-5 text-sm text-slate-400 font-medium">
+        Wydano łącznie: <span className="font-black text-white">{formatPLN(totalSpent)}</span>
       </p>
 
       {isTopTier ? (
-        <div className="mt-4 rounded-lg bg-green-50 p-4 text-green-800">
-          Masz najwyższy poziom — {currentTier.discountPercent}% rabatu na każde
-          zamówienie. Dziękujemy.
+        <div className="relative z-10 mt-5 rounded-2xl bg-white/5 border border-white/10 p-5">
+          <p className="text-sm font-bold text-emerald-400">
+            Masz najwyższy poziom — {currentTier.discountPercent}% rabatu na każde zamówienie. Dziękujemy.
+          </p>
         </div>
       ) : (
-        <div className="mt-4">
-          <div className="mb-2 flex justify-between text-sm">
-            <span className="text-stone-600">
-              Do poziomu{" "}
-              <span className="font-semibold text-stone-900">{nextTier!.name}</span> (
+        <div className="relative z-10 mt-6">
+          <div className="mb-2 flex justify-between text-xs font-bold">
+            <span className="text-slate-400">
+              Do poziomu{' '}
+              <span className="text-white uppercase tracking-tight">{nextTier!.name}</span> (
               {nextTier!.discountPercent}%)
             </span>
-            <span className="font-semibold text-stone-900">
-              {formatPLN(amountToNext)}
-            </span>
+            <span className="text-white">{formatPLN(amountToNext)}</span>
           </div>
           <div
-            className="h-3 w-full overflow-hidden rounded-full bg-stone-100"
+            className="h-3 w-full overflow-hidden rounded-full bg-white/10"
             role="progressbar"
             aria-valuenow={Math.round(progressToNext * 100)}
             aria-valuemin={0}
             aria-valuemax={100}
           >
             <div
-              className="h-full rounded-full bg-green-600 transition-[width] duration-500 motion-reduce:transition-none"
+              className="h-full rounded-full bg-emerald-500 transition-[width] duration-700 motion-reduce:transition-none"
               style={{ width: `${Math.max(4, progressToNext * 100)}%` }}
             />
           </div>
-          <p className="mt-2 text-sm text-stone-600">
-            Wydaj jeszcze{" "}
-            <span className="font-semibold">{formatPLN(amountToNext)}</span>, a Twój
-            rabat wzrośnie do {nextTier!.discountPercent}% — na stałe.
+          <p className="mt-3 text-sm text-slate-300 font-medium">
+            Wydaj jeszcze <span className="font-black text-white">{formatPLN(amountToNext)}</span>, a Twój
+            rabat wzrośnie do <span className="text-emerald-400 font-black">{nextTier!.discountPercent}%</span> — na stałe.
           </p>
         </div>
       )}
     </div>
-  )
+  );
 }
 
-function GuestView() {
+function GuestCard() {
+  // UWAGA: popraw ścieżki na swoje trasy konta (u Ciebie może być np. /konto, /logowanie).
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="relative overflow-hidden bg-slate-900 rounded-[32px] md:rounded-[40px] p-8 md:p-10 text-white border border-slate-800">
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-red-600 rounded-full blur-[140px] opacity-15 -mr-16 -mt-16 pointer-events-none" />
+      <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
         <div className="max-w-xl">
-          <p className="text-xl font-bold text-stone-900">
-            Załóż konto i zbieraj rabat do {MAX_DISCOUNT}%
-          </p>
-          <p className="mt-2 text-stone-600">
-            Rabat rośnie z każdą kolejną fakturą i zostaje z Tobą na stałe. Zaloguj
-            się, żeby zobaczyć swój poziom.
+          <p className="text-[10px] uppercase tracking-[0.3em] text-red-500 font-black mb-3">Załóż konto</p>
+          <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-tight">
+            Zbieraj rabat do <span className="text-red-500">{MAX_DISCOUNT}%</span>
+          </h3>
+          <p className="mt-3 text-sm text-slate-400 font-medium leading-relaxed">
+            Rabat rośnie z każdą kolejną fakturą i zostaje z Tobą na stałe. Zaloguj się, żeby zobaczyć swój
+            poziom i ile brakuje do następnego.
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 shrink-0">
           <Link
             href="/account/register"
-            className="rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+            className="bg-red-600 text-white px-6 py-4 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-red-500 transition-colors text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
           >
             Załóż konto
           </Link>
           <Link
             href="/account/login"
-            className="rounded-lg border border-stone-300 px-5 py-3 font-semibold text-stone-700 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-400"
+            className="border border-slate-700 text-white px-6 py-4 rounded-xl font-black text-[11px] uppercase tracking-widest hover:border-white transition-colors text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500"
           >
             Zaloguj się
           </Link>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function TierLadder({ currentTierId }: { currentTierId?: string }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-stone-200">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-stone-100 text-stone-600">
-          <tr>
-            <th className="px-4 py-3 font-semibold">Poziom</th>
-            <th className="px-4 py-3 font-semibold">Po wydaniu</th>
-            <th className="px-4 py-3 text-right font-semibold">Stały rabat</th>
+    <div className="overflow-hidden rounded-[24px] md:rounded-[32px] border border-slate-100 bg-white">
+      <table className="w-full text-left">
+        <thead>
+          <tr className="border-b border-slate-100">
+            <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Poziom</th>
+            <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Po wydaniu</th>
+            <th className="px-5 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Stały rabat</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-stone-100">
+        <tbody>
           {LOYALTY_TIERS.map((tier) => {
-            const active = tier.id === currentTierId
+            const active = tier.id === currentTierId;
             return (
-              <tr key={tier.id} className={active ? "bg-green-50" : "bg-white"}>
-                <td className="px-4 py-3 font-medium text-stone-900">
-                  {tier.name}
+              <tr key={tier.id} className={`border-b border-slate-50 last:border-0 ${active ? 'bg-red-50' : ''}`}>
+                <td className="px-5 py-4">
+                  <span className="text-xs md:text-sm font-black uppercase tracking-tight text-slate-900">{tier.name}</span>
                   {active && (
-                    <span className="ml-2 rounded-full bg-green-700 px-2 py-0.5 text-xs font-semibold text-white">
+                    <span className="ml-2 inline-block bg-red-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
                       Twój poziom
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-stone-600">
-                  {tier.minSpent === 0 ? "—" : formatPLN(tier.minSpent)}
+                <td className="px-5 py-4 text-xs md:text-sm font-medium text-slate-500">
+                  {tier.minSpent === 0 ? '—' : formatPLN(tier.minSpent)}
                 </td>
-                <td className="px-4 py-3 text-right font-semibold text-stone-900">
+                <td className="px-5 py-4 text-right text-sm md:text-base font-black text-slate-900 tracking-tighter">
                   {tier.discountPercent}%
                 </td>
               </tr>
-            )
+            );
           })}
         </tbody>
       </table>
     </div>
-  )
+  );
 }
 
-function LadderSkeleton() {
+function MemberSkeleton() {
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-      <div className="h-6 w-40 animate-pulse rounded bg-stone-100" />
-      <div className="mt-4 h-3 w-full animate-pulse rounded-full bg-stone-100" />
-      <div className="mt-3 h-4 w-64 animate-pulse rounded bg-stone-100" />
+    <div className="bg-slate-900 rounded-[32px] md:rounded-[40px] p-8 md:p-10 border border-slate-800">
+      <div className="h-8 w-48 rounded bg-white/10 animate-pulse" />
+      <div className="mt-6 h-3 w-full rounded-full bg-white/10 animate-pulse" />
+      <div className="mt-4 h-4 w-64 rounded bg-white/10 animate-pulse" />
     </div>
-  )
+  );
 }
