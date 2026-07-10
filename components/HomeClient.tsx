@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import VehicleGarage from '@/components/VehicleGarage';
@@ -58,26 +58,6 @@ export default function HomeClient({
   const [isNetto, setIsNetto] = useState(false);
   const { setIsOpen: setCartOpen } = useCart() as any;
 
-  const [liveSale, setLiveSale] = useState<{ text: string; id: number } | null>(null);
-
-  useEffect(() => {
-    const sales = [
-      'Jan (woj. lubelskie) kupił: Filtry do Ursus C-360',
-      'Gospodarstwo (Wielkopolska) kupiło: Zestaw oświetlenia LED',
-      'Michał (Podlasie) kupił: Szybkozłącza hydrauliczne',
-      'Krzysztof (Mazowsze) kupił: Olej silnikowy 15W-40 20L',
-      'Rolnik z Kujaw kupił: Paski klinowe do kombajnu',
-    ];
-    let saleId = 0;
-    const t = setInterval(() => {
-      if (Math.random() > 0.3) {
-        setLiveSale({ text: sales[Math.floor(Math.random() * sales.length)], id: ++saleId });
-        setTimeout(() => setLiveSale(null), 6000);
-      }
-    }, 15000);
-    return () => clearInterval(t);
-  }, []);
-
   const getDisplayPrice = (priceBrutto: number) => {
     const p = parseFloat(priceBrutto as any) || 0;
     return (isNetto ? p / 1.23 : p).toFixed(2);
@@ -100,20 +80,6 @@ export default function HomeClient({
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-
-      {/* Toast „na żywo" — CAŁY kontener ma pointer-events-none, więc NIGDY nie łapie klików.
-          Renderowany tylko gdy jest komunikat. */}
-      {liveSale && (
-        <div className="fixed bottom-24 md:bottom-8 left-4 z-[60] pointer-events-none max-w-[calc(100vw-2rem)]">
-          <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border-l-4 border-red-600 animate-in slide-in-from-left-4 fade-in duration-500">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">Na żywo w sklepie</p>
-            </div>
-            <p className="text-xs font-bold pr-2 leading-tight">{liveSale.text}</p>
-          </div>
-        </div>
-      )}
 
       <Header />
 
